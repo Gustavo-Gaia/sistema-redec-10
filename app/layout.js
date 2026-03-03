@@ -1,21 +1,19 @@
 import "./globals.css";
-import Sidebar from "./Sidebar";
-import Header from "./Header";
+import Sidebar from "./components/Sidebar";
 
 export const metadata = {
-  title: "SISTEMA INTEGRADO REDEC 10 - Norte",
+  title: "Sistema Integrado REDEC 10 - Norte",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-br">
       <body>
-        <div className="min-h-screen flex bg-slate-100">
+        <div className="app-container">
           <Sidebar />
-          <div className="flex-1 flex flex-col">
-            <Header />
-            <main className="p-6 md:p-10">{children}</main>
-          </div>
+          <main className="main-content">
+            {children}
+          </main>
         </div>
       </body>
     </html>
