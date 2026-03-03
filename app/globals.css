@@ -1,3 +1,83 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: url("/background.jpg") no-repeat center center fixed;
+  background-size: cover;
+}
+
+/* Layout */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  background: linear-gradient(180deg, #1e2c5c, #162347);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+  border-radius: 20px 0 0 20px;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar li {
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.sidebar li:hover,
+.sidebar .active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Main content */
+.main-content {
+  flex: 1;
+  padding: 40px;
+  backdrop-filter: blur(6px);
+}
+
+/* Cards superiores */
+.dashboard-cards {
+  display: flex;
+  gap: 20px;
+}
+
+.card {
+  width: 260px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  background: white;
+}
+
+.card-header {
+  padding: 20px;
+  color: white;
+  font-weight: bold;
+}
+
+.green { background: linear-gradient(135deg,#1faa59,#0e7c3f); }
+.blue { background: linear-gradient(135deg,#3a6ff7,#1f4fd1); }
+.orange { background: linear-gradient(135deg,#ff7b00,#d95c00); }
+.red { background: linear-gradient(135deg,#ff3d3d,#d11a2a); }
+
+.card-body {
+  padding: 15px;
+  color: #333;
+}
