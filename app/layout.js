@@ -1,7 +1,6 @@
+import "./globals.css";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
-import "./globals.css";
-import { useState } from "react";
 
 export const metadata = {
   title: "SISTEMA INTEGRADO REDEC 10 - Norte",
