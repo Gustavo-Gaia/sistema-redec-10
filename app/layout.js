@@ -1,3 +1,5 @@
+import Sidebar from "./Sidebar";
+import Header from "./Header";
 import "./globals.css";
 import { useState } from "react";
 
