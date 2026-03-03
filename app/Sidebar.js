@@ -1,13 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import logo from "../../public/logo.png";
 
 export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="logo-area">
-        <Image src={logo} alt="Logo" width={50} />
+        <Image
+          src="/REDEC_10_NORTE_LOGO.png"
+          alt="Logo REDEC 10"
+          width={50}
+          height={50}
+        />
         <h2>Sistema REDEC 10</h2>
       </div>
 
