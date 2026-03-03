@@ -1,5 +1,5 @@
 import "./globals.css";
-import Sidebar from "./components/Sidebar";
+import Sidebar from "./Sidebar";
 
 export const metadata = {
   title: "Sistema Integrado REDEC 10 - Norte",
