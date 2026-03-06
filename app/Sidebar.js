@@ -1,39 +1,34 @@
 "use client";
 
-import Image from "next/image";
+import Link from "next/link";
 
 export default function Sidebar() {
+
   return (
+
     <aside className="sidebar">
-      <div className="logo-area">
-        <Image
-          src="/REDEC_10_NORTE_LOGO.png"
-          alt="Logo REDEC 10"
-          width={50}
-          height={50}
-        />
-        <h2>Sistema REDEC 10</h2>
+
+      <div className="sidebar-title">
+        Sistema<br/>REDEC 10 - Norte
       </div>
 
       <nav>
-        <ul>
-          <li className="active">Dashboard</li>
-          <li>Equipe REDEC 10</li>
-          <li>Boletins</li>
-          <li>SEI</li>
-          <li>Agenda</li>
-          <li>Monitoramento de Rios</li>
-          <li>Contêiner Humanitário</li>
-          <li>Controle de Viaturas</li>
-          <li>Municípios COMDECs</li>
-          <li>Bens Patrimoniais</li>
-        </ul>
+
+        <Link href="/">🏠 Dashboard</Link>
+        <Link href="/equipe">👥 Equipe REDEC 10</Link>
+        <Link href="/boletins">📄 Boletins</Link>
+        <Link href="/sei">📥 SEI</Link>
+        <Link href="/agenda">📅 Agenda</Link>
+        <Link href="/rios">🌊 Monitoramento de Rios</Link>
+        <Link href="/container">📦 Contêiner Humanitário</Link>
+        <Link href="/viaturas">🚑 Controle de Viaturas</Link>
+        <Link href="/comdecs">🏛 Municípios COMDECs</Link>
+        <Link href="/bens">🏗 Bens Patrimoniais</Link>
+        <Link href="/config">⚙️ Configurações</Link>
+
       </nav>
 
-      <div className="footer-sidebar">
-        REDEC 10 • v1.0 <br />
-        © 2026
-      </div>
     </aside>
+
   );
 }
