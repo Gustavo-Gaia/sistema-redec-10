@@ -1,9 +1,12 @@
-"use client"
-import { usePathname } from "next/link"
+"use client" // Isso deve ser a primeira linha
+
+// CORREÇÃO: usePathname deve vir de 'next/navigation', não 'next/link'
+import { usePathname } from "next/navigation" 
 import { LayoutDashboard, Users, FileText, Inbox, Calendar, Waves, Package, Ambulance, Building, Landmark, Settings } from "lucide-react"
 
 export default function Sidebar() {
   const pathname = usePathname()
+  // ... resto do seu código
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", link: "/" },
     { icon: Users, label: "Equipe REDEC 10", link: "/equipe" },
