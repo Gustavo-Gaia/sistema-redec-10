@@ -1,4 +1,4 @@
-export default function Header({ isAuthenticated = true }) {
+export default function Header() {
   return (
     <header className="header-integrado">
       <div className="brand-area">
@@ -8,8 +8,8 @@ export default function Header({ isAuthenticated = true }) {
           <p>Defesa Civil - Governo do Estado</p>
         </div>
       </div>
-      <button className="auth-btn">
-        {isAuthenticated ? "Sair" : "Login"}
+      <button className="auth-btn" style={{background: '#ef4444', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer'}}>
+        Sair
       </button>
     </header>
   );
