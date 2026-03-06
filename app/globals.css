@@ -1,35 +1,39 @@
-/* Sidebar mais suave */
-.sidebar {
-  width: 260px;
-  background: #1e293b; /* Cor mais profissional */
-  color: #f1f5f9;
-  height: 100vh;
-  position: sticky;
-  top: 0;
-}
+/* RESET E BASE */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', system-ui, sans-serif; background: #eef2f7; color: #1e293b; }
 
-/* Cabeçalho Integrado */
+/* LAYOUT E ESTRUTURA */
+.layout { display: flex; min-height: 100vh; }
+.content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+.main { padding: 30px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+/* SIDEBAR (Azul Ardósia - Menos escuro) */
+.sidebar { width: 260px; background: #1e293b; color: white; display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; }
+.sidebar-top { padding: 25px; font-weight: 800; color: #3b82f6; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.nav-item { display: flex; align-items: center; gap: 15px; padding: 15px 25px; color: #94a3b8; text-decoration: none; transition: 0.2s; }
+.nav-item:hover, .nav-item.active { background: #334155; color: white; }
+
+/* HEADER INTEGRADO */
 .header-integrado {
   background: white;
-  padding: 20px 30px;
+  padding: 15px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
-
 .brand-area { display: flex; align-items: center; gap: 15px; }
 .header-logo { height: 45px; }
-.brand-text h1 { font-size: 1.2rem; color: #1e293b; margin: 0; }
-.brand-text p { font-size: 0.8rem; color: #64748b; margin: 0; }
+.brand-text h1 { font-size: 1.1rem; color: #0f172a; margin: 0; }
+.brand-text p { font-size: 0.75rem; color: #64748b; margin: 0; }
 
-.auth-btn {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 8px 20px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
+/* CARDS */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.card { background: white; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; display: flex; flex-direction: column; }
+.card-header-top { padding: 18px; color: white; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 20px; flex: 1; color: #475569; }
+.card-footer-btn { background: #f8fafc; padding: 12px; text-align: center; color: #64748b; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; text-decoration: none; }
+.card-footer-btn:hover { background: #eff6ff; color: #2563eb; }
+
+/* CORES */
+.green { background: #059669; } .blue { background: #2563eb; } .orange { background: #ea580c; } .red { background: #dc2626; }
