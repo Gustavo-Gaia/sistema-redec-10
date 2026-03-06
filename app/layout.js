@@ -1,19 +1,18 @@
-export default function Layout({ children }) {
+import "./globals.css"
+import Sidebar from "./Sidebar"
+import Header from "./Header"
+
+export default function RootLayout({ children }) {
   return (
-    <html lang="pt-br">
-      <body className="bg-slate-100 h-screen flex overflow-hidden">
-        {/* Sidebar com largura fixa */}
-        <div className="w-64 flex-shrink-0">
-          <Sidebar />
-        </div>
-        
-        {/* Container principal que ocupa o resto do espaço */}
-        <div className="flex-1 flex flex-col h-full overflow-y-auto">
+    <html lang="pt-br" className="h-full">
+      <body className="h-full flex overflow-hidden bg-slate-100">
+        <Sidebar />
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
           <Header />
-          <main className="p-6 flex-1">
+          <main className="flex-1 overflow-y-auto p-6">
             {children}
           </main>
-          <footer className="p-4 text-center text-sm text-slate-500 border-t border-slate-200">
+          <footer className="p-4 text-center text-xs text-slate-500 border-t bg-white">
             REDEC 10 - Norte © 2026 | Sistema de Gestão de Defesa Civil
           </footer>
         </div>
