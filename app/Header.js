@@ -1,28 +1,26 @@
+import Link from "next/link";
+import Image from "next/image";
+
 export default function Header() {
   return (
-    <header style={{
-      background: 'white', 
-      padding: '15px 30px', 
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      alignItems: 'center',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <img src="/REDEC_10_NORTE_LOGO.png" alt="Logo" style={{ height: '45px' }} />
-        <span style={{ fontWeight: '800', color: '#0f172a', fontSize: '1.1rem' }}>
-          REDEC 10 <span style={{ color: '#2563eb' }}>NORTE</span>
+    <header className="bg-white px-8 py-4 flex justify-between items-center shadow-sm border-b border-slate-100">
+      <Link href="/" className="flex items-center gap-3">
+        {/* Otimização: next/image faz o lazy loading e redimensionamento automático */}
+        <Image 
+          src="/REDEC_10_NORTE_LOGO.png" 
+          alt="Logo REDEC 10 Norte" 
+          width={45} 
+          height={45} 
+          priority 
+        />
+        <span className="font-extrabold text-slate-900 text-lg">
+          REDEC 10 <span className="text-blue-600">NORTE</span>
         </span>
-      </div>
-      <button style={{
-        background: '#ef4444', 
-        color: 'white', 
-        border: 'none', 
-        padding: '8px 20px', 
-        borderRadius: '8px', 
-        fontWeight: '600',
-        cursor: 'pointer'
-      }}>Sair</button>
+      </Link>
+
+      <button className="bg-red-500 hover:bg-red-600 transition-colors text-white px-6 py-2 rounded-lg font-semibold text-sm cursor-pointer shadow-md">
+        Sair
+      </button>
     </header>
-  )
+  );
 }
