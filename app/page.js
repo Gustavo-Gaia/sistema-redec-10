@@ -1,49 +1,40 @@
-export default function Home() {
+export default function Dashboard() {
+
   return (
+
     <div>
-      <h1>Dashboard</h1>
 
-      <div className="dashboard-cards">
-        <div className="card">
-          <div className="card-header green">
-            Monitoramento dos Rios
-          </div>
-          <div className="card-body">
-            Nível Crítico: 3 <br />
-            Atualizado: 10:15
-          </div>
+      <h2>Dashboard</h2>
+
+      <div className="cards">
+
+        <div className="card green">
+          <h3>Monitoramento dos Rios</h3>
+          <p>Nível Crítico: 3</p>
+          <p>Atualizado: 10:15</p>
         </div>
 
-        <div className="card">
-          <div className="card-header blue">
-            Boletins e SEI
-          </div>
-          <div className="card-body">
-            Pendências: 5 <br />
-            Último boletim: 24/04/2024
-          </div>
+        <div className="card blue">
+          <h3>Boletins e SEI</h3>
+          <p>Pendências: 5</p>
+          <p>Último boletim: 24/04/2024</p>
         </div>
 
-        <div className="card">
-          <div className="card-header orange">
-            Equipe REDEC 10
-          </div>
-          <div className="card-body">
-            Membros: 12 <br />
-            2 em férias
-          </div>
+        <div className="card orange">
+          <h3>Equipe REDEC 10</h3>
+          <p>Membros: 12</p>
+          <p>2 em férias</p>
         </div>
 
-        <div className="card">
-          <div className="card-header red">
-            Ocorrências
-          </div>
-          <div className="card-body">
-            Municípios afetados: 5 <br />
-            Desalojados: 208
-          </div>
+        <div className="card red">
+          <h3>Ocorrências</h3>
+          <p>Municípios afetados: 5</p>
+          <p>Desalojados: 208</p>
         </div>
+
       </div>
+
     </div>
+
   );
 }
