@@ -1,12 +1,44 @@
 "use client"
 
 import { useState } from "react"
+import { usePathname } from "next/navigation"
 
-export default function Sidebar() {
+import {
+LayoutDashboard,
+Users,
+FileText,
+Inbox,
+Calendar,
+Waves,
+Package,
+Ambulance,
+Building,
+Landmark,
+Settings
+} from "lucide-react"
+
+export default function Sidebar(){
 
 const [collapsed,setCollapsed] = useState(false)
+const pathname = usePathname()
 
-return (
+const menu = [
+
+{icon:LayoutDashboard,label:"Dashboard",link:"/"},
+{icon:Users,label:"Equipe REDEC 10",link:"/equipe"},
+{icon:FileText,label:"Boletins",link:"/boletins"},
+{icon:Inbox,label:"SEI",link:"/sei"},
+{icon:Calendar,label:"Agenda de Atividades",link:"/agenda"},
+{icon:Waves,label:"Monitoramento de Rios",link:"/rios"},
+{icon:Package,label:"Contêiner Humanitário",link:"/container"},
+{icon:Ambulance,label:"Controle de Viaturas",link:"/viaturas"},
+{icon:Building,label:"Municípios COMDECs",link:"/comdecs"},
+{icon:Landmark,label:"Bens Patrimoniais",link:"/patrimonio"},
+{icon:Settings,label:"Configurações",link:"/config"}
+
+]
+
+return(
 
 <div className={`sidebar ${collapsed ? "collapsed" : ""}`}>
 
@@ -16,7 +48,7 @@ return (
 Sistema REDEC 10
 </span>
 
-<button 
+<button
 className="toggle-btn"
 onClick={()=>setCollapsed(!collapsed)}
 >
@@ -27,60 +59,28 @@ onClick={()=>setCollapsed(!collapsed)}
 
 <nav>
 
-<a href="/">
-<span className="icon">📊</span>
-<span>Dashboard</span>
+{menu.map((item,i)=>{
+
+const Icon=item.icon
+const active=pathname===item.link
+
+return(
+
+<a
+key={i}
+href={item.link}
+className={active ? "active" : ""}
+>
+
+<Icon size={20}/>
+
+<span>{item.label}</span>
+
 </a>
 
-<a href="#">
-<span className="icon">👥</span>
-<span>Equipe REDEC 10</span>
-</a>
+)
 
-<a href="#">
-<span className="icon">📄</span>
-<span>Boletins</span>
-</a>
-
-<a href="#">
-<span className="icon">📥</span>
-<span>SEI</span>
-</a>
-
-<a href="#">
-<span className="icon">📅</span>
-<span>Agenda</span>
-</a>
-
-<a href="#">
-<span className="icon">🌊</span>
-<span>Monitoramento de Rios</span>
-</a>
-
-<a href="#">
-<span className="icon">📦</span>
-<span>Contêiner Humanitário</span>
-</a>
-
-<a href="#">
-<span className="icon">🚑</span>
-<span>Controle de Viaturas</span>
-</a>
-
-<a href="#">
-<span className="icon">🏛</span>
-<span>Municípios COMDECs</span>
-</a>
-
-<a href="#">
-<span className="icon">🏗</span>
-<span>Bens Patrimoniais</span>
-</a>
-
-<a href="#">
-<span className="icon">⚙</span>
-<span>Configurações</span>
-</a>
+})}
 
 </nav>
 
