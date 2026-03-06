@@ -1,34 +1,59 @@
-"use client";
+"use client"
 
-import Link from "next/link";
+import { useState } from "react"
+import { FaTachometerAlt, FaUsers, FaFileAlt, FaCalendarAlt, FaWater } from "react-icons/fa"
 
-export default function Sidebar() {
+export default function Sidebar(){
 
-  return (
+const [collapsed,setCollapsed] = useState(false)
 
-    <aside className="sidebar">
+return(
 
-      <div className="sidebar-title">
-        Sistema<br/>REDEC 10 - Norte
-      </div>
+<div className={`sidebar ${collapsed ? "collapsed":""}`}>
 
-      <nav>
+<div className="logo">
 
-        <Link href="/">🏠 Dashboard</Link>
-        <Link href="/equipe">👥 Equipe REDEC 10</Link>
-        <Link href="/boletins">📄 Boletins</Link>
-        <Link href="/sei">📥 SEI</Link>
-        <Link href="/agenda">📅 Agenda</Link>
-        <Link href="/rios">🌊 Monitoramento de Rios</Link>
-        <Link href="/container">📦 Contêiner Humanitário</Link>
-        <Link href="/viaturas">🚑 Controle de Viaturas</Link>
-        <Link href="/comdecs">🏛 Municípios COMDECs</Link>
-        <Link href="/bens">🏗 Bens Patrimoniais</Link>
-        <Link href="/config">⚙️ Configurações</Link>
+<img src="/REDEC_10_NORTE_LOGO.png" width="40"/>
 
-      </nav>
+{!collapsed && <span>Sistema REDEC 10</span>}
 
-    </aside>
+<button onClick={()=>setCollapsed(!collapsed)}>
+☰
+</button>
 
-  );
+</div>
+
+<nav>
+
+<a>
+<FaTachometerAlt/>
+{!collapsed && "Dashboard"}
+</a>
+
+<a>
+<FaUsers/>
+{!collapsed && "Equipe REDEC 10"}
+</a>
+
+<a>
+<FaFileAlt/>
+{!collapsed && "Boletins"}
+</a>
+
+<a>
+<FaCalendarAlt/>
+{!collapsed && "Agenda"}
+</a>
+
+<a>
+<FaWater/>
+{!collapsed && "Monitoramento de Rios"}
+</a>
+
+</nav>
+
+</div>
+
+)
+
 }
