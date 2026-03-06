@@ -1,74 +1,85 @@
-"use client";
+"use client"
 
-import { useState } from "react";
+import { useState } from "react"
 
-export default function Sidebar(){
+export default function Sidebar() {
 
-const [collapsed,setCollapsed] = useState(false);
+const [collapsed,setCollapsed] = useState(false)
 
-return(
+return (
 
-<div className={`sidebar ${collapsed ? "collapsed":""}`}>
+<div className={`sidebar ${collapsed ? "collapsed" : ""}`}>
 
 <div className="sidebar-top">
 
-<div className="sidebar-title">
+<span className="sidebar-title">
 Sistema REDEC 10
-</div>
+</span>
 
-<button
+<button 
 className="toggle-btn"
 onClick={()=>setCollapsed(!collapsed)}
 >
-{collapsed ? "➤" : "◀"}
+{collapsed ? "➜" : "⬅"}
 </button>
 
 </div>
 
 <nav>
 
-<a href="#">
-🏠 <span>Dashboard</span>
+<a href="/">
+<span className="icon">📊</span>
+<span>Dashboard</span>
 </a>
 
 <a href="#">
-👥 <span>Equipe REDEC 10</span>
+<span className="icon">👥</span>
+<span>Equipe REDEC 10</span>
 </a>
 
 <a href="#">
-📄 <span>Boletins</span>
+<span className="icon">📄</span>
+<span>Boletins</span>
 </a>
 
 <a href="#">
-📡 <span>SEI</span>
+<span className="icon">📥</span>
+<span>SEI</span>
 </a>
 
 <a href="#">
-📅 <span>Agenda</span>
+<span className="icon">📅</span>
+<span>Agenda</span>
 </a>
 
 <a href="#">
-🌊 <span>Monitoramento de Rios</span>
+<span className="icon">🌊</span>
+<span>Monitoramento de Rios</span>
 </a>
 
 <a href="#">
-📦 <span>Contêiner</span>
+<span className="icon">📦</span>
+<span>Contêiner Humanitário</span>
 </a>
 
 <a href="#">
-🚗 <span>Viaturas</span>
+<span className="icon">🚑</span>
+<span>Controle de Viaturas</span>
 </a>
 
 <a href="#">
-🏙 <span>COMDECs</span>
+<span className="icon">🏛</span>
+<span>Municípios COMDECs</span>
 </a>
 
 <a href="#">
-🏛 <span>Bens Patrimoniais</span>
+<span className="icon">🏗</span>
+<span>Bens Patrimoniais</span>
 </a>
 
 <a href="#">
-⚙ <span>Configurações</span>
+<span className="icon">⚙</span>
+<span>Configurações</span>
 </a>
 
 </nav>
