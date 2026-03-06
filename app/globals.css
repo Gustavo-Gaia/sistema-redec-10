@@ -1,350 +1,171 @@
-/* ================================
-   RESET E BASE
-================================ */
-
-*{
-box-sizing:border-box;
+/* RESET E BASE */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-body{
-margin:0;
-font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu;
-background:#eef2f7;
-color:#1f2937;
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #f1f5f9;
+  color: #1e293b;
+  overflow-x: hidden;
 }
 
-/* ================================
-   LAYOUT PRINCIPAL
-================================ */
-
-.layout{
-display:flex;
-min-height:100vh;
+/* LAYOUT PRINCIPAL */
+.layout {
+  display: flex;
+  min-height: 100vh;
 }
 
-/* ================================
-   FUNDO INSTITUCIONAL
-================================ */
-
-.content{
-flex:1;
-display:flex;
-flex-direction:column;
-
-background-image:
-linear-gradient(rgba(255,255,255,0.90),rgba(255,255,255,0.90)),
-url("/bg.jpg");
-
-background-size:cover;
-background-position:center;
-background-repeat:no-repeat;
+/* ÁREA DE CONTEÚDO COM IMAGEM DE FUNDO (IMG 2) */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(rgba(241, 245, 249, 0.92), rgba(241, 245, 249, 0.92)),
+              url("/bg.jpg") no-repeat center center fixed;
+  background-size: cover;
+  min-width: 0; /* Evita quebra de grid em flexbox */
 }
 
-/* ================================
-   SIDEBAR
-================================ */
-
-.sidebar{
-
-width:260px;
-background:linear-gradient(180deg,#1e3a8a,#1e40af);
-color:white;
-
-padding:20px;
-
-display:flex;
-flex-direction:column;
-
-transition:width .35s ease;
-
-box-shadow:4px 0 15px rgba(0,0,0,0.15);
+.main {
+  flex: 1;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-/* sidebar recolhida */
-
-.sidebar.collapsed{
-width:70px;
+/* BANNER CENTRAL (IMG 2) */
+.dashboard-hero {
+  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  color: white;
+  padding: 40px 20px;
+  border-radius: 24px;
+  text-align: center;
+  margin-bottom: 30px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 }
 
-/* topo */
-
-.sidebar-top{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:35px;
+.dashboard-hero h1 {
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  font-weight: 800;
+  margin-bottom: 8px;
 }
 
-.sidebar-title{
-font-size:18px;
-font-weight:600;
-letter-spacing:.3px;
+.dashboard-hero p {
+  opacity: 0.8;
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
 }
 
-.sidebar.collapsed .sidebar-title{
-display:none;
+/* GRID DE CARDS RESPONSIVO */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
 }
 
-/* botão recolher */
-
-.toggle-btn{
-background:none;
-border:none;
-color:white;
-font-size:20px;
-cursor:pointer;
-opacity:.9;
+/* CARD HÍBRIDO (IMG 1) */
+.card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
-.toggle-btn:hover{
-opacity:1;
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.12);
 }
 
-/* ================================
-   MENU SIDEBAR
-================================ */
-
-.sidebar nav{
-display:flex;
-flex-direction:column;
+.card-header-top {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
 }
 
-.sidebar nav a{
-
-display:flex;
-align-items:center;
-gap:12px;
-
-color:white;
-text-decoration:none;
-
-padding:12px 14px;
-border-radius:10px;
-margin-bottom:6px;
-
-transition:all .2s ease;
-
-font-size:15px;
-
+.icon-bg {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
+  padding: 10px;
+  border-radius: 12px;
+  display: flex;
 }
 
-/* hover elegante */
-
-.sidebar nav a:hover{
-background:rgba(255,255,255,0.15);
-transform:translateX(2px);
+.card-body {
+  padding: 20px;
+  flex: 1;
 }
 
-/* esconder texto quando recolher */
-
-.sidebar.collapsed nav a span{
-display:none;
+.info-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  color: #475569;
 }
 
-/* ================================
-   HEADER
-================================ */
-
-.header{
-
-background:white;
-
-margin:20px;
-padding:18px 25px;
-
-border-radius:18px;
-
-display:flex;
-align-items:center;
-justify-content:space-between;
-
-box-shadow:0 12px 25px rgba(0,0,0,0.08);
+/* BOTÃO INTEGRADO */
+.card-footer-btn {
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  padding: 14px;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.2s;
 }
 
-/* parte esquerda */
-
-.header-left{
-display:flex;
-align-items:center;
-gap:14px;
+.card-footer-btn:hover {
+  background: #eff6ff;
+  color: #2563eb;
 }
 
-/* logo */
+/* CORES GRADIENTES */
+.green { background: linear-gradient(135deg, #059669, #065f46); }
+.blue { background: linear-gradient(135deg, #2563eb, #1e3a8a); }
+.orange { background: linear-gradient(135deg, #f59e0b, #b45309); }
+.red { background: linear-gradient(135deg, #ef4444, #991b1b); }
+.purple { background: linear-gradient(135deg, #8b5cf6, #5b21b6); }
+.slate { background: linear-gradient(135deg, #475569, #1e293b); }
 
-.header img{
-width:42px;
-height:42px;
+/* SIDEBAR RESPONSIVA */
+.sidebar {
+  width: 280px;
+  background: #0f172a;
+  color: white;
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s;
+  z-index: 100;
 }
 
-/* botão sair */
+.sidebar.collapsed { width: 85px; }
 
-.logout{
-background:#2563eb;
-color:white;
-border:none;
-padding:10px 18px;
-border-radius:10px;
-cursor:pointer;
-font-weight:500;
-transition:.2s;
+@media (max-width: 1024px) {
+  .sidebar { position: fixed; height: 100vh; left: -280px; }
+  .sidebar.active { left: 0; }
+  .layout { flex-direction: column; }
 }
 
-.logout:hover{
-background:#1d4ed8;
-}
-
-/* ================================
-   ÁREA PRINCIPAL
-================================ */
-
-.main{
-flex:1;
-padding:30px;
-}
-
-/* ================================
-   GRID DE CARDS
-================================ */
-
-.cards{
-
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-
-gap:25px;
-margin-top:20px;
-
-}
-
-/* ================================
-   CARD
-================================ */
-
-.card{
-
-background:white;
-
-border-radius:18px;
-overflow:hidden;
-
-box-shadow:0 12px 25px rgba(0,0,0,0.12);
-
-transition:.25s;
-
-}
-
-.card:hover{
-transform:translateY(-4px);
-box-shadow:0 18px 35px rgba(0,0,0,0.15);
-}
-
-.card{
-cursor:pointer;
-text-decoration:none;
-color:inherit;
-}
-/* ================================
-   CABEÇALHO DO CARD
-================================ */
-
-.card-header{
-
-padding:18px;
-
-font-weight:600;
-font-size:16px;
-
-color:white;
-
-display:flex;
-align-items:center;
-gap:10px;
-
-}
-
-/* ================================
-   CORPO DO CARD
-================================ */
-
-.card-body{
-
-padding:18px;
-
-color:#4b5563;
-line-height:1.6;
-
-font-size:15px;
-
-}
-
-/* ================================
-   CORES DOS CARDS
-================================ */
-
-.green{
-background:linear-gradient(135deg,#16a34a,#15803d);
-}
-
-.blue{
-background:linear-gradient(135deg,#2563eb,#1d4ed8);
-}
-
-.orange{
-background:linear-gradient(135deg,#ea580c,#c2410c);
-}
-
-.red{
-background:linear-gradient(135deg,#ef4444,#dc2626);
-}
-
-/* ================================
-   FOOTER
-================================ */
-
-.footer{
-
-background:linear-gradient(90deg,#1e3a8a,#1e40af);
-
-color:white;
-
-padding:12px 30px;
-
-display:flex;
-justify-content:space-between;
-align-items:center;
-
-font-size:14px;
-
-border-radius:20px 20px 0 0;
-
-box-shadow:0 -5px 15px rgba(0,0,0,0.1);
-
-}
-
-/* ITEM ATIVO MENU */
-
-.sidebar nav a.active{
-
-background:white;
-
-color:#1e3a8a;
-
-font-weight:600;
-
-}
-
-/* HOVER PROFISSIONAL */
-
-.sidebar nav a{
-
-transition:all .2s ease;
-
-}
-
-.sidebar nav a:hover{
-
-background:rgba(255,255,255,0.18);
-
-transform:translateX(3px);
-
+/* FOOTER */
+.footer {
+  padding: 20px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748b;
+  border-top: 1px solid rgba(0,0,0,0.05);
 }
