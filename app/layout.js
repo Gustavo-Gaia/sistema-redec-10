@@ -1,41 +1,51 @@
-import "./globals.css";
-import Sidebar from "./Sidebar";
-import Header from "./Header";
+import "./globals.css"
+import Sidebar from "./Sidebar"
+import Header from "./Header"
 
 export const metadata = {
-  title: "Sistema Integrado REDEC 10 - Norte",
-  description: "Sistema institucional da Defesa Civil",
-};
+title:"Sistema Integrado REDEC 10 - Norte"
+}
 
 export default function RootLayout({ children }) {
-  return (
-    <html lang="pt-br">
-      <body>
 
-        <div className="layout">
+return (
 
-          <Sidebar />
+<html>
 
-          <div className="content">
+<body>
 
-            <Header />
+<div className="layout">
 
-            <main className="main">
+<Sidebar/>
 
-              {children}
+<div className="content">
 
-            </main>
+<Header/>
 
-            <footer className="footer">
-              <span>REDEC 10 • v1.0</span>
-              <span>© 2026</span>
-            </footer>
+<main className="main">
+{children}
+</main>
 
-          </div>
+<footer className="footer">
 
-        </div>
+<span>
+Sistema Integrado REDEC 10 - Norte
+</span>
 
-      </body>
-    </html>
-  );
+<span>
+Desenvolvido para Defesa Civil
+</span>
+
+</footer>
+
+</div>
+
+</div>
+
+</body>
+
+</html>
+
+)
+
 }
