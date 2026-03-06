@@ -2,24 +2,17 @@ export default function Header(){
 
 return(
 
-<div className="header">
+<header className="header">
 
 <div className="header-left">
 
-<img
-src="/REDEC_10_NORTE_LOGO.png"
-width="50"
-/>
+<img src="/REDEC_10_NORTE_LOGO.png"/>
 
 <div>
 
-<div className="header-title">
-Sistema Integrado REDEC 10 - Norte
-</div>
-
-<div>
-Defesa Civil - Governo do Estado
-</div>
+<strong>
+SISTEMA INTEGRADO REDEC 10 - Norte
+</strong>
 
 </div>
 
@@ -29,7 +22,7 @@ Defesa Civil - Governo do Estado
 Sair
 </button>
 
-</div>
+</header>
 
 )
 
