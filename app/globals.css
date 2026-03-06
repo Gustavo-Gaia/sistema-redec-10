@@ -238,6 +238,11 @@ transform:translateY(-4px);
 box-shadow:0 18px 35px rgba(0,0,0,0.15);
 }
 
+.card{
+cursor:pointer;
+text-decoration:none;
+color:inherit;
+}
 /* ================================
    CABEÇALHO DO CARD
 ================================ */
