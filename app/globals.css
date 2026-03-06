@@ -315,3 +315,31 @@ border-radius:20px 20px 0 0;
 box-shadow:0 -5px 15px rgba(0,0,0,0.1);
 
 }
+
+/* ITEM ATIVO MENU */
+
+.sidebar nav a.active{
+
+background:white;
+
+color:#1e3a8a;
+
+font-weight:600;
+
+}
+
+/* HOVER PROFISSIONAL */
+
+.sidebar nav a{
+
+transition:all .2s ease;
+
+}
+
+.sidebar nav a:hover{
+
+background:rgba(255,255,255,0.18);
+
+transform:translateX(3px);
+
+}
