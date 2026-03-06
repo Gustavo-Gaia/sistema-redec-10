@@ -18,7 +18,7 @@ export default function Dashboard() {
       <div className="bg-white/80 backdrop-blur p-8 rounded-2xl shadow-sm mb-8 flex justify-between items-center border border-slate-200">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Sistema Integrado REDEC 10 - Norte</h1>
-          <p className="text-slate-600">Gestão Estratégica e Defesa Civil Estadual</p>
+          <p className="text-slate-600">Gestão Estratégica e Defesa Civil Estadua</p>
         </div>
         <button className="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition">Sair</button>
       </div>
