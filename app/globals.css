@@ -2,9 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Define o fundo em toda a aplicação */
 body {
-  background: linear-gradient(rgba(241, 245, 249, 0.8), rgba(241, 245, 249, 0.8)), 
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  /* O gradiente escuro/claro que você vê nas imagens */
+  background: linear-gradient(rgba(241, 245, 249, 0.92), rgba(241, 245, 249, 0.92)), 
               url('/bg.jpg') no-repeat center center fixed;
   background-size: cover;
-  min-height: 100vh;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Garante que o layout não tenha scrolls indesejados */
+html, body {
+  overflow-x: hidden;
 }
