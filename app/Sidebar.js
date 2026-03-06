@@ -1,7 +1,6 @@
 "use client"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
-import Image from "next/image"
 import { LayoutDashboard, Users, FileText, Inbox, Calendar, Waves, Package, Ambulance, Building, Landmark, Settings, ChevronLeft, ChevronRight } from "lucide-react"
 
 export default function Sidebar() {
@@ -24,13 +23,7 @@ export default function Sidebar() {
 
   return (
     <aside className={`bg-slate-900 text-white h-screen flex flex-col transition-all duration-300 ${collapsed ? "w-20" : "w-64"}`}>
-      <div className="p-6 flex items-center justify-between border-b border-slate-800">
-        {!collapsed && (
-          <div className="flex items-center gap-3">
-            <Image src="/REDEC_10_NORTE_LOGO.png" alt="Logo" width={32} height={32} />
-            <span className="font-bold text-lg">REDEC 10</span>
-          </div>
-        )}
+      <div className="p-6 flex items-center justify-end border-b border-slate-800">
         <button onClick={() => setCollapsed(!collapsed)} className="text-slate-400 hover:text-white">
           {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
@@ -41,13 +34,16 @@ export default function Sidebar() {
           const Icon = item.icon
           const isActive = pathname === item.link
           return (
-            <a href={item.link} key={item.label} title={item.label} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition ${isActive ? 'bg-blue-600' : 'hover:bg-slate-800'}`}>
+            <a href={item.link} key={item.label} className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition ${isActive ? 'bg-blue-600' : 'hover:bg-slate-800'}`}>
               <Icon size={20} />
               {!collapsed && <span>{item.label}</span>}
             </a>
           )
         })}
       </nav>
+      
+      {/* Indicador Técnico no rodapé da Sidebar */}
+      {!collapsed && <div className="p-4 text-xs text-slate-500 border-t border-slate-800">REDEC 10 • v1.0</div>}
     </aside>
   )
 }
