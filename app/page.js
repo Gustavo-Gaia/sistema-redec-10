@@ -1,72 +1,49 @@
-export default function Dashboard(){
+import { Waves, FileText, Users, AlertTriangle, Calendar, Package, Ambulance, Landmark } from "lucide-react"
 
-return(
+export default function Dashboard() {
+  const cardsData = [
+    { title: "Monitoramento", icon: Waves, color: "green", info: ["Nível Crítico: 3", "Atualização: 10:15"], link: "/rios" },
+    { title: "Boletins e SEI", icon: FileText, color: "blue", info: ["Pendências: 5", "Último: 24/04"], link: "/boletins" },
+    { title: "Equipe REDEC", icon: Users, color: "orange", info: ["Servidores: 42", "Em campo: 4"], link: "/equipe" },
+    { title: "Ocorrências", icon: AlertTriangle, color: "red", info: ["Afetados: 5", "Desalojados: 208"], link: "/comdecs" },
+    { title: "Agenda", icon: Calendar, color: "slate", info: ["Atividades: 12", "Reuniões: 2"], link: "/agenda" },
+    { title: "Contêiner", icon: Package, color: "purple", info: ["Estoque: OK", "Última saída: Ontem"], link: "/container" },
+    { title: "Viaturas", icon: Ambulance, color: "slate", info: ["Frota: 8", "Em serviço: 3"], link: "/viaturas" },
+    { title: "Patrimônio", icon: Landmark, color: "purple", info: ["Bens: 154", "Auditoria: 100%"], link: "/patrimonio" },
+  ]
 
-<div>
+  return (
+    <>
+      <section className="dashboard-hero">
+        <h1>Sistema Integrado REDEC 10 - Norte</h1>
+        <p>Gestão Estratégica e Defesa Civil Estadual</p>
+      </section>
 
-<h2>Painel Operacional</h2>
+      <div className="cards">
+        {cardsData.map((card, index) => (
+          <div className="card" key={index}>
+            <div className={`card-header-top ${card.color}`}>
+              <div className="icon-bg">
+                <card.icon size={22} />
+              </div>
+              <span className="card-title">{card.title}</span>
+            </div>
+            
+            <div className="card-body">
+              {card.info.map((text, i) => (
+                <div className="info-line" key={i}>
+                  <div style={{width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1'}}></div>
+                  {text}
+                </div>
+              ))}
+            </div>
 
-<div className="cards">
-
-<a className="card" href="/rios">
-
-<div className="card-header green">
-Monitoramento de Rios
-</div>
-
-<div className="card-body">
-<p>Nível crítico: 3</p>
-<p>Atualização: 10:15</p>
-</div>
-
-</a>
-
-
-<a className="card" href="/boletins">
-
-<div className="card-header blue">
-Boletins e SEI
-</div>
-
-<div className="card-body">
-<p>Pendências: 5</p>
-<p>Último boletim: 24/04</p>
-</div>
-
-</a>
-
-
-<a className="card" href="/equipe">
-
-<div className="card-header orange">
-Equipe REDEC 10
-</div>
-
-<div className="card-body">
-<p>Servidores: 12</p>
-<p>Em campo: 4</p>
-</div>
-
-</a>
-
-
-<a className="card" href="/ocorrencias">
-
-<div className="card-header red">
-Ocorrências
-</div>
-
-<div className="card-body">
-<p>Municípios afetados: 5</p>
-<p>Desalojados: 208</p>
-</div>
-
-</a>
-
-</div>
-
-</div>
-
-)
-
+            <a href={card.link} className="card-footer-btn">
+              Saber mais →
+            </a>
+          </div>
+        ))}
+      </div>
+    </>
+  )
 }
