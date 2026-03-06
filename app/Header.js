@@ -1,32 +1,36 @@
-import Image from "next/image";
+export default function Header(){
 
-export default function Header() {
+return(
 
-  return (
+<div className="header">
 
-    <header className="header">
+<div className="header-left">
 
-      <div className="header-left">
+<img
+src="/REDEC_10_NORTE_LOGO.png"
+width="50"
+/>
 
-        <Image
-          src="/REDEC_10_NORTE_LOGO.png"
-          width={45}
-          height={45}
-          alt="Logo"
-        />
+<div>
 
-        <div>
-          <h1>Sistema Integrado REDEC 10 - Norte</h1>
-          <p>Defesa Civil - Governo do Estado</p>
-        </div>
+<div className="header-title">
+Sistema Integrado REDEC 10 - Norte
+</div>
 
-      </div>
+<div>
+Defesa Civil - Governo do Estado
+</div>
 
-      <button className="logout">
-        Sair
-      </button>
+</div>
 
-    </header>
+</div>
 
-  );
+<button className="logout">
+Sair
+</button>
+
+</div>
+
+)
+
 }
