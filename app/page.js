@@ -14,33 +14,23 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="bg-white/80 backdrop-blur p-8 rounded-2xl shadow-sm mb-8 flex justify-between items-center border border-slate-200">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Sistema Integrado REDEC 10 - Norte</h1>
-          <p className="text-slate-600">Gestão Estratégica e Defesa Civil Estadua</p>
-        </div>
-        <button className="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition">Sair</button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card, i) => {
-          const Icon = card.icon;
-          return (
-            <Link href={card.link} key={i} className="group block">
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className={`p-4 bg-gradient-to-br ${card.color} text-white flex items-center gap-3`}>
-                  <div className="p-2 bg-white/20 rounded-lg"><Icon size={24} /></div>
-                  <span className="font-bold text-lg">{card.title}</span>
-                </div>
-                <div className="p-5 text-slate-600 text-sm space-y-2">
-                  {card.info.map((line, j) => <p key={j}>• {line}</p>)}
-                </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {cards.map((card, i) => {
+        const Icon = card.icon;
+        return (
+          <Link href={card.link} key={i} className="group block">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-xl transition-all hover:-translate-y-1">
+              <div className={`p-4 bg-gradient-to-br ${card.color} text-white flex items-center gap-3`}>
+                <div className="p-2 bg-white/20 rounded-lg"><Icon size={24} /></div>
+                <span className="font-bold text-lg">{card.title}</span>
               </div>
-            </Link>
-          );
-        })}
-      </div>
+              <div className="p-5 text-slate-600 text-sm space-y-2">
+                {card.info.map((line, j) => <p key={j}>• {line}</p>)}
+              </div>
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }
