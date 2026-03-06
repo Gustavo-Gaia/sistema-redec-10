@@ -9,7 +9,7 @@ export default function RootLayout({ children }) {
         <Sidebar />
         <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-50">
           {/* Banner Único e Profissional */}
-          <header className="bg-white m-6 mb-2 p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-6">
+          <header className="bg-white m-6 mb-4 p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-6">
             <Image src="/REDEC_10_NORTE_LOGO.png" alt="Logo" width={50} height={50} />
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-slate-900">Sistema Integrado REDEC 10 - Norte</h1>
@@ -18,10 +18,11 @@ export default function RootLayout({ children }) {
             <button className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition">Sair</button>
           </header>
           
-          <main className="flex-1 px-6">{children}</main>
+          {/* O conteúdo das páginas (page.js) entra aqui */}
+          <main className="flex-1 px-6 pb-10">{children}</main>
 
           {/* Rodapé Profissional */}
-          <footer className="p-6 text-center text-slate-400 text-sm">
+          <footer className="p-6 text-center text-slate-400 text-sm border-t border-slate-200 bg-white">
             © 2026 | REDEC 10 - Norte | Defesa Civil Estadual
           </footer>
         </div>
