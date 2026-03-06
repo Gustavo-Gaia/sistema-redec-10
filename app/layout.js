@@ -1,14 +1,16 @@
+import "./globals.css";
+import Sidebar from "./Sidebar";
+import Header from "./Header";
+
 export default function Layout({ children }) {
   return (
-    <html>
+    <html lang="pt-br">
       <body>
         <div className="layout">
           <Sidebar />
           <div className="content">
-            <Header /> {/* O cabeçalho fica aqui, acima do conteúdo */}
-            <main className="main">
-              {children}
-            </main>
+            <Header />
+            <main className="main">{children}</main>
           </div>
         </div>
       </body>
