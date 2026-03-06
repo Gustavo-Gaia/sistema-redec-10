@@ -1,21 +1,28 @@
 export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-lg">
-        <h1 className="text-2xl font-bold">Sistema Integrado REDEC 10 - Norte</h1>
-        <p className="text-slate-400">Gestão Estratégica e Defesa Civil Estadual</p>
-      </div>
+      {/* Painel Superior Integrado */}
+      <header className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Sistema Integrado REDEC 10 - Norte</h1>
+          <p className="text-slate-500">Defesa Civil - Governo do Estado</p>
+        </div>
+        <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition">
+          Sair
+        </button>
+      </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Exemplo de card otimizado */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
-          <h3 className="font-semibold text-slate-800">Monitoramento</h3>
-          <div className="mt-4 text-sm text-slate-600 space-y-1">
-            <p>• Nível Crítico: 3</p>
+      {/* Grid de Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Exemplo de card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
+          <h3 className="font-bold text-slate-800 text-lg mb-4">Monitoramento</h3>
+          <div className="text-slate-600 text-sm space-y-2">
+            <p>✓ Rios em Nível Normal</p>
             <p>• Atualização: 10:15</p>
           </div>
         </div>
-        {/* Adicione os outros cards seguindo este padrão */}
+        {/* Repita a estrutura dos outros cards aqui conforme necessário */}
       </div>
     </div>
   )
