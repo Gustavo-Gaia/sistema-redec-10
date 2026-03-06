@@ -8,10 +8,10 @@ return(
 
 <div className="cards">
 
-<div className="card">
+<a className="card" href="/rios">
 
 <div className="card-header green">
-🌊 Monitoramento de Rios
+Monitoramento de Rios
 </div>
 
 <div className="card-body">
@@ -19,13 +19,13 @@ return(
 <p>Atualização: 10:15</p>
 </div>
 
-</div>
+</a>
 
 
-<div className="card">
+<a className="card" href="/boletins">
 
 <div className="card-header blue">
-📄 Boletins e SEI
+Boletins e SEI
 </div>
 
 <div className="card-body">
@@ -33,13 +33,13 @@ return(
 <p>Último boletim: 24/04</p>
 </div>
 
-</div>
+</a>
 
 
-<div className="card">
+<a className="card" href="/equipe">
 
 <div className="card-header orange">
-👥 Equipe REDEC 10
+Equipe REDEC 10
 </div>
 
 <div className="card-body">
@@ -47,13 +47,13 @@ return(
 <p>Em campo: 4</p>
 </div>
 
-</div>
+</a>
 
 
-<div className="card">
+<a className="card" href="/ocorrencias">
 
 <div className="card-header red">
-🚨 Ocorrências
+Ocorrências
 </div>
 
 <div className="card-body">
@@ -61,7 +61,7 @@ return(
 <p>Desalojados: 208</p>
 </div>
 
-</div>
+</a>
 
 </div>
 
