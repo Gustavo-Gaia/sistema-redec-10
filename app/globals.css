@@ -13,7 +13,7 @@ html, body {
 body {
   /* O gradiente garante legibilidade, a imagem fica fixada no fundo */
   background: linear-gradient(rgba(241, 245, 249, 0.85), rgba(241, 245, 249, 0.85)), 
-              url('/bg.jpg') no-repeat center center fixed;
+              url('/REDEC_10_NORTE_LOGO.png') no-repeat center center fixed;
   
   /* 'cover' é o padrão ouro para ocupar 100% da área mantendo a proporção */
   background-size: cover; 
