@@ -1,3 +1,5 @@
+/* app/layout.js */
+
 import "./globals.css"
 import Sidebar from "./Sidebar"
 import Image from "next/image"
