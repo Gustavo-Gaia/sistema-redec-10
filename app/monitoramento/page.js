@@ -1,15 +1,22 @@
 /* app/monitoramento/page.js */
 
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
 
 export default async function Monitoramento() {
 
   const { data: rios, error } = await supabase
     .from("rios")
     .select("*")
+    .eq("ativo", true)
+    .order("nome")
 
   if (error) {
-    console.error(error)
+    console.log("Erro ao buscar rios:", error)
   }
 
   return (
@@ -23,18 +30,52 @@ export default async function Monitoramento() {
         Teste de conexão com banco de dados
       </p>
 
-      <div className="mb-6">
-        <p className="font-semibold text-slate-700 mb-2">
-          Rios cadastrados:
-        </p>
+      {/* SELETOR DE RIOS */}
+      <div className="mb-8">
 
-        <ul className="list-disc ml-6 text-slate-700">
+        <label className="block text-sm font-medium text-slate-700 mb-2">
+          Selecionar Rio
+        </label>
+
+        <select className="w-full md:w-80 p-2 border rounded-lg">
+
+          <option>Selecione um rio</option>
+
           {rios?.map((rio) => (
-            <li key={rio.id}>
-              {rio.nome_rio}
-            </li>
+            <option key={rio.id}>
+              {rio.nome}
+            </option>
           ))}
-        </ul>
+
+        </select>
+
+      </div>
+
+      {/* CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div className="bg-slate-50 p-4 rounded-lg border">
+          <p className="text-sm text-slate-500">Estações Monitoradas</p>
+          <p className="text-2xl font-bold text-slate-800">30</p>
+        </div>
+
+        <div className="bg-slate-50 p-4 rounded-lg border">
+          <p className="text-sm text-slate-500">Rios Monitorados</p>
+          <p className="text-2xl font-bold text-slate-800">
+            {rios?.length || 0}
+          </p>
+        </div>
+
+        <div className="bg-slate-50 p-4 rounded-lg border">
+          <p className="text-sm text-slate-500">Lagoas Monitoradas</p>
+          <p className="text-2xl font-bold text-slate-800">3</p>
+        </div>
+
+        <div className="bg-slate-50 p-4 rounded-lg border">
+          <p className="text-sm text-slate-500">Situação Atual</p>
+          <p className="text-2xl font-bold text-green-600">Normal</p>
+        </div>
+
       </div>
 
     </div>
