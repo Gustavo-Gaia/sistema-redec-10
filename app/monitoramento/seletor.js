@@ -42,11 +42,20 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
             Selecione o rio
           </option>
 
-          {rios.map((rio) => (
-            <option key={rio.id} value={rio.id}>
-              {rio.nome}
-            </option>
-          ))}
+          {[...rios]
+            .sort((a, b) => {
+              if (a.tipo === b.tipo) {
+                return a.nome.localeCompare(b.nome)
+              }
+              if (a.tipo === "rio") return -1
+              if (b.tipo === "rio") return 1
+              return 0
+            })
+            .map((rio) => (
+              <option key={rio.id} value={rio.id}>
+                {rio.nome}
+              </option>
+            ))}
 
         </select>
 
