@@ -1,3 +1,5 @@
+/* app/Sidebar.js */
+
 "use client"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
