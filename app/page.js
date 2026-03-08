@@ -5,7 +5,7 @@ import Link from "next/link"
 
 export default function Dashboard() {
   const cards = [
-    { title: "Monitoramento", icon: Waves, color: "from-green-600 to-emerald-800", link: "/rios", info: ["Nível Crítico: 3", "Atualização: 10:15"] },
+    { title: "Monitoramento", icon: Waves, color: "from-green-600 to-emerald-800", link: "/monitoramento", info: ["Nível Crítico: 3", "Atualização: 10:15"] },
     { title: "Boletins e SEI", icon: FileText, color: "from-blue-600 to-blue-900", link: "/boletins", info: ["Pendências: 5", "Último: 24/04"] },
     { title: "Equipe REDEC", icon: Users, color: "from-orange-500 to-orange-800", link: "/equipe", info: ["Servidores: 42", "Em campo: 4"] },
     { title: "Ocorrências", icon: AlertTriangle, color: "from-red-500 to-red-900", link: "/comdecs", info: ["Afetados: 5", "Desalojados: 208"] },
