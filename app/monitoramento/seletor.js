@@ -6,7 +6,8 @@ import { useState } from "react"
 
 export default function SeletorMonitoramento({ rios, estacoes }) {
 
-  const [rioSelecionado, setRioSelecionado] = useState(null)
+  const [rioSelecionado, setRioSelecionado] = useState("")
+  const [municipioSelecionado, setMunicipioSelecionado] = useState("")
 
   const municipiosFiltrados = estacoes.filter(
     (estacao) => estacao.rio_id === Number(rioSelecionado)
@@ -30,10 +31,16 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
 
         <select
           className="w-full p-2 border rounded-lg"
-          onChange={(e) => setRioSelecionado(e.target.value)}
+          value={rioSelecionado}
+          onChange={(e) => {
+            setRioSelecionado(e.target.value)
+            setMunicipioSelecionado("") // limpa município ao trocar rio
+          }}
         >
 
-          <option value="">Selecione o rio</option>
+          <option value="" disabled hidden>
+            Selecione o rio
+          </option>
 
           {rios.map((rio) => (
             <option key={rio.id} value={rio.id}>
@@ -53,16 +60,21 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
           Selecionar Município
         </label>
 
-        <select className="w-full p-2 border rounded-lg">
+        <select
+          className="w-full p-2 border rounded-lg"
+          value={municipioSelecionado}
+          onChange={(e) => setMunicipioSelecionado(e.target.value)}
+          disabled={!rioSelecionado}
+        >
 
-          <option>
+          <option value="" disabled hidden>
             {rioSelecionado
               ? "Selecione o Município"
               : "Escolha primeiro o rio"}
           </option>
 
           {municipiosUnicos.map((municipio) => (
-            <option key={municipio}>
+            <option key={municipio} value={municipio}>
               {municipio}
             </option>
           ))}
