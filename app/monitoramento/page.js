@@ -1,6 +1,17 @@
 /* app/monitoramento/page.js */
 
-export default function Monitoramento() {
+import { supabase } from "@/lib/supabase"
+
+export default async function Monitoramento() {
+
+  const { data: rios, error } = await supabase
+    .from("rios")
+    .select("*")
+
+  if (error) {
+    console.error(error)
+  }
+
   return (
     <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-white/50">
 
@@ -9,31 +20,21 @@ export default function Monitoramento() {
       </h2>
 
       <p className="text-slate-600 mb-6">
-        Painel de monitoramento dos rios e lagoas da região REDEC 10.
+        Teste de conexão com banco de dados
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        <div className="bg-slate-50 p-4 rounded-lg border">
-          <p className="text-sm text-slate-500">Estações Monitoradas</p>
-          <p className="text-2xl font-bold text-slate-800">30</p>
-        </div>
+      <div className="mb-6">
+        <p className="font-semibold text-slate-700 mb-2">
+          Rios cadastrados:
+        </p>
 
-        <div className="bg-slate-50 p-4 rounded-lg border">
-          <p className="text-sm text-slate-500">Rios Monitorados</p>
-          <p className="text-2xl font-bold text-slate-800">5</p>
-        </div>
-
-        <div className="bg-slate-50 p-4 rounded-lg border">
-          <p className="text-sm text-slate-500">Lagoas Monitoradas</p>
-          <p className="text-2xl font-bold text-slate-800">3</p>
-        </div>
-
-        <div className="bg-slate-50 p-4 rounded-lg border">
-          <p className="text-sm text-slate-500">Situação Atual</p>
-          <p className="text-2xl font-bold text-green-600">Normal</p>
-        </div>
-
+        <ul className="list-disc ml-6 text-slate-700">
+          {rios?.map((rio) => (
+            <li key={rio.id}>
+              {rio.nome_rio}
+            </li>
+          ))}
+        </ul>
       </div>
 
     </div>
