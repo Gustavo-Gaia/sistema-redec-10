@@ -11,7 +11,7 @@ body {
   min-height: 100vh;
   /* O gradiente escuro/claro que você vê nas imagens */
   background: linear-gradient(rgba(241, 245, 249, 0.92), rgba(241, 245, 249, 0.92)), 
-              url('/logo.png') no-repeat center center fixed;
+              url('/logotipo_redec_norte.png') no-repeat center center fixed;
   background-size: cover;
   font-family: 'Inter', system-ui, sans-serif;
 }
