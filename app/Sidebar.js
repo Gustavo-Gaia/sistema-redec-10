@@ -15,7 +15,7 @@ export default function Sidebar() {
     { icon: FileText, label: "Boletins", link: "/boletins" },
     { icon: Inbox, label: "SEI", link: "/sei" },
     { icon: Calendar, label: "Agenda", link: "/agenda" },
-    { icon: Waves, label: "Monitoramento", link: "/rios" },
+    { icon: Waves, label: "Monitoramento", link: "/monitoramento" },
     { icon: Package, label: "Contêiner", link: "/container" },
     { icon: Ambulance, label: "Viaturas", link: "/viaturas" },
     { icon: Building, label: "Municípios", link: "/comdecs" },
