@@ -1,3 +1,5 @@
+/* app/login/cadastro/page.js */
+
 "use client"
 
 import { useState } from "react"
