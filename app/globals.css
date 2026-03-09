@@ -4,19 +4,24 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Define o fundo em toda a aplicação */
-body {
+/* Base do layout */
+html, body {
+  height: 100%;
   margin: 0;
   padding: 0;
-  min-height: 100vh;
-  /* O gradiente escuro/claro que você vê nas imagens */
-  background: linear-gradient(rgba(241, 245, 249, 0.92), rgba(241, 245, 249, 0.92)), 
-              url('/logotipo_redec_norte.png') no-repeat center center fixed;
-  background-size: cover;
-  font-family: 'Inter', system-ui, sans-serif;
-}
-
-/* Garante que o layout não tenha scrolls indesejados */
-html, body {
   overflow-x: hidden;
 }
+
+/* Fundo institucional da aplicação */
+body {
+  min-height: 100vh;
+
+  background:
+    linear-gradient(rgba(241,245,249,0.92), rgba(241,245,249,0.92)),
+    url("/logotipo_redec_norte.png") center/cover no-repeat fixed;
+
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+
+
