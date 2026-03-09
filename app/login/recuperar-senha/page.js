@@ -18,40 +18,40 @@ return v.replace(/\D/g,"")
 async function enviar(e){
 
 e.preventDefault()
-setLoading(true)
 
-const { data } = await supabase
+setLoading(true)
+setMsg("")
+
+/* busca email pelo RG */
+
+const { data, error } = await supabase
 .from("usuarios")
-.select("*")
+.select("email")
 .eq("rg",rg)
 .single()
 
-if(!data){
+if(error || !data){
 setMsg("Usuário não localizado")
 setLoading(false)
 return
 }
 
-const token = crypto.randomUUID()
+/* envia email de recuperação pelo Supabase */
 
-await supabase
-.from("usuarios")
-.update({
-reset_token:token,
-reset_expira:new Date(Date.now()+3600000)
-})
-.eq("rg",rg)
+const { error:resetError } = await supabase.auth.resetPasswordForEmail(
+data.email,
+{
+redirectTo: `${window.location.origin}/login/nova-senha`
+}
+)
 
-await fetch("/api/enviar-email",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-email:data.email,
-token
-})
-})
+if(resetError){
+setMsg("Erro ao enviar email de recuperação")
+setLoading(false)
+return
+}
 
-setMsg("Email de recuperação enviado")
+setMsg("Email de recuperação enviado. Verifique sua caixa de entrada.")
 
 setLoading(false)
 
@@ -87,7 +87,9 @@ className="w-full bg-blue-600 text-white py-2 rounded-lg"
 </form>
 
 {msg && (
-<p className="text-center mt-4 text-red-500 text-sm">{msg}</p>
+<p className="text-center mt-4 text-red-500 text-sm">
+{msg}
+</p>
 )}
 
 </div>
