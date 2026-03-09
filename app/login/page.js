@@ -1,5 +1,7 @@
 /* app/login/page.js */
 
+/* app/login/page.js */
+
 "use client"
 
 import { useState } from "react"
@@ -38,7 +40,8 @@ export default function LoginPage() {
       return
     }
 
-    localStorage.setItem("usuario", JSON.stringify(data))
+    /* salva cookie para middleware */
+    document.cookie = `usuario=${data.id}; path=/; max-age=86400`
 
     router.push("/dashboard")
   }
@@ -78,7 +81,7 @@ export default function LoginPage() {
             value={rg}
             onChange={(e) => setRg(e.target.value.replace(/\D/g, ""))}
             placeholder="RG (somente números)"
-            className="w-full border p-2 rounded-lg"
+            className="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
 
@@ -87,7 +90,7 @@ export default function LoginPage() {
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             placeholder="Senha"
-            className="w-full border p-2 rounded-lg"
+            className="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
 
@@ -96,8 +99,9 @@ export default function LoginPage() {
           )}
 
           <button
+            type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition disabled:opacity-50"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
@@ -107,11 +111,17 @@ export default function LoginPage() {
         {/* Links */}
         <div className="flex justify-between mt-4 text-sm">
 
-          <Link href="/recuperar-senha" className="text-blue-600 hover:underline">
+          <Link
+            href="/recuperar-senha"
+            className="text-blue-600 hover:underline"
+          >
             Esqueci minha senha
           </Link>
 
-          <Link href="/cadastro" className="text-blue-600 hover:underline">
+          <Link
+            href="/cadastro"
+            className="text-blue-600 hover:underline"
+          >
             Criar conta
           </Link>
 
