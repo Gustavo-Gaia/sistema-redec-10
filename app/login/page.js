@@ -1,7 +1,5 @@
 /* app/login/page.js */
 
-/* app/login/page.js */
-
 "use client"
 
 import { useState } from "react"
@@ -110,21 +108,19 @@ export default function LoginPage() {
 
         {/* Links */}
         <div className="flex justify-between mt-4 text-sm">
-
           <Link
-            href="/recuperar-senha"
+            href="/login/recuperar-senha" // Adicionado o /login/
             className="text-blue-600 hover:underline"
           >
             Esqueci minha senha
           </Link>
-
+        
           <Link
-            href="/cadastro"
+            href="/login/cadastro" // Adicionado o /login/
             className="text-blue-600 hover:underline"
           >
             Criar conta
           </Link>
-
         </div>
 
       </div>
