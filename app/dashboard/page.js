@@ -1,4 +1,4 @@
-/* app/page.js */
+/* app/dashboard/page.js */
 
 import { Waves, FileText, Users, AlertTriangle, Calendar, Package, Ambulance, Landmark } from "lucide-react"
 import Link from "next/link"
