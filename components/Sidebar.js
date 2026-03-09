@@ -1,4 +1,4 @@
-/* app/components/Sidebar.js */
+/* components/Sidebar.js */
 
 "use client"
 import { useState } from "react"
