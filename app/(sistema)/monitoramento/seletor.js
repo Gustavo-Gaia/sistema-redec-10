@@ -1,4 +1,4 @@
-/* app/monitoramento/seltor.js */
+/* app/monitoramento/seletor.js */
 
 "use client"
 
