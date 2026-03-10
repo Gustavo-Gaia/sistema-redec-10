@@ -25,13 +25,13 @@ e.preventDefault()
 setErro("")
 setLoading(true)
 
-/* busca email pelo RG */
+/* busca usuário pelo RG */
 
 const { data:userData, error:userError } = await supabase
 .from("usuarios")
-.select("*")
+.select("id,email,ativo")
 .eq("rg",rg)
-.single()
+.maybeSingle()
 
 if(userError || !userData){
 setErro("RG ou senha inválidos")
@@ -60,7 +60,7 @@ setLoading(false)
 return
 }
 
-/* salva cookie para middleware */
+/* cookie simples para middleware */
 
 document.cookie = `usuario=${userData.id}; path=/; max-age=86400`
 
@@ -70,23 +70,30 @@ router.push("/dashboard")
 
 return(
 
-<div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+<div className="min-h-screen flex items-center justify-center bg-slate-100">
 
-<div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
+<div className="w-full max-w-md p-4">
 
-{/* Logo */}
+<div className="bg-white p-8 rounded-2xl shadow-xl">
+
+{/* LOGO */}
 
 <div className="text-center mb-6">
+
+<div className="flex justify-center">
 
 <Image
 src="/logotipo_redec_norte.png"
 alt="REDEC 10"
-width={80}
-height={80}
-className="mx-auto mb-4"
+width={90}
+height={90}
+priority
+className="drop-shadow-xl"
 />
 
-<h1 className="text-xl font-bold text-slate-800">
+</div>
+
+<h1 className="text-xl font-bold text-slate-800 mt-4">
 Sistema Integrado REDEC 10 Norte
 </h1>
 
@@ -117,7 +124,7 @@ required
 />
 
 {erro && (
-<p className="text-red-500 text-sm">{erro}</p>
+<p className="text-red-500 text-sm text-center">{erro}</p>
 )}
 
 <button
@@ -145,6 +152,8 @@ className="text-blue-600 hover:underline"
 >
 Criar conta
 </Link>
+
+</div>
 
 </div>
 
