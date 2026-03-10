@@ -8,13 +8,15 @@ const url = request.nextUrl.clone()
 
 const isLogin = url.pathname.startsWith("/login")
 
-/* verifica se existe token do supabase */
+/* procura qualquer cookie do supabase */
 
-const accessToken = request.cookies.get("sb-access-token")
+const hasSupabaseCookie = request.cookies
+.getAll()
+.some(cookie => cookie.name.startsWith("sb-"))
 
 /* se não estiver logado e tentar acessar páginas protegidas */
 
-if(!accessToken && !isLogin){
+if(!hasSupabaseCookie && !isLogin){
 url.pathname = "/login"
 return NextResponse.redirect(url)
 }
