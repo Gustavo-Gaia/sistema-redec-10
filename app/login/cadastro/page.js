@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
-export default function Cadastro() {
+export default function Cadastro(){
 
 const router = useRouter()
 
@@ -26,14 +26,23 @@ return v.replace(/\D/g,"")
 async function cadastrar(e){
 
 e.preventDefault()
+
 setMsg("")
 setLoading(true)
+
+if(!rg || !email || !senha){
+setMsg("Preencha todos os campos")
+setLoading(false)
+return
+}
 
 if(senha !== confirmar){
 setMsg("As senhas não conferem")
 setLoading(false)
 return
 }
+
+/* verifica se RG já existe */
 
 const { data:existe } = await supabase
 .from("usuarios")
@@ -42,26 +51,41 @@ const { data:existe } = await supabase
 .single()
 
 if(existe){
-setMsg("Usuário já cadastrado. Utilize recuperar senha.")
+setMsg("RG já cadastrado")
 setLoading(false)
 return
 }
 
-const { error } = await supabase
-.from("usuarios")
-.insert([{ rg, senha, email, orgao }])
+/* cria usuário no auth */
+
+const { data, error } = await supabase.auth.signUp({
+email:email,
+password:senha
+})
 
 if(error){
-setMsg("Erro ao cadastrar usuário")
+setMsg(error.message)
 setLoading(false)
 return
 }
 
-setMsg("Usuário criado com sucesso")
+/* atualiza dados adicionais */
+
+await supabase
+.from("usuarios")
+.update({
+rg,
+orgao
+})
+.eq("user_id",data.user.id)
+
+setMsg("Usuário criado com sucesso!")
 
 setTimeout(()=>{
 router.push("/login")
 },2000)
+
+setLoading(false)
 
 }
 
@@ -83,6 +107,7 @@ placeholder="RG (somente números)"
 value={rg}
 onChange={(e)=>setRg(somenteNumero(e.target.value))}
 className="w-full border p-2 rounded-lg"
+required
 />
 
 <input
@@ -91,6 +116,7 @@ placeholder="Email"
 value={email}
 onChange={(e)=>setEmail(e.target.value)}
 className="w-full border p-2 rounded-lg"
+required
 />
 
 <select
@@ -109,6 +135,7 @@ placeholder="Senha"
 value={senha}
 onChange={(e)=>setSenha(e.target.value)}
 className="w-full border p-2 rounded-lg"
+required
 />
 
 <input
@@ -117,6 +144,7 @@ placeholder="Confirmar senha"
 value={confirmar}
 onChange={(e)=>setConfirmar(e.target.value)}
 className="w-full border p-2 rounded-lg"
+required
 />
 
 <button
@@ -129,7 +157,9 @@ className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-
 </form>
 
 {msg && (
-<p className="text-sm text-red-500 mt-4 text-center">{msg}</p>
+<p className="text-sm text-red-500 mt-4 text-center">
+{msg}
+</p>
 )}
 
 <div className="text-center mt-4 text-sm">
