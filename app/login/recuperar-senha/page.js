@@ -2,6 +2,7 @@
 
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 
@@ -91,6 +92,17 @@ className="w-full bg-blue-600 text-white py-2 rounded-lg"
 {msg}
 </p>
 )}
+
+<div className="text-center mt-4 text-sm">
+
+<Link
+href="/login"
+className="text-blue-600 hover:underline"
+>
+Voltar para login
+</Link>
+
+</div>
 
 </div>
 </div>
