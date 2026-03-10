@@ -10,173 +10,179 @@ import { supabase } from "@/lib/supabase"
 
 export default function LoginPage(){
 
-const router = useRouter()
+  const router = useRouter()
 
-const [rg,setRg] = useState("")
-const [senha,setSenha] = useState("")
-const [erro,setErro] = useState("")
-const [loading,setLoading] = useState(false)
+  const [rg,setRg] = useState("")
+  const [senha,setSenha] = useState("")
+  const [erro,setErro] = useState("")
+  const [loading,setLoading] = useState(false)
 
-const handleLogin = async (e)=>{
+  const handleLogin = async (e)=>{
 
-e.preventDefault()
+    e.preventDefault()
 
-setErro("")
-setLoading(true)
+    setErro("")
+    setLoading(true)
 
-/* busca email pelo RG */
+    /* busca email pelo RG */
 
-const { data:userData, error:userError } = await supabase
-.from("usuarios")
-.select("id,email,ativo")
-.eq("rg", rg)
-.maybeSingle()
+    const { data:userData, error:userError } = await supabase
+      .from("usuarios")
+      .select("id,email,ativo")
+      .eq("rg", rg)
+      .maybeSingle()
 
-if(userError || !userData){
-setErro("Usuário não encontrado")
-setLoading(false)
-return
-}
+    if(userError || !userData){
+      setErro("Usuário não encontrado")
+      setLoading(false)
+      return
+    }
 
-if(!userData.ativo){
-setErro("Usuário desativado")
-setLoading(false)
-return
-}
+    if(!userData.ativo){
+      setErro("Usuário desativado")
+      setLoading(false)
+      return
+    }
 
-/* login usando auth */
+    /* login usando auth */
 
-const { data:authData, error:loginError } = await supabase.auth.signInWithPassword({
-email: userData.email,
-password: senha
-})
+    const { data:authData, error:loginError } =
+      await supabase.auth.signInWithPassword({
+        email: userData.email,
+        password: senha
+      })
 
-if(loginError){
-setErro("Senha incorreta")
-setLoading(false)
-return
-}
+    if(loginError){
+      setErro("Senha incorreta")
+      setLoading(false)
+      return
+    }
 
-/* confirma sessão */
+    /* garante sessão */
 
-if(!authData.session){
-setErro("Erro ao criar sessão")
-setLoading(false)
-return
-}
+    if(!authData.session){
+      setErro("Erro ao criar sessão")
+      setLoading(false)
+      return
+    }
 
-/* salva cookie simples */
+    /* cria cookie usado pelo middleware */
 
-document.cookie = `usuario=${userData.id}; path=/; max-age=86400`
+    document.cookie = `usuario=${userData.id}; path=/; max-age=86400`
 
-/* redireciona */
+    /* pequena pausa para garantir que o cookie exista */
 
-router.push("/dashboard")
+    await new Promise(resolve => setTimeout(resolve, 300))
 
-}
+    /* redireciona */
 
-return(
+    router.push("/dashboard")
+    router.refresh()
 
-<div className="min-h-screen relative flex items-center justify-center">
+  }
 
-{/* LOGO FUNDO */}
+  return(
 
-<div className="absolute inset-0 flex items-center justify-center opacity-10">
+    <div className="min-h-screen relative flex items-center justify-center">
 
-<Image
-src="/logotipo_redec_norte.png"
-alt="REDEC"
-width={600}
-height={600}
-priority
-/>
+      {/* LOGO FUNDO */}
 
-</div>
+      <div className="absolute inset-0 flex items-center justify-center opacity-10">
 
-{/* OVERLAY */}
+        <Image
+          src="/logotipo_redec_norte.png"
+          alt="REDEC"
+          width={600}
+          height={600}
+          priority
+        />
 
-<div className="absolute inset-0 bg-slate-100/80"></div>
+      </div>
 
-{/* CARD */}
+      {/* OVERLAY */}
 
-<div className="relative bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+      <div className="absolute inset-0 bg-slate-100/80"></div>
 
-<div className="text-center mb-6">
+      {/* CARD */}
 
-<Image
-src="/logotipo_redec_norte.png"
-alt="REDEC 10"
-width={90}
-height={90}
-className="mx-auto mb-4"
-/>
+      <div className="relative bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
 
-<h1 className="text-xl font-bold text-slate-800">
-Sistema Integrado REDEC 10 Norte
-</h1>
+        <div className="text-center mb-6">
 
-<p className="text-sm text-slate-500">
-Gestão Estratégica em Defesa Civil
-</p>
+          <Image
+            src="/logotipo_redec_norte.png"
+            alt="REDEC 10"
+            width={90}
+            height={90}
+            className="mx-auto mb-4"
+          />
 
-</div>
+          <h1 className="text-xl font-bold text-slate-800">
+            Sistema Integrado REDEC 10 Norte
+          </h1>
 
-<form onSubmit={handleLogin} className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Gestão Estratégica em Defesa Civil
+          </p>
 
-<input
-type="text"
-value={rg}
-onChange={(e)=>setRg(e.target.value.replace(/\D/g,""))}
-placeholder="RG (somente números)"
-className="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-required
-/>
+        </div>
 
-<input
-type="password"
-value={senha}
-onChange={(e)=>setSenha(e.target.value)}
-placeholder="Senha"
-className="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-required
-/>
+        <form onSubmit={handleLogin} className="space-y-4">
 
-{erro && (
-<p className="text-red-500 text-sm text-center">{erro}</p>
-)}
+          <input
+            type="text"
+            value={rg}
+            onChange={(e)=>setRg(e.target.value.replace(/\D/g,""))}
+            placeholder="RG (somente números)"
+            className="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
 
-<button
-type="submit"
-disabled={loading}
-className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition disabled:opacity-50"
->
-{loading ? "Entrando..." : "Entrar"}
-</button>
+          <input
+            type="password"
+            value={senha}
+            onChange={(e)=>setSenha(e.target.value)}
+            placeholder="Senha"
+            className="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
 
-</form>
+          {erro && (
+            <p className="text-red-500 text-sm text-center">{erro}</p>
+          )}
 
-<div className="flex justify-between mt-4 text-sm">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition disabled:opacity-50"
+          >
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
 
-<Link
-href="/login/recuperar-senha"
-className="text-blue-600 hover:underline"
->
-Esqueci minha senha
-</Link>
+        </form>
 
-<Link
-href="/login/cadastro"
-className="text-blue-600 hover:underline"
->
-Criar conta
-</Link>
+        <div className="flex justify-between mt-4 text-sm">
 
-</div>
+          <Link
+            href="/login/recuperar-senha"
+            className="text-blue-600 hover:underline"
+          >
+            Esqueci minha senha
+          </Link>
 
-</div>
+          <Link
+            href="/login/cadastro"
+            className="text-blue-600 hover:underline"
+          >
+            Criar conta
+          </Link>
 
-</div>
+        </div>
 
-)
+      </div>
+
+    </div>
+
+  )
 
 }
