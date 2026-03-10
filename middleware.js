@@ -6,18 +6,21 @@ export function middleware(request){
 
 const url = request.nextUrl.clone()
 
-const isLogin = url.pathname.startsWith("/login")
+const isLoginPage = url.pathname.startsWith("/login")
 
-/* procura qualquer cookie do supabase */
+const accessToken = request.cookies.get("sb-access-token")
 
-const hasSupabaseCookie = request.cookies
-.getAll()
-.some(cookie => cookie.name.startsWith("sb-"))
+const usuarioCookie = request.cookies.get("usuario")
 
-/* se não estiver logado e tentar acessar páginas protegidas */
+const isLogged = accessToken || usuarioCookie
 
-if(!hasSupabaseCookie && !isLogin){
+if(!isLogged && !isLoginPage){
 url.pathname = "/login"
+return NextResponse.redirect(url)
+}
+
+if(isLogged && isLoginPage){
+url.pathname = "/dashboard"
 return NextResponse.redirect(url)
 }
 
