@@ -24,16 +24,16 @@ e.preventDefault()
 setErro("")
 setLoading(true)
 
-/* busca usuário pelo RG */
+/* busca email pelo RG */
 
 const { data:userData, error:userError } = await supabase
 .from("usuarios")
 .select("id,email,ativo")
-.eq("rg",rg)
-.single()
+.eq("rg", rg)
+.maybeSingle()
 
 if(userError || !userData){
-setErro("RG ou senha inválidos")
+setErro("Usuário não encontrado")
 setLoading(false)
 return
 }
@@ -44,24 +44,30 @@ setLoading(false)
 return
 }
 
-/* login no auth */
+/* login usando auth */
 
-const { data, error:loginError } = await supabase.auth.signInWithPassword({
-email:userData.email,
-password:senha
+const { data:authData, error:loginError } = await supabase.auth.signInWithPassword({
+email: userData.email,
+password: senha
 })
 
 if(loginError){
-setErro("RG ou senha inválidos")
+setErro("Senha incorreta")
 setLoading(false)
 return
 }
 
-/* cookie simples */
+/* confirma sessão */
+
+if(!authData.session){
+setErro("Erro ao criar sessão")
+setLoading(false)
+return
+}
+
+/* salva cookie simples */
 
 document.cookie = `usuario=${userData.id}; path=/; max-age=86400`
-
-setLoading(false)
 
 /* redireciona */
 
@@ -73,13 +79,13 @@ return(
 
 <div className="min-h-screen relative flex items-center justify-center">
 
-{/* LOGO DE FUNDO */}
+{/* LOGO FUNDO */}
 
 <div className="absolute inset-0 flex items-center justify-center opacity-10">
 
 <Image
 src="/logotipo_redec_norte.png"
-alt="REDEC 10"
+alt="REDEC"
 width={600}
 height={600}
 priority
@@ -87,11 +93,11 @@ priority
 
 </div>
 
-{/* OVERLAY SUAVE */}
+{/* OVERLAY */}
 
 <div className="absolute inset-0 bg-slate-100/80"></div>
 
-{/* CARD LOGIN */}
+{/* CARD */}
 
 <div className="relative bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
 
