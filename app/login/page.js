@@ -6,7 +6,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-
 import { supabase } from "@/lib/supabase"
 
 export default function LoginPage(){
@@ -31,7 +30,7 @@ const { data:userData, error:userError } = await supabase
 .from("usuarios")
 .select("id,email,ativo")
 .eq("rg",rg)
-.maybeSingle()
+.single()
 
 if(userError || !userData){
 setErro("RG ou senha inválidos")
@@ -39,17 +38,15 @@ setLoading(false)
 return
 }
 
-/* verifica se usuário está ativo */
-
 if(!userData.ativo){
 setErro("Usuário desativado")
 setLoading(false)
 return
 }
 
-/* login usando auth */
+/* login no auth */
 
-const { error:loginError } = await supabase.auth.signInWithPassword({
+const { data, error:loginError } = await supabase.auth.signInWithPassword({
 email:userData.email,
 password:senha
 })
@@ -60,9 +57,13 @@ setLoading(false)
 return
 }
 
-/* cookie simples para middleware */
+/* cookie simples */
 
 document.cookie = `usuario=${userData.id}; path=/; max-age=86400`
+
+setLoading(false)
+
+/* redireciona */
 
 router.push("/dashboard")
 
@@ -70,30 +71,41 @@ router.push("/dashboard")
 
 return(
 
-<div className="min-h-screen flex items-center justify-center bg-slate-100">
+<div className="min-h-screen relative flex items-center justify-center">
 
-<div className="w-full max-w-md p-4">
+{/* LOGO DE FUNDO */}
 
-<div className="bg-white p-8 rounded-2xl shadow-xl">
+<div className="absolute inset-0 flex items-center justify-center opacity-10">
 
-{/* LOGO */}
+<Image
+src="/logotipo_redec_norte.png"
+alt="REDEC 10"
+width={600}
+height={600}
+priority
+/>
+
+</div>
+
+{/* OVERLAY SUAVE */}
+
+<div className="absolute inset-0 bg-slate-100/80"></div>
+
+{/* CARD LOGIN */}
+
+<div className="relative bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
 
 <div className="text-center mb-6">
-
-<div className="flex justify-center">
 
 <Image
 src="/logotipo_redec_norte.png"
 alt="REDEC 10"
 width={90}
 height={90}
-priority
-className="drop-shadow-xl"
+className="mx-auto mb-4"
 />
 
-</div>
-
-<h1 className="text-xl font-bold text-slate-800 mt-4">
+<h1 className="text-xl font-bold text-slate-800">
 Sistema Integrado REDEC 10 Norte
 </h1>
 
@@ -152,8 +164,6 @@ className="text-blue-600 hover:underline"
 >
 Criar conta
 </Link>
-
-</div>
 
 </div>
 
