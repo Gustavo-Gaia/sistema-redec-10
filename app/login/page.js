@@ -68,16 +68,16 @@ export default function LoginPage(){
 
     /* cria cookie usado pelo middleware */
 
-    document.cookie = `usuario=${userData.id}; path=/; max-age=86400`
+    document.cookie = `usuario=${userData.id}; path=/; max-age=86400; SameSite=Lax`
 
     /* pequena pausa para garantir que o cookie exista */
 
-    await new Promise(resolve => setTimeout(resolve, 300))
+    await new Promise(resolve => setTimeout(resolve, 800))
 
     /* redireciona */
 
-    router.push("/dashboard")
-    router.refresh()
+    window.location.href = "/dashboard"
+    
 
   }
 
