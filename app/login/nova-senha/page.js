@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
@@ -14,25 +14,57 @@ const [senha,setSenha] = useState("")
 const [confirmar,setConfirmar] = useState("")
 const [msg,setMsg] = useState("")
 const [loading,setLoading] = useState(false)
+const [sessaoValida,setSessaoValida] = useState(false)
+
+/* verifica se o link de recuperação possui sessão válida */
+
+useEffect(()=>{
+
+async function verificarSessao(){
+
+const { data } = await supabase.auth.getSession()
+
+if(data.session){
+setSessaoValida(true)
+}else{
+setMsg("Link de recuperação inválido ou expirado")
+}
+
+}
+
+verificarSessao()
+
+},[])
 
 async function redefinir(e){
 
 e.preventDefault()
 
 setMsg("")
-setLoading(true)
 
-if(senha !== confirmar){
-setMsg("As senhas não conferem")
-setLoading(false)
+if(!sessaoValida){
+setMsg("Link inválido ou expirado")
 return
 }
 
+if(senha.length < 6){
+setMsg("A senha deve ter pelo menos 6 caracteres")
+return
+}
+
+if(senha !== confirmar){
+setMsg("As senhas não conferem")
+return
+}
+
+setLoading(true)
+
 const { error } = await supabase.auth.updateUser({
-password:senha
+password: senha
 })
 
 if(error){
+console.log(error)
 setMsg("Erro ao redefinir senha")
 setLoading(false)
 return
@@ -77,8 +109,8 @@ required
 />
 
 <button
-disabled={loading}
-className="w-full bg-blue-600 text-white py-2 rounded-lg"
+disabled={loading || !sessaoValida}
+className="w-full bg-blue-600 text-white py-2 rounded-lg disabled:opacity-50"
 >
 {loading ? "Salvando..." : "Redefinir senha"}
 </button>
