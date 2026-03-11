@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js"
 import SeletorMonitoramento from "./seletor"
 import { MonitoramentoProvider } from "./MonitoramentoContext"
+import TabsMonitoramento from "./TabsMonitoramento"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -40,6 +41,10 @@ export default async function Monitoramento() {
           rios={rios}
           estacoes={estacoes}
         />
+
+        {/* ABAS DO MONITORAMENTO */}
+
+        <TabsMonitoramento />
 
       </div>
 
