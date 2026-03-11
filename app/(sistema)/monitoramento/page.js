@@ -1,7 +1,6 @@
 /* app/(sistema)/monitoramento/page.js */
 
 import { createClient } from "@supabase/supabase-js"
-import SeletorMonitoramento from "./seletor"
 import { MonitoramentoProvider } from "./MonitoramentoContext"
 import TabsMonitoramento from "./TabsMonitoramento"
 
@@ -34,17 +33,15 @@ export default async function Monitoramento() {
         </h2>
 
         <p className="text-slate-600 mb-6">
-          Selecione o rio e o município para visualizar as estações.
+          Sistema de acompanhamento das estações hidrológicas da região.
         </p>
-
-        <SeletorMonitoramento
-          rios={rios}
-          estacoes={estacoes}
-        />
 
         {/* ABAS DO MONITORAMENTO */}
 
-        <TabsMonitoramento />
+        <TabsMonitoramento
+          rios={rios}
+          estacoes={estacoes}
+        />
 
       </div>
 
