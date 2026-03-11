@@ -9,7 +9,7 @@ import MapaEstacoes from "./abas/MapaEstacoes"
 import Relatorios from "./abas/Relatorios"
 import InserirMedicoes from "./abas/InserirMedicoes"
 
-export default function TabsMonitoramento() {
+export default function TabsMonitoramento({ rios, estacoes }) {
 
   const [abaAtiva, setAbaAtiva] = useState("situacao")
 
@@ -35,7 +35,6 @@ export default function TabsMonitoramento() {
             key={aba.id}
             onClick={() => setAbaAtiva(aba.id)}
             className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition
-              
               ${abaAtiva === aba.id
                 ? "bg-blue-600 text-white"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"}
@@ -50,11 +49,16 @@ export default function TabsMonitoramento() {
 
       </div>
 
-      {/* CONTEÚDO DAS ABAS */}
+      {/* CONTEÚDO */}
 
       <div className="mt-6">
 
-        {abaAtiva === "situacao" && <SituacaoAtual />}
+        {abaAtiva === "situacao" && (
+          <SituacaoAtual
+            rios={rios}
+            estacoes={estacoes}
+          />
+        )}
 
         {abaAtiva === "historico" && <Historico />}
 
