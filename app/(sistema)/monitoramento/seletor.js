@@ -2,12 +2,16 @@
 
 "use client"
 
-import { useState } from "react"
+import { useMonitoramento } from "./MonitoramentoContext"
 
 export default function SeletorMonitoramento({ rios, estacoes }) {
 
-  const [rioSelecionado, setRioSelecionado] = useState("")
-  const [municipioSelecionado, setMunicipioSelecionado] = useState("")
+  const {
+    rioSelecionado,
+    setRioSelecionado,
+    municipioSelecionado,
+    setMunicipioSelecionado
+  } = useMonitoramento()
 
   const municipiosFiltrados = estacoes.filter(
     (estacao) => estacao.rio_id === Number(rioSelecionado)
@@ -31,10 +35,10 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
 
         <select
           className="w-full p-2 border rounded-lg"
-          value={rioSelecionado}
+          value={rioSelecionado || ""}
           onChange={(e) => {
             setRioSelecionado(e.target.value)
-            setMunicipioSelecionado("") // limpa município ao trocar rio
+            setMunicipioSelecionado("")
           }}
         >
 
@@ -71,7 +75,7 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
 
         <select
           className="w-full p-2 border rounded-lg"
-          value={municipioSelecionado}
+          value={municipioSelecionado || ""}
           onChange={(e) => setMunicipioSelecionado(e.target.value)}
           disabled={!rioSelecionado}
         >
