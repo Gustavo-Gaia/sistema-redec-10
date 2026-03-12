@@ -1,124 +1,118 @@
 /* app/api/inea/route.js */
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import * as cheerio from "cheerio"
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import * as cheerio from "cheerio";
+import https from "https";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+);
+
+// Agente para ignorar erro de certificado SSL (equivalente ao verify=False do Python)
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
 
 async function capturarINEA(codigo) {
+  const url = `https://alertadecheias.inea.rj.gov.br/alertadecheias/${codigo}.html`;
 
-  const url =
-    `https://alertadecheias.inea.rj.gov.br/alertadecheias/${codigo}.html`
+  try {
+    const response = await fetch(url, {
+      agent: httpsAgent, // Aplica o agente que ignora SSL
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      },
+      next: { revalidate: 0 } // Garante que o Next.js não faça cache da resposta
+    });
 
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
-      "Accept":
-        "text/html,application/xhtml+xml",
-      "Cache-Control": "no-cache"
-    },
-    cache: "no-store"
-  })
+    if (!response.ok) return null;
 
-  const html = await response.text()
+    const html = await response.text();
+    const $ = cheerio.load(html);
 
-  const $ = cheerio.load(html)
+    // O INEA costuma usar ID "Table" (com T maiúsculo). 
+    // Por segurança, vamos buscar por ID ou pela estrutura de tabela se falhar.
+    let tabela = $("#Table");
+    if (tabela.length === 0) tabela = $("table"); 
 
-  const tabela = $("#Table")
+    const registros = [];
 
-  if (!tabela.length) return null
+    tabela.find("tr").each((i, el) => {
+      const cols = $(el).find("td");
+      if (cols.length < 8) return;
 
-  const registros = []
+      const dataHoraTxt = $(cols[0]).text().trim();
+      const nivelTxt = $(cols[7]).text().trim();
 
-  tabela.find("tr").each((i, el) => {
+      if (!dataHoraTxt || !nivelTxt || dataHoraTxt.includes("Data")) return;
 
-    const cols = $(el).find("td")
+      try {
+        // Tratamento da data no formato DD/MM/YYYY HH:MM
+        const [dataPart, horaPart] = dataHoraTxt.split(" ");
+        const [dia, mes, ano] = dataPart.split("/");
+        
+        // Criando a data manualmente para evitar problemas de fuso horário local
+        const dataFormatada = `${ano}-${mes}-${dia}T${horaPart}:00`;
+        const dt = new Date(dataFormatada);
 
-    if (cols.length < 8) return
+        const nivel = parseFloat(nivelTxt.replace(",", "."));
 
-    const dataHoraTxt = $(cols[0]).text().trim()
-    const nivelTxt = $(cols[7]).text().trim()
+        if (!isNaN(dt.getTime()) && !isNaN(nivel)) {
+          registros.push({ dt, nivel });
+        }
+      } catch (e) {
+        // Ignora linhas de erro de parse
+      }
+    });
 
-    if (!dataHoraTxt || !nivelTxt) return
+    if (registros.length === 0) return null;
 
-    try {
+    // 🔥 Encontra o registro mais recente (igual ao seu max() no Python)
+    const ultimo = registros.reduce((a, b) => (a.dt > b.dt ? a : b));
 
-      const [dataTxt, horaTxt] = dataHoraTxt.split(" ")
+    return {
+      data: ultimo.dt.toISOString().split("T")[0],
+      hora: ultimo.dt.toTimeString().slice(0, 5),
+      nivel: ultimo.nivel
+    };
 
-      const [dia, mes, ano] = dataTxt.split("/")
-
-      const dt = new Date(`${ano}-${mes}-${dia}T${horaTxt}`)
-
-      const nivel = parseFloat(
-        nivelTxt.replace(",", ".")
-      )
-
-      registros.push({
-        dt,
-        nivel
-      })
-
-    } catch {}
-
-  })
-
-  if (!registros.length) return null
-
-  const ultimo = registros.reduce((a, b) =>
-    a.dt > b.dt ? a : b
-  )
-
-  return {
-    data: ultimo.dt.toISOString().slice(0,10),
-    hora: ultimo.dt.toISOString().slice(11,16),
-    nivel: ultimo.nivel
+  } catch (error) {
+    console.error(`Erro na captura do código ${codigo}:`, error.message);
+    return null;
   }
-
 }
 
 export async function GET() {
-
-  const { data: estacoes } = await supabase
+  const { data: estacoes, error } = await supabase
     .from("estacoes")
-    .select("id,codigo_estacao")
-    .eq("fonte","INEA")
-    .eq("ativo",true)
+    .select("id, codigo_estacao")
+    .eq("fonte", "INEA")
+    .eq("ativo", true);
 
-  const resultados = []
+  if (error || !estacoes) {
+    return NextResponse.json({ error: "Erro ao buscar estações" }, { status: 500 });
+  }
 
+  const resultados = [];
+
+  // Usando for...of para respeitar o await corretamente
   for (const estacao of estacoes) {
+    if (!estacao.codigo_estacao) continue;
 
-    try {
+    const dados = await capturarINEA(estacao.codigo_estacao);
 
-      const dados = await capturarINEA(
-        estacao.codigo_estacao
-      )
-
-      if (!dados) continue
-
+    if (dados) {
       resultados.push({
         estacao_id: estacao.id,
         ...dados
-      })
-
-    } catch (err) {
-
-      console.log(
-        "Erro INEA:",
-        estacao.codigo_estacao
-      )
-
+      });
     }
-
   }
 
-  return NextResponse.json(resultados)
-
+  return NextResponse.json(resultados);
 }
