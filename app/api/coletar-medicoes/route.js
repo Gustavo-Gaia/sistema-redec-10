@@ -2,6 +2,7 @@
 /* captura automática de medições - usado pelo cron */
 
 /* app/api/coletar-medicoes/route.js */
+/* app/api/coletar-medicoes/route.js */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
@@ -14,70 +15,57 @@ const supabase = createClient(
 
 export async function GET() {
   try {
-    console.log("🚀 [ROBÔ] Iniciando ciclo de captura:", new Date().toLocaleString("pt-BR"));
+    console.log("🚀 [ROBÔ] Iniciando coleta direta por origem...");
 
-    // 1. CARREGAR ESTAÇÕES ATIVAS (Mapeamento de segurança)
-    const { data: estacoes, error: errorEst } = await supabase
-      .from("estacoes")
-      .select("id, fonte")
-      .eq("ativo", true);
-
-    if (errorEst) throw new Error("Erro ao consultar estações no banco.");
-
-    // Usamos um Map para garantir consistência entre chaves numéricas e string
-    const mapaFontes = new Map();
-    estacoes?.forEach((e) => mapaFontes.set(Number(e.id), e.fonte || "COMDEC"));
-
-    // 2. BUSCAR DADOS (ANA e INEA)
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    const resultados = await Promise.allSettled([
-      fetch(`${baseUrl}/api/ana`, { cache: 'no-store' }).then(r => r.json()),
-      fetch(`${baseUrl}/api/inea`, { cache: 'no-store' }).then(r => r.json())
+
+    // 1. BUSCAR DADOS DE AMBAS AS FONTES
+    // Usamos Promis.all para disparar as duas buscas simultaneamente
+    const [dadosAna, dadosInea] = await Promise.all([
+      fetch(`${baseUrl}/api/ana`).then(r => r.json()).catch(() => []),
+      fetch(`${baseUrl}/api/inea`).then(r => r.json()).catch(() => [])
     ]);
 
-    // Consolidar medições (filtrando apenas as bem-sucedidas)
-    const medicoes = resultados
-      .filter(r => r.status === 'fulfilled')
-      .flatMap(r => r.value || []);
+    // 2. ADICIONAR MARCADOR DE FONTE PARA CADA ORIGEM
+    const medicoes = [
+      ...dadosAna.map(m => ({ ...m, fonte: "ANA" })),
+      ...dadosInea.map(m => ({ ...m, fonte: "INEA" }))
+    ];
 
     if (medicoes.length === 0) {
-      return NextResponse.json({ status: "aviso", message: "Nenhum dado coletado." });
+      return NextResponse.json({ status: "vazio", message: "Nenhum dado retornado pelas APIs" });
     }
 
-    // 3. PROCESSAR E INSERIR
-    let stats = { inseridos: 0, ignorados: 0, erros: 0 };
+    let inseridos = 0;
+    let ignorados = 0;
 
+    // 3. INSERÇÃO NO BANCO
     for (const m of medicoes) {
       if (!m.estacao_id) continue;
-
-      const idEstacao = Number(m.estacao_id);
-      
-      // A lógica de prioridade de fonte agora é estrita:
-      // 1º: Fonte vinda da API | 2º: Fonte salva na tabela estações | 3º: Padrão 'COMDEC'
-      const fonteFinal = m.fonte ?? mapaFontes.get(idEstacao) ?? "COMDEC";
 
       const { error } = await supabase
         .from("medicoes")
         .insert({
-          estacao_id: idEstacao,
+          estacao_id: m.estacao_id,
           data_hora: `${m.data} ${m.hora}`,
           nivel: m.nivel,
-          fonte: fonteFinal, // Nunca será null/undefined
-          abaixo_regua: Boolean(m.abaixo_regua)
+          fonte: m.fonte, // Agora é garantido: ANA ou INEA
+          abaixo_regua: m.abaixo_regua || false
         });
 
       if (error) {
-        error.code === "23505" ? stats.ignorados++ : stats.erros++;
+        if (error.code === "23505") ignorados++;
+        else console.log(`❌ Erro na inserção (Estação ${m.estacao_id}):`, error.message);
       } else {
-        stats.inseridos++;
+        inseridos++;
       }
     }
 
-    console.log(`✅ Ciclo finalizado. Stats:`, stats);
-    return NextResponse.json({ status: "sucesso", ...stats });
+    console.log(`✅ Ciclo finalizado. Inseridos: ${inseridos} | Ignorados: ${ignorados}`);
+    return NextResponse.json({ status: "sucesso", inseridos, ignorados });
 
   } catch (err) {
-    console.error("🚨 Erro no Robô:", err.message);
+    console.error("🚨 Erro Crítico:", err);
     return NextResponse.json({ erro: err.message }, { status: 500 });
   }
 }
