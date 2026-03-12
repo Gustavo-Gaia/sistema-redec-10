@@ -2,9 +2,9 @@
 
 export const dynamic = "force-dynamic"
 
-import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
-import * as cheerio from "cheerio"
+import { createClient } from "@supabase/supabase-js"
+import cheerio from "cheerio"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -16,8 +16,8 @@ export async function GET() {
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id,codigo_estacao")
-    .eq("fonte","INEA")
-    .eq("ativo",true)
+    .eq("fonte", "INEA")
+    .eq("ativo", true)
 
   const resultados = []
 
@@ -34,11 +34,9 @@ export async function GET() {
 
       const $ = cheerio.load(html)
 
-      const linhas = $("table tr")
-
       let ultimo = null
 
-      linhas.each((i, el) => {
+      $("table tr").each((i, el) => {
 
         const cols = $(el).find("td")
 
@@ -51,14 +49,20 @@ export async function GET() {
 
         const partes = dataHora.split(" ")
 
+        if (partes.length < 2) return
+
         const data = partes[0].split("/").reverse().join("-")
         const hora = partes[1]
 
         const nivel = parseFloat(
-          nivelTxt.replace(",",".")
+          nivelTxt.replace(",", ".")
         )
 
-        ultimo = { data, hora, nivel }
+        ultimo = {
+          data,
+          hora,
+          nivel
+        }
 
       })
 
@@ -71,13 +75,13 @@ export async function GET() {
         nivel: ultimo.nivel
       })
 
-    } catch {}
+    } catch (err) {
+
+      console.log("Erro INEA:", estacao.codigo_estacao)
+
+    }
 
   }
-
-  return NextResponse.json(resultados)
-
-}
 
   return NextResponse.json(resultados)
 
