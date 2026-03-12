@@ -41,7 +41,7 @@ export default function InserirMedicoes() {
   }
 
   // ===============================
-  // ALTERAR VALORES
+  // ATUALIZAR CAMPOS
   // ===============================
 
   function atualizarCampo(id, campo, valor) {
@@ -66,25 +66,25 @@ export default function InserirMedicoes() {
     try {
 
       const resp = await fetch("/api/ana")
-
       const json = await resp.json()
 
-      const novosDados = { ...dados }
+      const novos = { ...dados }
 
       json.forEach((m) => {
 
-        novosDados[m.estacao_id] = {
+        novos[m.estacao_id] = {
           data: m.data,
           hora: m.hora,
           nivel: m.nivel,
-          abaixo_regua: false
+          abaixo_regua: false,
+          fonte: "ANA"
         }
 
       })
 
-      setDados(novosDados)
+      setDados(novos)
 
-    } catch (err) {
+    } catch {
 
       alert("Erro ao buscar ANA")
 
@@ -105,25 +105,25 @@ export default function InserirMedicoes() {
     try {
 
       const resp = await fetch("/api/inea")
-
       const json = await resp.json()
 
-      const novosDados = { ...dados }
+      const novos = { ...dados }
 
       json.forEach((m) => {
 
-        novosDados[m.estacao_id] = {
+        novos[m.estacao_id] = {
           data: m.data,
           hora: m.hora,
           nivel: m.nivel,
-          abaixo_regua: false
+          abaixo_regua: false,
+          fonte: "INEA"
         }
 
       })
 
-      setDados(novosDados)
+      setDados(novos)
 
-    } catch (err) {
+    } catch {
 
       alert("Erro ao buscar INEA")
 
@@ -147,30 +147,46 @@ export default function InserirMedicoes() {
 
       const d = dados[estacao.id]
 
-      if (!d) return
+      if (!d || !d.data || !d.hora) return
 
       registros.push({
         estacao_id: estacao.id,
         data: d.data,
         hora: d.hora,
-        nivel: d.abaixo_regua ? null : d.nivel,
-        status: d.abaixo_regua ? "ABAIXO_REGUA" : "OK"
+        nivel: d.abaixo_regua ? null : Number(d.nivel),
+        fonte: d.fonte || "MANUAL",
+        abaixo_regua: d.abaixo_regua || false
       })
+
     })
 
-    const { error } = await supabase
-      .from("medicoes")
-      .insert(registros)
+    if (registros.length === 0) {
+      alert("Nenhuma medição para salvar")
+      setLoading(false)
+      return
+    }
 
-    if (error) {
+    try {
+
+      const resp = await fetch("/api/salvar-medicoes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(registros)
+      })
+
+      const r = await resp.json()
+
+      alert(
+        `Medições salvas: ${r.inseridos}\nDuplicadas ignoradas: ${r.ignorados}`
+      )
+
+      setDados({})
+
+    } catch {
 
       alert("Erro ao salvar medições")
-      console.log(error)
-
-    } else {
-
-      alert("Medições salvas com sucesso")
-      setDados({})
 
     }
 
@@ -324,4 +340,5 @@ export default function InserirMedicoes() {
     </div>
 
   )
+
 }
