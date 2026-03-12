@@ -16,68 +16,57 @@ export async function GET() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
-    // 1. BUSCAR DADOS (Fetch das rotas de captura que você já utiliza)
+    // FORÇAMOS A BUSCA SEM CACHE PARA PEGAR DADOS ATUAIS (18:45)
     const [dadosAna, dadosInea] = await Promise.all([
-      fetch(`${baseUrl}/api/ana`, { cache: 'no-store' }).then(r => r.json()).catch(() => []),
-      fetch(`${baseUrl}/api/inea`, { cache: 'no-store' }).then(r => r.json()).catch(() => [])
+      fetch(`${baseUrl}/api/ana`, { 
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' } 
+      }).then(r => r.json()).catch(() => []),
+      fetch(`${baseUrl}/api/inea`, { 
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' } 
+      }).then(r => r.json()).catch(() => [])
     ]);
 
-    // 2. NORMALIZAR DADOS (Igual ao seu fluxo manual)
-    // Garantimos que cada objeto tenha exatamente as chaves esperadas pelo seu endpoint de salvamento
+    // NORMALIZAÇÃO MANUAL (Garantindo a fonte aqui)
     const medicoes = [
-      ...dadosAna.map(m => ({
-        estacao_id: m.estacao_id,
-        data: m.data,
-        hora: m.hora,
-        nivel: m.nivel,
-        abaixo_regua: false,
-        fonte: "ANA"
+      ...dadosAna.map(m => ({ 
+        estacao_id: m.estacao_id, 
+        data: m.data, 
+        hora: m.hora, 
+        nivel: m.nivel, 
+        fonte: "ANA" 
       })),
-      ...dadosInea.map(m => ({
-        estacao_id: m.estacao_id,
-        data: m.data,
-        hora: m.hora,
-        nivel: m.nivel,
-        abaixo_regua: false,
-        fonte: "INEA"
+      ...dadosInea.map(m => ({ 
+        estacao_id: m.estacao_id, 
+        data: m.data, 
+        hora: m.hora, 
+        nivel: m.nivel, 
+        fonte: "INEA" 
       }))
     ];
 
-    if (medicoes.length === 0) {
-      return NextResponse.json({ status: "vazio", message: "Nenhum dado retornado" });
-    }
-
     let inseridos = 0;
-    let ignorados = 0;
-
-    // 3. INSERÇÃO (Reutilizando a lógica do seu POST de salvamento)
     for (const m of medicoes) {
-      if (!m.estacao_id || !m.data || !m.hora) continue;
+      if (!m.estacao_id) continue;
 
-      const dataHora = `${m.data} ${m.hora}`;
-
+      // INSERÇÃO DIRETA
       const { error } = await supabase
         .from("medicoes")
         .insert({
           estacao_id: m.estacao_id,
-          data_hora: dataHora,
+          data_hora: `${m.data} ${m.hora}`,
           nivel: m.nivel,
-          fonte: m.fonte, // Agora é a string "ANA" ou "INEA" definida acima
-          abaixo_regua: m.abaixo_regua
+          fonte: m.fonte, // Agora vem do .map() acima, garantidamente "ANA" ou "INEA"
+          abaixo_regua: false
         });
 
-      if (error) {
-        console.log(`Erro ao inserir estacao ${m.estacao_id}:`, error);
-        if (error.code === "23505") ignorados++;
-      } else {
-        inseridos++;
-      }
+      if (!error) inseridos++;
     }
 
-    return NextResponse.json({ status: "sucesso", inseridos, ignorados });
+    return NextResponse.json({ status: "sucesso", total: inseridos });
 
   } catch (err) {
-    console.error("Erro no robô:", err);
     return NextResponse.json({ erro: err.message }, { status: 500 });
   }
 }
