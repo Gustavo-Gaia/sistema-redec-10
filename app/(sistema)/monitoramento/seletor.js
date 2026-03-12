@@ -25,8 +25,6 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
 
     <div className="grid md:grid-cols-2 gap-6 mb-8">
 
-      {/* SELETOR DE RIO */}
-
       <div>
 
         <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -48,9 +46,7 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
 
           {[...rios]
             .sort((a, b) => {
-              if (a.tipo === b.tipo) {
-                return a.nome.localeCompare(b.nome)
-              }
+              if (a.tipo === b.tipo) return a.nome.localeCompare(b.nome)
               if (a.tipo === "rio") return -1
               if (b.tipo === "rio") return 1
               return 0
@@ -64,8 +60,6 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
         </select>
 
       </div>
-
-      {/* SELETOR DE MUNICÍPIO */}
 
       <div>
 
