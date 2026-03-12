@@ -16,7 +16,7 @@ export async function GET() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
-    // BUSCA
+    // 1. BUSCA
     const [dadosAna, dadosInea] = await Promise.all([
       fetch(`${baseUrl}/api/ana`, { cache: 'no-store' }).then(r => r.json()).catch(() => []),
       fetch(`${baseUrl}/api/inea`, { cache: 'no-store' }).then(r => r.json()).catch(() => [])
@@ -27,26 +27,34 @@ export async function GET() {
       ...dadosInea.map(m => ({ ...m, fonte: m.fonte || "INEA" }))
     ];
 
+    // 2. INSERÇÃO COM VERIFICAÇÃO DE DADOS
     for (const m of medicoes) {
       if (!m.estacao_id) continue;
+
+      // Vamos verificar se a fonte é válida antes de enviar
+      const fonteParaEnviar = m.fonte || "FONTE_NULA_DETECTADA";
 
       const payload = {
         estacao_id: m.estacao_id,
         data_hora: `${m.data} ${m.hora}`,
         nivel: m.nivel,
-        fonte: m.fonte,
+        fonte: fonteParaEnviar,
         abaixo_regua: m.abaixo_regua || false
       };
 
-      // --- LOG CRUCIAL: Olhe isso no terminal da Vercel ---
-      console.log("DADO ENVIADO AO SUPABASE:", JSON.stringify(payload));
-
       const { error } = await supabase.from("medicoes").insert(payload);
 
-      if (error) console.log(`Erro estação ${m.estacao_id}:`, error.message);
+      if (error) {
+        // Se der erro, vamos retornar o erro E o payload para sabermos o que falhou
+        return NextResponse.json({ 
+          status: "erro_no_banco", 
+          error, 
+          payload_enviado: payload 
+        }, { status: 500 });
+      }
     }
 
-    return NextResponse.json({ status: "ok" });
+    return NextResponse.json({ status: "sucesso", total: medicoes.length });
   } catch (err) {
     return NextResponse.json({ erro: err.message }, { status: 500 });
   }
