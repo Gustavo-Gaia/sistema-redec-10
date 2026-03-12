@@ -13,15 +13,11 @@ const supabase = createClient(
 
 export async function GET() {
 
-  const { data: estacoes, error } = await supabase
+  const { data: estacoes } = await supabase
     .from("estacoes")
-    .select("*")
-    .eq("fonte", "INEA")
-    .eq("ativo", true)
-
-  if (error) {
-    return NextResponse.json({ error: error.message })
-  }
+    .select("id,codigo_estacao")
+    .eq("fonte","INEA")
+    .eq("ativo",true)
 
   const resultados = []
 
@@ -40,63 +36,48 @@ export async function GET() {
 
       const linhas = $("table tr")
 
-      let registros = []
+      let ultimo = null
 
       linhas.each((i, el) => {
 
         const cols = $(el).find("td")
 
-        if (cols.length >= 8) {
+        if (cols.length < 8) return
 
-          const dataHora = $(cols[0]).text().trim()
-          const nivelTxt = $(cols[7]).text().trim()
+        const dataHora = $(cols[0]).text().trim()
+        const nivelTxt = $(cols[7]).text().trim()
 
-          if (!dataHora || !nivelTxt) return
+        if (!dataHora || !nivelTxt) return
 
-          try {
+        const partes = dataHora.split(" ")
 
-            const partes = dataHora.split(" ")
+        const data = partes[0].split("/").reverse().join("-")
+        const hora = partes[1]
 
-            const data = partes[0].split("/").reverse().join("-")
-            const hora = partes[1]
+        const nivel = parseFloat(
+          nivelTxt.replace(",",".")
+        )
 
-            const nivel = parseFloat(
-              nivelTxt.replace(",", ".")
-            )
-
-            registros.push({
-              data,
-              hora,
-              nivel
-            })
-
-          } catch {}
-
-        }
+        ultimo = { data, hora, nivel }
 
       })
 
-      if (registros.length === 0) continue
-
-      const ultimo = registros[registros.length - 1]
+      if (!ultimo) continue
 
       resultados.push({
         estacao_id: estacao.id,
-        municipio: estacao.municipio,
-        codigo_estacao: estacao.codigo_estacao,
-        fonte: estacao.fonte,
         data: ultimo.data,
         hora: ultimo.hora,
         nivel: ultimo.nivel
       })
 
-    } catch (err) {
-
-      console.log("Erro INEA:", estacao.municipio)
-
-    }
+    } catch {}
 
   }
+
+  return NextResponse.json(resultados)
+
+}
 
   return NextResponse.json(resultados)
 
