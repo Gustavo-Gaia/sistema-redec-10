@@ -1,3 +1,5 @@
+/* app/api/salvar-medicoes/route.js */
+
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
@@ -27,20 +29,22 @@ export async function POST(req) {
           estacao_id: m.estacao_id,
           data_hora: dataHora,
           nivel: m.nivel,
-          fonte: m.fonte
+          fonte: m.fonte,
+          abaixo_regua: m.abaixo_regua
         });
 
       if (error) {
 
-        // erro 23505 = duplicata no postgres
+        console.log("Erro ao inserir:", error);
+
         if (error.code === "23505") {
           ignorados++;
-        } else {
-          console.log(error);
         }
 
       } else {
+
         inseridos++;
+
       }
 
     }
@@ -51,6 +55,8 @@ export async function POST(req) {
     });
 
   } catch (err) {
+
+    console.log("Erro geral:", err);
 
     return NextResponse.json({
       erro: "Falha ao salvar medições"
