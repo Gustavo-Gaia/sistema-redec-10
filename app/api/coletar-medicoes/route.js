@@ -14,80 +14,96 @@ const supabase = createClient(
 
 export async function GET() {
   try {
-    console.log("🚀 Iniciando coleta automática...");
+    console.log("🚀 [ROBÔ] Iniciando ciclo de captura automática...");
 
-    // 1. CARREGAR ESTAÇÕES E CRIAR MAPA DE FONTES
+    // 1. CARREGAR ESTAÇÕES ATIVAS PARA O MAPA DE SEGURANÇA
     const { data: estacoes, error: errorEst } = await supabase
       .from("estacoes")
       .select("id, fonte")
       .eq("ativo", true);
 
-    if (errorEst) throw new Error("Erro ao carregar estações do banco");
+    if (errorEst) throw new Error("Falha ao acessar tabela de estações");
 
-    // Criamos o mapa garantindo que a chave seja String para evitar erro de busca
+    // Criamos um mapa de fontes: { "101": "ANA", "102": "INEA" }
     const mapaFontes = {};
     estacoes.forEach((e) => {
       mapaFontes[String(e.id)] = e.fonte;
     });
 
-    // 2. BUSCAR MEDIÇÕES NAS APIS (ANA e INEA)
-    // Dica: Use Promise.all para ganhar velocidade
-    let medicoes = [];
+    // 2. EXECUTAR CAPTURAS EM PARALELO (Otimização de tempo)
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    let medicoesColetadas = [];
 
     try {
-      const [respAna, respInea] = await Promise.all([
-        fetch(`${baseUrl}/api/ana`, { cache: 'no-store' }).then(r => r.json()).catch(() => []),
-        fetch(`${baseUrl}/api/inea`, { cache: 'no-store' }).then(r => r.json()).catch(() => [])
+      const [dadosAna, dadosInea] = await Promise.all([
+        fetch(`${baseUrl}/api/ana`, { cache: 'no-store' }).then(res => res.json()).catch(() => []),
+        fetch(`${baseUrl}/api/inea`, { cache: 'no-store' }).then(res => res.json()).catch(() => [])
       ]);
-      
-      medicoes = [...respAna, ...respInea];
+
+      medicoesColetadas = [...dadosAna, ...dadosInea];
     } catch (e) {
-      console.log("⚠️ Falha ao obter dados das APIs:", e.message);
+      console.log("⚠️ Erro ao chamar APIs internas:", e.message);
     }
 
-    console.log(`📊 Total de medições recebidas para processar: ${medicoes.length}`);
+    if (medicoesColetadas.length === 0) {
+      return NextResponse.json({ status: "vazio", message: "Nenhum dado novo nas APIs" });
+    }
+
+    console.log(`📊 Processando ${medicoesColetadas.length} potenciais medições...`);
 
     let inseridos = 0;
     let ignorados = 0;
+    let erros = 0;
 
-    // 3. SALVAR MEDIÇÕES
-    for (const m of medicoes) {
+    // 3. LOOP DE SALVAMENTO NO BANCO
+    for (const m of medicoesColetadas) {
       if (!m.estacao_id) continue;
 
-      const dataHora = `${m.data} ${m.hora}`;
+      const dataHoraStr = `${m.data} ${m.hora}`;
       
-      // Busca a fonte no mapa usando o ID convertido para string
-      // Se não encontrar no mapa, usa a fonte vinda da API ou 'SISTEMA' como último recurso
-      const fonteFinal = mapaFontes[String(m.estacao_id)] || m.fonte || "SISTEMA";
+      // LÓGICA ANTI-NULL: 
+      // Tenta m.fonte (vinda da API) -> Tenta mapaFontes (vinda do banco) -> Fallback "SISTEMA"
+      const fonteFinal = m.fonte || mapaFontes[String(m.estacao_id)] || "COMDEC";
 
-      const { error } = await supabase
+      const { error: errorInsert } = await supabase
         .from("medicoes")
         .insert({
-          estacao_id: m.estacao_id,
-          data_hora: dataHora,
+          estacao_id: parseInt(m.estacao_id),
+          data_hora: dataHoraStr,
           nivel: m.nivel,
-          fonte: fonteFinal, // Agora garantido que não será NULL
+          fonte: fonteFinal, 
           abaixo_regua: m.abaixo_regua || false
         });
 
-      if (error) {
-        if (error.code === "23505") { // Erro de duplicidade (Unique Constraint)
+      if (errorInsert) {
+        if (errorInsert.code === "23505") {
+          // Registro já existe (Unique Constraint: estacao_id + data_hora)
           ignorados++;
         } else {
-          console.log(`❌ Erro ID ${m.estacao_id}:`, error.message);
+          console.log(`❌ Erro na estação ${m.estacao_id}:`, errorInsert.message);
+          erros++;
         }
       } else {
         inseridos++;
       }
     }
 
-    console.log(`✅ Ciclo Finalizado. Inseridos: ${inseridos} | Ignorados: ${ignorados}`);
+    // 4. ATUALIZAR STATUS (Opcional: Você pode adicionar aqui a chamada para o seu Form do Google se desejar)
 
-    return NextResponse.json({ status: "ok", inseridos, ignorados });
+    console.log(`✅ Ciclo finalizado: ${inseridos} novos, ${ignorados} duplicados, ${erros} erros.`);
+
+    return NextResponse.json({
+      status: "sucesso",
+      estatisticas: {
+        total_processado: medicoesColetadas.length,
+        inseridos,
+        ignorados,
+        erros
+      }
+    });
 
   } catch (err) {
-    console.log("🚨 Erro Crítico no Robô:", err.message);
-    return NextResponse.json({ erro: err.message }, { status: 500 });
+    console.error("🚨 Erro Crítico no Robô:", err.message);
+    return NextResponse.json({ error: "Erro interno no processamento" }, { status: 500 });
   }
 }
