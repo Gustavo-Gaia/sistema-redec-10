@@ -33,6 +33,7 @@ export default function InserirMedicoes() {
       .select(`
         id,
         municipio,
+        fonte,
         rios(nome)
       `)
       .eq("ativo", true)
@@ -153,9 +154,9 @@ export default function InserirMedicoes() {
         estacao_id: estacao.id,
         data: d.data,
         hora: d.hora,
-        nivel: d.abaixo_regua ? null : Number(d.nivel),
-        fonte: d.fonte || "MANUAL",
-        abaixo_regua: d.abaixo_regua || false
+        nivel: d.abaixo_regua ? null : d.nivel,
+        abaixo_regua: d.abaixo_regua,
+        fonte: d.fonte || "COMDEC"
       })
 
     })
