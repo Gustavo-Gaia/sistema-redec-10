@@ -1,5 +1,7 @@
 /* app/api/ana/route.js */
 
+export const dynamic = "force-dynamic"
+
 import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 
@@ -35,26 +37,38 @@ export async function GET() {
       const dataFim = hoje.toLocaleDateString("pt-BR")
 
       const url =
-        `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos?` +
-        `codEstacao=${estacao.codigo_estacao}&dataInicio=${dataInicio}&dataFim=${dataFim}`
+        "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos" +
+        `?codEstacao=${estacao.codigo_estacao}` +
+        `&dataInicio=${dataInicio}` +
+        `&dataFim=${dataFim}`
 
       const response = await fetch(url)
 
       const xml = await response.text()
 
-      const match = xml.match(/<Nivel>(.*?)<\/Nivel>/g)
+      const registros = [...xml.matchAll(/<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/g)]
 
-      if (!match) continue
+      if (registros.length === 0) continue
 
-      const ultimo = match[match.length - 1]
+      const ultimo = registros[registros.length - 1]
 
-      const nivel = parseFloat(
-        ultimo.replace("<Nivel>", "").replace("</Nivel>", "")
-      ) / 100
+      const dataHora = ultimo[1]
+      const nivelRaw = ultimo[2]
+
+      const dt = new Date(dataHora)
+
+      const data = dt.toISOString().slice(0, 10)
+      const hora = dt.toISOString().slice(11, 16)
+
+      const nivel = parseFloat(nivelRaw) / 100
 
       resultados.push({
         estacao_id: estacao.id,
         municipio: estacao.municipio,
+        codigo_estacao: estacao.codigo_estacao,
+        fonte: estacao.fonte,
+        data,
+        hora,
         nivel
       })
 
@@ -65,6 +79,10 @@ export async function GET() {
     }
 
   }
+
+  return NextResponse.json(resultados)
+
+}
 
   return NextResponse.json(resultados)
 
