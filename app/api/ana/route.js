@@ -4,93 +4,91 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { parseStringPromise } from "xml2js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// ============================
+// FORMATAR DATA
+// ============================
+
+function formatarData(d) {
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const ano = d.getFullYear();
+  return `${dia}/${mes}/${ano}`;
+}
+
+// ============================
+// CAPTURAR DADOS ANA
+// ============================
+
 async function capturarANA(codigo) {
-  const formatarDataBR = (data) => {
-    const d = String(data.getDate()).padStart(2, '0');
-    const m = String(data.getMonth() + 1).padStart(2, '0');
-    const y = data.getFullYear();
-    return `${d}/${m}/${y}`;
-  };
 
   const hoje = new Date();
   const inicio = new Date();
-  inicio.setDate(hoje.getDate() - 3); // Reduzi para 3 dias para ser mais rápido
+  inicio.setDate(hoje.getDate() - 5);
 
-  const dataFim = formatarDataBR(hoje);
-  const dataInicio = formatarDataBR(inicio);
+  const dataInicio = formatarData(inicio);
+  const dataFim = formatarData(hoje);
 
-  const url = `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos?codEstacao=${codigo}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+  const url =
+    `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos` +
+    `?codEstacao=${codigo}` +
+    `&dataInicio=${dataInicio}` +
+    `&dataFim=${dataFim}`;
 
   try {
-    const resp = await fetch(url, { next: { revalidate: 0 } });
+
+    const resp = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      cache: "no-store"
+    });
+
     if (!resp.ok) return null;
 
-    const xml = await resp.text();
+    let xml = await resp.text();
 
-    // 1. Limpeza agressiva de namespaces para simplificar o JSON
-    const xmlLimpo = xml
-      .replace(/<\/?\w+:/g, "<")
-      .replace(/xmlns(:\w+)?="[^"]*"/g, "")
-      .trim();
+    // ============================
+    // PEGAR PRIMEIRA MEDIÇÃO
+    // ============================
 
-    const json = await parseStringPromise(xmlLimpo, { 
-      explicitArray: false, 
-      ignoreAttrs: true,
-      stripPrefix: true // Remove prefixos como diffgr:
-    });
+    const match = xml.match(
+      /<DadosHidrometereologicos[\s\S]*?<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/
+    );
 
-    // 2. Tenta encontrar os dados nos dois caminhos possíveis (Normal ou Diffgram)
-    let registros = 
-      json?.DataTable?.diffgram?.DocumentElement?.DadosHidrometereologicos || 
-      json?.NewDataSet?.DadosHidrometereologicos ||
-      json?.DocumentElement?.DadosHidrometereologicos;
+    if (!match) return null;
 
-    if (!registros) return null;
+    const dataHora = match[1].trim();
+    const nivel = parseFloat(match[2]);
 
-    // Normaliza para Array
-    if (!Array.isArray(registros)) registros = [registros];
+    if (!dataHora || isNaN(nivel)) return null;
 
-    const registrosValidos = [];
-
-    registros.forEach((r) => {
-      const dataHoraRaw = r.DataHora;
-      const nivelRaw = r.Nivel;
-
-      if (!dataHoraRaw || !nivelRaw) return;
-
-      const dt = new Date(dataHoraRaw.trim().replace(" ", "T"));
-      const nivel = parseFloat(nivelRaw.replace(",", "."));
-
-      if (!isNaN(dt.getTime()) && !isNaN(nivel)) {
-        registrosValidos.push({ dt, nivel: nivel / 100 });
-      }
-    });
-
-    if (registrosValidos.length === 0) return null;
-
-    // Pega o mais recente
-    const ultimo = registrosValidos.reduce((a, b) => (a.dt > b.dt ? a : b));
+    const dt = new Date(dataHora.replace(" ", "T"));
 
     return {
-      data: ultimo.dt.toISOString().split("T")[0],
-      hora: ultimo.dt.toTimeString().slice(0, 5),
-      nivel: ultimo.nivel
+      data: dt.toISOString().split("T")[0],
+      hora: dt.toTimeString().slice(0, 5),
+      nivel: nivel / 100
     };
 
   } catch (err) {
-    console.error(`Erro ANA ${codigo}:`, err.message);
+
+    console.log("Erro ANA:", codigo);
     return null;
+
   }
+
 }
 
+// ============================
+// API
+// ============================
+
 export async function GET() {
+
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
@@ -101,16 +99,21 @@ export async function GET() {
 
   const resultados = [];
 
-  // Processa as estações
   for (const estacao of estacoes) {
+
     const dados = await capturarANA(estacao.codigo_estacao);
+
     if (dados) {
+
       resultados.push({
         estacao_id: estacao.id,
         ...dados
       });
+
     }
+
   }
 
   return NextResponse.json(resultados);
+
 }
