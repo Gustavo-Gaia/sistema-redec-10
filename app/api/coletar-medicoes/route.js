@@ -1,6 +1,7 @@
-/* app/api/coletar-medicoes/route.js */
+
 /* captura automática de medições - usado pelo cron */
 
+/* app/api/coletar-medicoes/route.js */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
@@ -12,90 +13,53 @@ const supabase = createClient(
 );
 
 export async function GET() {
-
   try {
+    console.log("🚀 Iniciando coleta automática...");
 
-    console.log("Iniciando coleta automática...");
-
-    let inseridos = 0;
-    let ignorados = 0;
-
-    // ===============================
-    // CARREGAR ESTAÇÕES
-    // ===============================
-
-    const { data: estacoes, error } = await supabase
+    // 1. CARREGAR ESTAÇÕES E CRIAR MAPA DE FONTES
+    const { data: estacoes, error: errorEst } = await supabase
       .from("estacoes")
       .select("id, fonte")
       .eq("ativo", true);
 
-    if (error) {
+    if (errorEst) throw new Error("Erro ao carregar estações do banco");
 
-      console.log("Erro ao carregar estações:", error);
-
-      return NextResponse.json({
-        erro: "Erro ao carregar estações"
-      }, { status: 500 });
-
-    }
-
-    // ===============================
-    // BUSCAR MEDIÇÕES NAS APIS
-    // ===============================
-
-    let medicoes = [];
-
-    try {
-
-      const respAna = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/ana`);
-      const dadosAna = await respAna.json();
-
-      medicoes = [...medicoes, ...dadosAna];
-
-    } catch (e) {
-
-      console.log("Erro na API ANA:", e);
-
-    }
-
-    try {
-
-      const respInea = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/inea`);
-      const dadosInea = await respInea.json();
-
-      medicoes = [...medicoes, ...dadosInea];
-
-    } catch (e) {
-
-      console.log("Erro na API INEA:", e);
-
-    }
-
-    console.log("Medições recebidas:", medicoes.length);
-
-    // ===============================
-    // MAPA DE FONTES DAS ESTAÇÕES
-    // ===============================
-
+    // Criamos o mapa garantindo que a chave seja String para evitar erro de busca
     const mapaFontes = {};
-
     estacoes.forEach((e) => {
-
-      mapaFontes[e.id] = e.fonte || "COMDEC";
-
+      mapaFontes[String(e.id)] = e.fonte;
     });
 
-    // ===============================
-    // SALVAR MEDIÇÕES
-    // ===============================
+    // 2. BUSCAR MEDIÇÕES NAS APIS (ANA e INEA)
+    // Dica: Use Promise.all para ganhar velocidade
+    let medicoes = [];
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
+    try {
+      const [respAna, respInea] = await Promise.all([
+        fetch(`${baseUrl}/api/ana`, { cache: 'no-store' }).then(r => r.json()).catch(() => []),
+        fetch(`${baseUrl}/api/inea`, { cache: 'no-store' }).then(r => r.json()).catch(() => [])
+      ]);
+      
+      medicoes = [...respAna, ...respInea];
+    } catch (e) {
+      console.log("⚠️ Falha ao obter dados das APIs:", e.message);
+    }
+
+    console.log(`📊 Total de medições recebidas para processar: ${medicoes.length}`);
+
+    let inseridos = 0;
+    let ignorados = 0;
+
+    // 3. SALVAR MEDIÇÕES
     for (const m of medicoes) {
-
       if (!m.estacao_id) continue;
 
       const dataHora = `${m.data} ${m.hora}`;
-
-      const fonte = m.fonte || mapaFontes[m.estacao_id] || "COMDEC";
+      
+      // Busca a fonte no mapa usando o ID convertido para string
+      // Se não encontrar no mapa, usa a fonte vinda da API ou 'SISTEMA' como último recurso
+      const fonteFinal = mapaFontes[String(m.estacao_id)] || m.fonte || "SISTEMA";
 
       const { error } = await supabase
         .from("medicoes")
@@ -103,47 +67,27 @@ export async function GET() {
           estacao_id: m.estacao_id,
           data_hora: dataHora,
           nivel: m.nivel,
-          fonte: fonte,
+          fonte: fonteFinal, // Agora garantido que não será NULL
           abaixo_regua: m.abaixo_regua || false
         });
 
       if (error) {
-
-        if (error.code === "23505") {
-
+        if (error.code === "23505") { // Erro de duplicidade (Unique Constraint)
           ignorados++;
-
         } else {
-
-          console.log("Erro ao inserir:", error);
-
+          console.log(`❌ Erro ID ${m.estacao_id}:`, error.message);
         }
-
       } else {
-
         inseridos++;
-
       }
-
     }
 
-    console.log("Inseridos:", inseridos);
-    console.log("Ignorados:", ignorados);
+    console.log(`✅ Ciclo Finalizado. Inseridos: ${inseridos} | Ignorados: ${ignorados}`);
 
-    return NextResponse.json({
-      status: "ok",
-      inseridos,
-      ignorados
-    });
+    return NextResponse.json({ status: "ok", inseridos, ignorados });
 
   } catch (err) {
-
-    console.log("Erro geral:", err);
-
-    return NextResponse.json({
-      erro: "Falha na coleta automática"
-    }, { status: 500 });
-
+    console.log("🚨 Erro Crítico no Robô:", err.message);
+    return NextResponse.json({ erro: err.message }, { status: 500 });
   }
-
 }
