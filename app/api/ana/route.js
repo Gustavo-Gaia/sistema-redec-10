@@ -7,126 +7,139 @@ import { createClient } from "@supabase/supabase-js";
 import { parseStringPromise } from "xml2js";
 
 const supabase = createClient(
- process.env.NEXT_PUBLIC_SUPABASE_URL,
- process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// ============================
-// CAPTURAR ANA
-// ============================
+function formatarData(date) {
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;
+}
 
 async function capturarANA(codigo) {
 
- const hoje = new Date()
+  const hoje = new Date();
+  const inicio = new Date();
+  inicio.setDate(hoje.getDate() - 5);
 
- const dataFim = hoje.toLocaleDateString("pt-BR")
+  const dataInicio = formatarData(inicio);
+  const dataFim = formatarData(hoje);
 
- const inicio = new Date()
- inicio.setDate(inicio.getDate() - 5)
+  const url =
+    `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos` +
+    `?codEstacao=${codigo}` +
+    `&dataInicio=${dataInicio}` +
+    `&dataFim=${dataFim}`;
 
- const dataInicio = inicio.toLocaleDateString("pt-BR")
+  try {
 
- const url =
-   "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos" +
-   `?codEstacao=${codigo}` +
-   `&dataInicio=${dataInicio}` +
-   `&dataFim=${dataFim}`
+    const resp = await fetch(url, {
+      headers: {
+        "Accept": "application/xml",
+        "User-Agent": "Mozilla/5.0"
+      },
+      cache: "no-store"
+    });
 
- try {
+    if (!resp.ok) return null;
 
-   const resp = await fetch(url)
+    let xml = await resp.text();
 
-   const xml = await resp.text()
+    // 🔎 extrai XML interno caso venha dentro de <string>
+    const match = xml.match(/<string[^>]*>([\s\S]*)<\/string>/);
+    if (match) xml = match[1];
 
-   // remove namespaces (igual python)
-   const xmlLimpo = xml
-     .replace(/<\/?\w+:/g, "<")
-     .replace(/xmlns(:\w+)?="[^"]*"/g, "")
+    // remove namespaces (igual python)
+    xml = xml
+      .replace(/<\/?\w+:/g, "<")
+      .replace(/xmlns(:\w+)?="[^"]*"/g, "")
+      .trim();
 
-   const json = await parseStringPromise(xmlLimpo)
+    const json = await parseStringPromise(xml, {
+      explicitArray: false,
+      mergeAttrs: true
+    });
 
-   const registros =
-     json?.NewDataSet?.DadosHidrometereologicos || []
+    let registros = json?.NewDataSet?.DadosHidrometereologicos;
 
-   if (!registros.length) return null
+    if (!registros) return null;
 
-   const registrosValidos = []
+    if (!Array.isArray(registros)) registros = [registros];
 
-   registros.forEach((r) => {
+    const registrosValidos = [];
 
-     const dataHora = r.DataHora?.[0]
-     const nivel = r.Nivel?.[0]
+    registros.forEach((r) => {
 
-     if (!dataHora || !nivel) return
+      const dataHora = r.DataHora;
+      const nivelRaw = r.Nivel;
 
-     const dt = new Date(dataHora)
+      if (!dataHora || !nivelRaw) return;
 
-     registrosValidos.push({
-       dt,
-       nivel: parseFloat(nivel) / 100
-     })
+      const dt = new Date(dataHora.replace(" ", "T"));
+      const nivel = parseFloat(nivelRaw);
 
-   })
+      if (!isNaN(dt.getTime()) && !isNaN(nivel)) {
 
-   if (!registrosValidos.length) return null
+        registrosValidos.push({
+          dt,
+          nivel: nivel / 100
+        });
 
-   // pega o mais recente
-   registrosValidos.sort((a, b) => b.dt - a.dt)
+      }
 
-   const ultimo = registrosValidos[0]
+    });
 
-   const data = ultimo.dt.toISOString().split("T")[0]
+    if (registrosValidos.length === 0) return null;
 
-   const hora = ultimo.dt.toTimeString().slice(0,5)
+    // pega o mais recente
+    const ultimo = registrosValidos.reduce((a, b) =>
+      a.dt > b.dt ? a : b
+    );
 
-   return {
-     data,
-     hora,
-     nivel: ultimo.nivel
-   }
+    return {
+      data: ultimo.dt.toISOString().split("T")[0],
+      hora: ultimo.dt.toTimeString().slice(0, 5),
+      nivel: ultimo.nivel
+    };
 
- } catch (err) {
+  } catch (err) {
 
-   console.error("Erro ANA", codigo, err)
-   return null
+    console.error(`Erro ANA ${codigo}`, err);
+    return null;
 
- }
+  }
 
 }
 
-// ============================
-// API
-// ============================
-
 export async function GET() {
 
- const { data: estacoes } = await supabase
-   .from("estacoes")
-   .select("id, codigo_estacao")
-   .eq("fonte", "ANA")
-   .eq("ativo", true)
+  const { data: estacoes } = await supabase
+    .from("estacoes")
+    .select("id, codigo_estacao")
+    .eq("fonte", "ANA")
+    .eq("ativo", true);
 
- if (!estacoes) return NextResponse.json([])
+  if (!estacoes) return NextResponse.json([]);
 
- const resultados = []
+  const resultados = [];
 
- for (const estacao of estacoes) {
+  for (const estacao of estacoes) {
 
-   const dados = await capturarANA(estacao.codigo_estacao)
+    const dados = await capturarANA(estacao.codigo_estacao);
 
-   if (dados) {
+    if (dados) {
 
-     resultados.push({
-       estacao_id: estacao.id,
-       data: dados.data,
-       hora: dados.hora,
-       nivel: dados.nivel
-     })
+      resultados.push({
+        estacao_id: estacao.id,
+        ...dados
+      });
 
-   }
+    }
 
- }
+  }
 
- return NextResponse.json(resultados)
+  return NextResponse.json(resultados);
 
 }
