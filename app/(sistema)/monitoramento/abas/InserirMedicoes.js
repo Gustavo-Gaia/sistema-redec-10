@@ -15,6 +15,8 @@ export default function InserirMedicoes() {
   const [estacoes, setEstacoes] = useState([])
   const [dados, setDados] = useState({})
   const [loading, setLoading] = useState(false)
+  const [loadingAna, setLoadingAna] = useState(false)
+  const [loadingInea, setLoadingInea] = useState(false)
 
   // ===============================
   // CARREGAR ESTAÇÕES
@@ -54,6 +56,84 @@ export default function InserirMedicoes() {
   }
 
   // ===============================
+  // BUSCAR ANA
+  // ===============================
+
+  async function buscarANA() {
+
+    setLoadingAna(true)
+
+    try {
+
+      const resp = await fetch("/api/ana")
+
+      const json = await resp.json()
+
+      const novosDados = { ...dados }
+
+      json.forEach((m) => {
+
+        novosDados[m.estacao_id] = {
+          data: m.data,
+          hora: m.hora,
+          nivel: m.nivel,
+          abaixo_regua: false
+        }
+
+      })
+
+      setDados(novosDados)
+
+    } catch (err) {
+
+      alert("Erro ao buscar ANA")
+
+    }
+
+    setLoadingAna(false)
+
+  }
+
+  // ===============================
+  // BUSCAR INEA
+  // ===============================
+
+  async function buscarINEA() {
+
+    setLoadingInea(true)
+
+    try {
+
+      const resp = await fetch("/api/inea")
+
+      const json = await resp.json()
+
+      const novosDados = { ...dados }
+
+      json.forEach((m) => {
+
+        novosDados[m.estacao_id] = {
+          data: m.data,
+          hora: m.hora,
+          nivel: m.nivel,
+          abaixo_regua: false
+        }
+
+      })
+
+      setDados(novosDados)
+
+    } catch (err) {
+
+      alert("Erro ao buscar INEA")
+
+    }
+
+    setLoadingInea(false)
+
+  }
+
+  // ===============================
   // SALVAR MEDIÇÕES
   // ===============================
 
@@ -83,14 +163,19 @@ export default function InserirMedicoes() {
       .insert(registros)
 
     if (error) {
+
       alert("Erro ao salvar medições")
       console.log(error)
+
     } else {
+
       alert("Medições salvas com sucesso")
       setDados({})
+
     }
 
     setLoading(false)
+
   }
 
   // ===============================
@@ -109,13 +194,33 @@ export default function InserirMedicoes() {
           Inserir Medições
         </h3>
 
-        <button
-          onClick={salvarMedicoes}
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-        >
-          {loading ? "Salvando..." : "Salvar Medições"}
-        </button>
+        <div className="flex gap-2">
+
+          <button
+            onClick={buscarANA}
+            disabled={loadingAna}
+            className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700"
+          >
+            {loadingAna ? "Buscando..." : "Buscar ANA"}
+          </button>
+
+          <button
+            onClick={buscarINEA}
+            disabled={loadingInea}
+            className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700"
+          >
+            {loadingInea ? "Buscando..." : "Buscar INEA"}
+          </button>
+
+          <button
+            onClick={salvarMedicoes}
+            disabled={loading}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            {loading ? "Salvando..." : "Salvar"}
+          </button>
+
+        </div>
 
       </div>
 
@@ -128,19 +233,12 @@ export default function InserirMedicoes() {
           <thead className="bg-slate-100">
 
             <tr>
-
               <th className="p-2 text-left">Rio</th>
-
               <th className="p-2 text-left">Município</th>
-
               <th className="p-2">Data</th>
-
               <th className="p-2">Hora</th>
-
               <th className="p-2">A/R</th>
-
               <th className="p-2">Nível (m)</th>
-
             </tr>
 
           </thead>
@@ -153,18 +251,11 @@ export default function InserirMedicoes() {
 
               return (
 
-                <tr
-                  key={estacao.id}
-                  className="border-b"
-                >
+                <tr key={estacao.id} className="border-b">
 
-                  <td className="p-2">
-                    {estacao.rios?.nome}
-                  </td>
+                  <td className="p-2">{estacao.rios?.nome}</td>
 
-                  <td className="p-2">
-                    {estacao.municipio}
-                  </td>
+                  <td className="p-2">{estacao.municipio}</td>
 
                   <td className="p-2">
                     <input
