@@ -5,13 +5,9 @@
 export default function Historico() {
 
   return (
-
     <div className="text-slate-600">
-
       Histórico de medições aparecerá aqui.
-
     </div>
-
   )
 
 }
