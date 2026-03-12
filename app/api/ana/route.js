@@ -4,152 +4,128 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { parseStringPromise } from "xml2js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// =============================
-// FORMATAR DATA DD/MM/YYYY
-// =============================
-
-function formatarData(d) {
-  const dia = String(d.getDate()).padStart(2, "0");
-  const mes = String(d.getMonth() + 1).padStart(2, "0");
-  const ano = d.getFullYear();
-  return `${dia}/${mes}/${ano}`;
-}
-
-// =============================
-// CAPTURAR ANA
-// =============================
-
-async function capturarANA(codigo) {
+async function capturarANA(codigo, tentativas = 2) {
+  // Função interna para formatar data DD/MM/YYYY
+  const formatarDataBR = (data) => {
+    const d = String(data.getDate()).padStart(2, '0');
+    const m = String(data.getMonth() + 1).padStart(2, '0');
+    const y = data.getFullYear();
+    return `${d}/${m}/${y}`;
+  };
 
   const hoje = new Date();
   const inicio = new Date();
   inicio.setDate(hoje.getDate() - 5);
 
-  const dataInicio = formatarData(inicio);
-  const dataFim = formatarData(hoje);
+  const dataFim = formatarDataBR(hoje);
+  const dataInicio = formatarDataBR(inicio);
 
-  const url =
-    `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos` +
-    `?codEstacao=${codigo}` +
-    `&dataInicio=${dataInicio}` +
-    `&dataFim=${dataFim}`;
+  const url = `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos?codEstacao=${codigo}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
 
-  try {
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      const resp = await fetch(url, {
+        method: 'GET',
+        // O segredo do robô Python é o tempo de espera. 
+        // Aqui usamos um sinal de aborto para não travar a função da Vercel
+        signal: AbortSignal.timeout(15000), 
+        next: { revalidate: 0 }
+      });
 
-    const controller = new AbortController();
+      if (!resp.ok) continue;
 
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, 8000);
+      const xml = await resp.text();
 
-    const resp = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0"
-      },
-      cache: "no-store"
-    });
+      // Limpeza de Namespaces (Exatamente como você faz no Python com re.sub)
+      const xmlLimpo = xml
+        .replace(/<\/?\w+:/g, "<")
+        .replace(/xmlns(:\w+)?="[^"]*"/g, "")
+        .trim();
 
-    clearTimeout(timeout);
+      const json = await parseStringPromise(xmlLimpo, { 
+        explicitArray: false, 
+        ignoreAttrs: true 
+      });
 
-    if (!resp.ok) return null;
+      // ANA usa o termo "metereologicos" (com E)
+      let registros = json?.NewDataSet?.DadosHidrometereologicos;
 
-    let xml = await resp.text();
-
-    // remove namespaces
-    xml = xml.replace(/<\/?\w+:/g, "<");
-
-    // extrair blocos de medição
-    const registros = [...xml.matchAll(
-      /<DadosHidrometereologicos>([\s\S]*?)<\/DadosHidrometereologicos>/g
-    )];
-
-    if (!registros.length) return null;
-
-    const dados = [];
-
-    for (const r of registros) {
-
-      const bloco = r[1];
-
-      const dataHora = bloco.match(/<DataHora>(.*?)<\/DataHora>/);
-      const nivel = bloco.match(/<Nivel>(.*?)<\/Nivel>/);
-
-      if (!dataHora || !nivel) continue;
-
-      const dt = new Date(dataHora[1].replace(" ", "T"));
-      const nivelNum = parseFloat(nivel[1]);
-
-      if (!isNaN(dt) && !isNaN(nivelNum)) {
-
-        dados.push({
-          dt,
-          nivel: nivelNum / 100
-        });
-
+      if (!registros) {
+        // Se for a última tentativa e não houver registros, retorna null
+        if (i === tentativas - 1) return null;
+        continue;
       }
 
+      // Se vier só um registro, o parseStringPromise não cria array. Forçamos aqui.
+      if (!Array.isArray(registros)) registros = [registros];
+
+      const registrosValidos = [];
+
+      registros.forEach((r) => {
+        const dataHoraRaw = r.DataHora;
+        const nivelRaw = r.Nivel;
+
+        if (!dataHoraRaw || !nivelRaw || nivelRaw.trim() === "") return;
+
+        // Converte "2024-03-12 10:00:00" para Date aceitável pelo JS
+        const dt = new Date(dataHoraRaw.trim().replace(" ", "T"));
+        const nivel = parseFloat(nivelRaw.replace(",", "."));
+
+        if (!isNaN(dt.getTime()) && !isNaN(nivel)) {
+          registrosValidos.push({ dt, nivel: nivel / 100 });
+        }
+      });
+
+      if (registrosValidos.length === 0) continue;
+
+      // Retorna o mais recente (Equivalente ao max do Python)
+      const ultimo = registrosValidos.reduce((a, b) => (a.dt > b.dt ? a : b));
+
+      return {
+        data: ultimo.dt.toISOString().split("T")[0],
+        hora: ultimo.dt.toTimeString().slice(0, 5),
+        nivel: ultimo.nivel
+      };
+
+    } catch (err) {
+      console.error(`Tentativa ${i+1} falhou para ${codigo}:`, err.message);
+      if (i === tentativas - 1) return null;
+      // Espera 1 segundo antes de tentar de novo (como o time.sleep do seu robô)
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-
-    if (!dados.length) return null;
-
-    // pegar medição mais recente
-    const ultimo = dados.reduce((a, b) =>
-      a.dt > b.dt ? a : b
-    );
-
-    return {
-      data: ultimo.dt.toISOString().split("T")[0],
-      hora: ultimo.dt.toTimeString().slice(0, 5),
-      nivel: ultimo.nivel
-    };
-
-  } catch (err) {
-
-    console.log("Erro ANA:", codigo);
-    return null;
-
   }
-
+  return null;
 }
 
-// =============================
-// API
-// =============================
-
 export async function GET() {
-
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (!estacoes) return NextResponse.json([]);
+  if (!estacoes) return NextResponse.json({ error: "Erro banco" }, { status: 500 });
 
   const resultados = [];
 
+  // Na Vercel Free, vamos processar em pequenos lotes ou limitar
+  // para não estourar os 10 segundos de execução.
   for (const estacao of estacoes) {
-
     const dados = await capturarANA(estacao.codigo_estacao);
-
     if (dados) {
-
       resultados.push({
         estacao_id: estacao.id,
         ...dados
       });
-
     }
-
   }
 
   return NextResponse.json(resultados);
-
 }
