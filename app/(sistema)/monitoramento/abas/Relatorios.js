@@ -5,13 +5,9 @@
 export default function Relatorios() {
 
   return (
-
     <div className="text-slate-600">
-
       Relatórios aparecerão aqui.
-
     </div>
-
   )
 
 }
