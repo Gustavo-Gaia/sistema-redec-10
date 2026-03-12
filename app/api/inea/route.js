@@ -1,5 +1,7 @@
 /* app/api/inea/route.js */
 
+export const dynamic = "force-dynamic"
+
 import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 import * as cheerio from "cheerio"
@@ -36,9 +38,9 @@ export async function GET() {
 
       const $ = cheerio.load(html)
 
-      const linhas = $("#Table tr")
+      const linhas = $("table tr")
 
-      let nivel = null
+      let registros = []
 
       linhas.each((i, el) => {
 
@@ -46,29 +48,47 @@ export async function GET() {
 
         if (cols.length >= 8) {
 
-          const valor = $(cols[7]).text().trim()
+          const dataHora = $(cols[0]).text().trim()
+          const nivelTxt = $(cols[7]).text().trim()
 
-          if (valor) {
+          if (!dataHora || !nivelTxt) return
 
-            nivel = parseFloat(
-              valor.replace(",", ".")
+          try {
+
+            const partes = dataHora.split(" ")
+
+            const data = partes[0].split("/").reverse().join("-")
+            const hora = partes[1]
+
+            const nivel = parseFloat(
+              nivelTxt.replace(",", ".")
             )
 
-          }
+            registros.push({
+              data,
+              hora,
+              nivel
+            })
+
+          } catch {}
 
         }
 
       })
 
-      if (nivel !== null) {
+      if (registros.length === 0) continue
 
-        resultados.push({
-          estacao_id: estacao.id,
-          municipio: estacao.municipio,
-          nivel
-        })
+      const ultimo = registros[registros.length - 1]
 
-      }
+      resultados.push({
+        estacao_id: estacao.id,
+        municipio: estacao.municipio,
+        codigo_estacao: estacao.codigo_estacao,
+        fonte: estacao.fonte,
+        data: ultimo.data,
+        hora: ultimo.hora,
+        nivel: ultimo.nivel
+      })
 
     } catch (err) {
 
