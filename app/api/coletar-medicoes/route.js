@@ -14,49 +14,61 @@ const supabase = createClient(
 
 export async function GET() {
   try {
-    console.log("🚀 [ROBÔ] Iniciando captura...");
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
-    // 1. BUSCA PARALELA (Com tratamento de erro para não quebrar o processo)
+    // 1. BUSCAR DADOS (Fetch das rotas de captura que você já utiliza)
     const [dadosAna, dadosInea] = await Promise.all([
       fetch(`${baseUrl}/api/ana`, { cache: 'no-store' }).then(r => r.json()).catch(() => []),
       fetch(`${baseUrl}/api/inea`, { cache: 'no-store' }).then(r => r.json()).catch(() => [])
     ]);
 
-    // 2. NORMALIZAÇÃO ESTRITA
-    // Aqui garantimos que a fonte seja atribuída a cada objeto individualmente
-    const listaAna = dadosAna.map(m => ({ ...m, fonte_fixa: "ANA" }));
-    const listaInea = dadosInea.map(m => ({ ...m, fonte_fixa: "INEA" }));
-    const medicoes = [...listaAna, ...listaInea];
+    // 2. NORMALIZAR DADOS (Igual ao seu fluxo manual)
+    // Garantimos que cada objeto tenha exatamente as chaves esperadas pelo seu endpoint de salvamento
+    const medicoes = [
+      ...dadosAna.map(m => ({
+        estacao_id: m.estacao_id,
+        data: m.data,
+        hora: m.hora,
+        nivel: m.nivel,
+        abaixo_regua: false,
+        fonte: "ANA"
+      })),
+      ...dadosInea.map(m => ({
+        estacao_id: m.estacao_id,
+        data: m.data,
+        hora: m.hora,
+        nivel: m.nivel,
+        abaixo_regua: false,
+        fonte: "INEA"
+      }))
+    ];
 
     if (medicoes.length === 0) {
-      return NextResponse.json({ status: "vazio" });
+      return NextResponse.json({ status: "vazio", message: "Nenhum dado retornado" });
     }
 
     let inseridos = 0;
     let ignorados = 0;
 
-    // 3. INSERÇÃO BLINDADA
+    // 3. INSERÇÃO (Reutilizando a lógica do seu POST de salvamento)
     for (const m of medicoes) {
-      if (!m.estacao_id) continue;
+      if (!m.estacao_id || !m.data || !m.hora) continue;
 
-      // Usamos a fonte_fixa que criamos acima. 
-      // Se ela não existir, forçamos o valor 'SEM_FONTE'
-      const valorFonte = m.fonte_fixa || "SEM_FONTE";
+      const dataHora = `${m.data} ${m.hora}`;
 
-      const payload = {
-        estacao_id: m.estacao_id,
-        data_hora: `${m.data} ${m.hora}`,
-        nivel: m.nivel,
-        fonte: valorFonte,
-        abaixo_regua: m.abaixo_regua || false
-      };
-
-      const { error } = await supabase.from("medicoes").insert(payload);
+      const { error } = await supabase
+        .from("medicoes")
+        .insert({
+          estacao_id: m.estacao_id,
+          data_hora: dataHora,
+          nivel: m.nivel,
+          fonte: m.fonte, // Agora é a string "ANA" ou "INEA" definida acima
+          abaixo_regua: m.abaixo_regua
+        });
 
       if (error) {
+        console.log(`Erro ao inserir estacao ${m.estacao_id}:`, error);
         if (error.code === "23505") ignorados++;
-        else console.log(`❌ Erro estação ${m.estacao_id}:`, error.message);
       } else {
         inseridos++;
       }
@@ -65,6 +77,7 @@ export async function GET() {
     return NextResponse.json({ status: "sucesso", inseridos, ignorados });
 
   } catch (err) {
+    console.error("Erro no robô:", err);
     return NextResponse.json({ erro: err.message }, { status: 500 });
   }
 }
