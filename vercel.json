@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/coletar-medicoes",
-      "schedule": "*/30 * * * *"
+      "schedule": "*/60 * * * *"
     }
   ]
 }
