@@ -11,75 +11,133 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// ===============================
+// FORMATAR DATA DD/MM/YYYY
+// ===============================
+
+function formatarData(date) {
+
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+
+  return `${d}/${m}/${y}`;
+}
+
+// ===============================
+// CAPTURAR ANA
+// ===============================
+
 async function capturarANA(codigo) {
-  // Formatação manual da data para garantir DD/MM/YYYY
-  const formatarData = (date) => {
-    const d = date.getDate().toString().padStart(2, '0');
-    const m = (date.getMonth() + 1).toString().padStart(2, '0');
-    const y = date.getFullYear();
-    return `${d}/${m}/${y}`;
-  };
 
   const hoje = new Date();
   const inicio = new Date();
+
   inicio.setDate(hoje.getDate() - 5);
 
-  const dataFim = formatarData(hoje);
   const dataInicio = formatarData(inicio);
+  const dataFim = formatarData(hoje);
 
-  const url = `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos?codEstacao=${codigo}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+  const url =
+    `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos` +
+    `?codEstacao=${codigo}` +
+    `&dataInicio=${dataInicio}` +
+    `&dataFim=${dataFim}`;
 
   try {
+
+    // ===============================
+    // TIMEOUT
+    // ===============================
+
+    const controller = new AbortController();
+
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 8000);
+
     const resp = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/xml' },
-      next: { revalidate: 0 }
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/xml"
+      },
+      cache: "no-store"
     });
+
+    clearTimeout(timeout);
 
     if (!resp.ok) return null;
 
-    const xml = await resp.text();
+    let xml = await resp.text();
 
-    // Limpeza de XML mais agressiva (similar ao seu Regex do Python)
-    const xmlLimpo = xml
+    // ===============================
+    // EXTRAIR XML INTERNO (SOAP)
+    // ===============================
+
+    const match = xml.match(/<string[^>]*>([\s\S]*)<\/string>/);
+
+    if (match) {
+      xml = match[1];
+    }
+
+    // ===============================
+    // LIMPAR NAMESPACE
+    // ===============================
+
+    xml = xml
       .replace(/<\/?\w+:/g, "<")
       .replace(/xmlns(:\w+)?="[^"]*"/g, "")
       .trim();
 
-    const json = await parseStringPromise(xmlLimpo, { explicitArray: false, mergeAttrs: true });
+    // ===============================
+    // CONVERTER XML
+    // ===============================
 
-    // O webservice da ANA retorna NewDataSet -> DadosHidrometereologicos (atenção ao erro de digitação do próprio ANA: "metereologicos")
+    const json = await parseStringPromise(xml, {
+      explicitArray: false
+    });
+
     let registros = json?.NewDataSet?.DadosHidrometereologicos;
 
     if (!registros) return null;
 
-    // Se vier apenas um registro, o xml2js não cria array com explicitArray: false, então normalizamos
-    if (!Array.isArray(registros)) registros = [registros];
+    if (!Array.isArray(registros)) {
+      registros = [registros];
+    }
 
     const registrosValidos = [];
 
     registros.forEach((r) => {
-      const dataHoraRaw = r.DataHora;
+
+      const dataHora = r.DataHora;
       const nivelRaw = r.Nivel;
 
-      if (!dataHoraRaw || !nivelRaw) return;
+      if (!dataHora || !nivelRaw) return;
 
-      // ANA costuma enviar: 2024-03-12 10:00:00 ou formato ISO
-      const dt = new Date(dataHoraRaw.replace(" ", "T")); 
+      const dt = new Date(dataHora.replace(" ", "T"));
       const nivel = parseFloat(nivelRaw);
 
       if (!isNaN(dt.getTime()) && !isNaN(nivel)) {
+
         registrosValidos.push({
           dt,
-          nivel: nivel / 100 // Convertendo para metros se o dado vier em cm
+          nivel: nivel / 100
         });
+
       }
+
     });
 
     if (registrosValidos.length === 0) return null;
 
-    // Pega o mais recente (max no Python)
-    const ultimo = registrosValidos.reduce((a, b) => (a.dt > b.dt ? a : b));
+    // ===============================
+    // MAIS RECENTE
+    // ===============================
+
+    const ultimo = registrosValidos.reduce((a, b) =>
+      a.dt > b.dt ? a : b
+    );
 
     return {
       data: ultimo.dt.toISOString().split("T")[0],
@@ -88,32 +146,48 @@ async function capturarANA(codigo) {
     };
 
   } catch (err) {
-    console.error(`Erro ANA Estação ${codigo}:`, err.message);
+
+    console.log("Erro ANA estação:", codigo);
+
     return null;
+
   }
+
 }
 
+// ===============================
+// API
+// ===============================
+
 export async function GET() {
+
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (!estacoes || estacoes.length === 0) return NextResponse.json([]);
+  if (!estacoes) {
+    return NextResponse.json([]);
+  }
 
   const resultados = [];
 
-  // Na Vercel, limite o loop para não dar timeout se tiver muitas estações
   for (const estacao of estacoes) {
+
     const dados = await capturarANA(estacao.codigo_estacao);
+
     if (dados) {
+
       resultados.push({
         estacao_id: estacao.id,
         ...dados
       });
+
     }
+
   }
 
   return NextResponse.json(resultados);
+
 }
