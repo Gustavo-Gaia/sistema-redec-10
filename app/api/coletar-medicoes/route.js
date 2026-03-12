@@ -15,39 +15,95 @@ export async function GET() {
 
   try {
 
-    const resp = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/ana`);
-    const dadosAna = await resp.json();
+    console.log("Cron executado:", new Date().toISOString());
 
-    const resp2 = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/inea`);
-    const dadosInea = await resp2.json();
+    // ===============================
+    // 1️⃣ CARREGAR ESTAÇÕES
+    // ===============================
+
+    const { data: estacoes } = await supabase
+      .from("estacoes")
+      .select("id, fonte, codigo_estacao")
+      .eq("ativo", true);
+
+    if (!estacoes) {
+      return NextResponse.json({ erro: "Nenhuma estação encontrada" });
+    }
+
+    // mapa rápido
+    const mapaFonte = {};
+    const mapaCodigo = {};
+
+    estacoes.forEach((e) => {
+      mapaFonte[e.id] = e.fonte;
+      mapaCodigo[e.codigo_estacao] = e.id;
+    });
+
+    // ===============================
+    // 2️⃣ BUSCAR DADOS DAS APIS
+    // ===============================
+
+    const respAna = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/ana`);
+    const dadosAna = await respAna.json();
+
+    const respInea = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/inea`);
+    const dadosInea = await respInea.json();
 
     const medicoes = [...dadosAna, ...dadosInea];
+
+    let inseridos = 0;
+    let ignorados = 0;
+
+    // ===============================
+    // 3️⃣ INSERIR MEDIÇÕES
+    // ===============================
 
     for (const m of medicoes) {
 
       const dataHora = `${m.data} ${m.hora}`;
 
-      await supabase
+      const fonte = mapaFonte[m.estacao_id] || "AUTO";
+
+      const { error } = await supabase
         .from("medicoes")
         .insert({
           estacao_id: m.estacao_id,
           data_hora: dataHora,
           nivel: m.nivel,
-          fonte: m.fonte
+          fonte: fonte,
+          abaixo_regua: false
         });
+
+      if (error) {
+
+        // duplicata
+        if (error.code === "23505") {
+          ignorados++;
+        } else {
+          console.log("Erro insert:", error);
+        }
+
+      } else {
+
+        inseridos++;
+
+      }
 
     }
 
     return NextResponse.json({
       status: "ok",
-      total: medicoes.length
+      inseridos,
+      ignorados
     });
 
   } catch (err) {
 
+    console.log("Erro cron:", err);
+
     return NextResponse.json({
-      erro: "falha na coleta"
-    });
+      erro: "Falha na coleta"
+    }, { status: 500 });
 
   }
 
