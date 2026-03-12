@@ -17,31 +17,32 @@ export async function GET() {
 
     console.log("Cron executado:", new Date().toISOString());
 
-    // ===============================
+    // ==========================
     // 1️⃣ CARREGAR ESTAÇÕES
-    // ===============================
+    // ==========================
 
-    const { data: estacoes } = await supabase
+    const { data: estacoes, error } = await supabase
       .from("estacoes")
-      .select("id, fonte, codigo_estacao")
+      .select("id, fonte")
       .eq("ativo", true);
 
-    if (!estacoes) {
-      return NextResponse.json({ erro: "Nenhuma estação encontrada" });
+    if (error) {
+      console.log("Erro carregando estações:", error);
+      return NextResponse.json({ erro: "erro estações" });
     }
 
-    // mapa rápido
+    // mapa id → fonte
     const mapaFonte = {};
-    const mapaCodigo = {};
 
     estacoes.forEach((e) => {
       mapaFonte[e.id] = e.fonte;
-      mapaCodigo[e.codigo_estacao] = e.id;
     });
 
-    // ===============================
-    // 2️⃣ BUSCAR DADOS DAS APIS
-    // ===============================
+    console.log("Mapa de fontes:", mapaFonte);
+
+    // ==========================
+    // 2️⃣ BUSCAR APIS
+    // ==========================
 
     const respAna = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/ana`);
     const dadosAna = await respAna.json();
@@ -54,9 +55,9 @@ export async function GET() {
     let inseridos = 0;
     let ignorados = 0;
 
-    // ===============================
-    // 3️⃣ INSERIR MEDIÇÕES
-    // ===============================
+    // ==========================
+    // 3️⃣ SALVAR MEDIÇÕES
+    // ==========================
 
     for (const m of medicoes) {
 
@@ -76,7 +77,6 @@ export async function GET() {
 
       if (error) {
 
-        // duplicata
         if (error.code === "23505") {
           ignorados++;
         } else {
@@ -102,7 +102,7 @@ export async function GET() {
     console.log("Erro cron:", err);
 
     return NextResponse.json({
-      erro: "Falha na coleta"
+      erro: "falha no cron"
     }, { status: 500 });
 
   }
