@@ -1,73 +1,96 @@
 /* app/api/ana/route.js */
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
-import { createClient } from "@supabase/supabase-js"
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+ process.env.NEXT_PUBLIC_SUPABASE_URL,
+ process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// =========================
+// CAPTURAR ANA
+// =========================
+
+async function capturarANA(codigo) {
+
+ const url = `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos?codEstacao=${codigo}`;
+
+ try {
+
+   const resp = await fetch(url);
+
+   const xml = await resp.text();
+
+   const dados = JSON.parse(xml);
+
+   if (!dados || dados.length === 0) return null;
+
+   // pega o registro mais recente
+   const ultimo = dados[dados.length - 1];
+
+   if (!ultimo.DataHora) return null;
+
+   const dataHora = new Date(ultimo.DataHora);
+
+   const data = dataHora.toISOString().split("T")[0];
+
+   const hora = dataHora.toTimeString().slice(0,5);
+
+   const nivel = parseFloat(
+     (ultimo.Nivel || "0").replace(",", ".")
+   );
+
+   return {
+     data,
+     hora,
+     nivel
+   };
+
+ } catch (err) {
+
+   console.error("Erro ANA", codigo, err);
+   return null;
+
+ }
+
+}
+
+// =========================
+// API
+// =========================
 
 export async function GET() {
 
-  const { data: estacoes } = await supabase
-    .from("estacoes")
-    .select("id,codigo_estacao")
-    .eq("fonte","ANA")
-    .eq("ativo",true)
+ const { data: estacoes } = await supabase
+   .from("estacoes")
+   .select("id, codigo_estacao")
+   .eq("fonte", "ANA")
+   .eq("ativo", true);
 
-  const resultados = []
+ if (!estacoes) return NextResponse.json([]);
 
-  for (const estacao of estacoes) {
+ const resultados = [];
 
-    try {
+ for (const estacao of estacoes) {
 
-      const hoje = new Date()
-      const inicio = new Date()
+   const dados = await capturarANA(estacao.codigo_estacao);
 
-      inicio.setDate(hoje.getDate()-5)
+   if (dados) {
 
-      const dataInicio = inicio.toLocaleDateString("pt-BR")
-      const dataFim = hoje.toLocaleDateString("pt-BR")
+     resultados.push({
+       estacao_id: estacao.id,
+       data: dados.data,
+       hora: dados.hora,
+       nivel: dados.nivel
+     });
 
-      const url =
-        "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos" +
-        `?codEstacao=${estacao.codigo_estacao}` +
-        `&dataInicio=${dataInicio}` +
-        `&dataFim=${dataFim}`
+   }
 
-      const response = await fetch(url)
+ }
 
-      const xml = await response.text()
-
-      const registros = [
-        ...xml.matchAll(/<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/g)
-      ]
-
-      if (registros.length === 0) continue
-
-      const ultimo = registros[registros.length-1]
-
-      const dataHora = new Date(ultimo[1])
-
-      const data = dataHora.toISOString().slice(0,10)
-      const hora = dataHora.toISOString().slice(11,16)
-
-      const nivel = parseFloat(ultimo[2]) / 100
-
-      resultados.push({
-        estacao_id: estacao.id,
-        data,
-        hora,
-        nivel
-      })
-
-    } catch {}
-
-  }
-
-  return NextResponse.json(resultados)
+ return NextResponse.json(resultados);
 
 }
