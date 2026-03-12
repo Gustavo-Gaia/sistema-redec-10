@@ -113,6 +113,7 @@ export async function GET() {
 
       resultados.push({
         estacao_id: estacao.id,
+        fonte: "INEA", // <--- ADICIONE ESTA LINHA
         ...dados
       });
 
