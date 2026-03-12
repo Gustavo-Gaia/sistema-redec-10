@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic"
 
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import cheerio from "cheerio"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -16,8 +15,8 @@ export async function GET() {
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id,codigo_estacao")
-    .eq("fonte", "INEA")
-    .eq("ativo", true)
+    .eq("fonte","INEA")
+    .eq("ativo",true)
 
   const resultados = []
 
@@ -26,53 +25,28 @@ export async function GET() {
     try {
 
       const url =
-        `https://alertadecheias.inea.rj.gov.br/alertadecheias/${estacao.codigo_estacao}.html`
+        `https://alertadecheias.inea.rj.gov.br/ws/hidro/estacao/${estacao.codigo_estacao}`
 
       const response = await fetch(url)
 
-      const html = await response.text()
+      const json = await response.json()
 
-      const $ = cheerio.load(html)
+      if (!json || !json.length) continue
 
-      let ultimo = null
+      const ultimo = json[json.length - 1]
 
-      $("table tr").each((i, el) => {
+      const dataHora = new Date(ultimo.datahora)
 
-        const cols = $(el).find("td")
+      const data = dataHora.toISOString().slice(0,10)
+      const hora = dataHora.toISOString().slice(11,16)
 
-        if (cols.length < 8) return
-
-        const dataHora = $(cols[0]).text().trim()
-        const nivelTxt = $(cols[7]).text().trim()
-
-        if (!dataHora || !nivelTxt) return
-
-        const partes = dataHora.split(" ")
-
-        if (partes.length < 2) return
-
-        const data = partes[0].split("/").reverse().join("-")
-        const hora = partes[1]
-
-        const nivel = parseFloat(
-          nivelTxt.replace(",", ".")
-        )
-
-        ultimo = {
-          data,
-          hora,
-          nivel
-        }
-
-      })
-
-      if (!ultimo) continue
+      const nivel = parseFloat(ultimo.nivel)
 
       resultados.push({
         estacao_id: estacao.id,
-        data: ultimo.data,
-        hora: ultimo.hora,
-        nivel: ultimo.nivel
+        data,
+        hora,
+        nivel
       })
 
     } catch (err) {
