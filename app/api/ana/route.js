@@ -107,6 +107,7 @@ export async function GET() {
 
       resultados.push({
         estacao_id: estacao.id,
+        fonte: "ANA", // <--- ADICIONE ESTA LINHA
         ...dados
       });
 
