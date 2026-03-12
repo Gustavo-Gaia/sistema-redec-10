@@ -4,35 +4,31 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { parseStringPromise } from "xml2js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// ===============================
+// =============================
 // FORMATAR DATA DD/MM/YYYY
-// ===============================
+// =============================
 
-function formatarData(date) {
-
-  const d = String(date.getDate()).padStart(2, "0");
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const y = date.getFullYear();
-
-  return `${d}/${m}/${y}`;
+function formatarData(d) {
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const ano = d.getFullYear();
+  return `${dia}/${mes}/${ano}`;
 }
 
-// ===============================
+// =============================
 // CAPTURAR ANA
-// ===============================
+// =============================
 
 async function capturarANA(codigo) {
 
   const hoje = new Date();
   const inicio = new Date();
-
   inicio.setDate(hoje.getDate() - 5);
 
   const dataInicio = formatarData(inicio);
@@ -46,10 +42,6 @@ async function capturarANA(codigo) {
 
   try {
 
-    // ===============================
-    // TIMEOUT
-    // ===============================
-
     const controller = new AbortController();
 
     const timeout = setTimeout(() => {
@@ -59,8 +51,7 @@ async function capturarANA(codigo) {
     const resp = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/xml"
+        "User-Agent": "Mozilla/5.0"
       },
       cache: "no-store"
     });
@@ -71,71 +62,45 @@ async function capturarANA(codigo) {
 
     let xml = await resp.text();
 
-    // ===============================
-    // EXTRAIR XML INTERNO (SOAP)
-    // ===============================
+    // remove namespaces
+    xml = xml.replace(/<\/?\w+:/g, "<");
 
-    const match = xml.match(/<string[^>]*>([\s\S]*)<\/string>/);
+    // extrair blocos de medição
+    const registros = [...xml.matchAll(
+      /<DadosHidrometereologicos>([\s\S]*?)<\/DadosHidrometereologicos>/g
+    )];
 
-    if (match) {
-      xml = match[1];
-    }
+    if (!registros.length) return null;
 
-    // ===============================
-    // LIMPAR NAMESPACE
-    // ===============================
+    const dados = [];
 
-    xml = xml
-      .replace(/<\/?\w+:/g, "<")
-      .replace(/xmlns(:\w+)?="[^"]*"/g, "")
-      .trim();
+    for (const r of registros) {
 
-    // ===============================
-    // CONVERTER XML
-    // ===============================
+      const bloco = r[1];
 
-    const json = await parseStringPromise(xml, {
-      explicitArray: false
-    });
+      const dataHora = bloco.match(/<DataHora>(.*?)<\/DataHora>/);
+      const nivel = bloco.match(/<Nivel>(.*?)<\/Nivel>/);
 
-    let registros = json?.NewDataSet?.DadosHidrometereologicos;
+      if (!dataHora || !nivel) continue;
 
-    if (!registros) return null;
+      const dt = new Date(dataHora[1].replace(" ", "T"));
+      const nivelNum = parseFloat(nivel[1]);
 
-    if (!Array.isArray(registros)) {
-      registros = [registros];
-    }
+      if (!isNaN(dt) && !isNaN(nivelNum)) {
 
-    const registrosValidos = [];
-
-    registros.forEach((r) => {
-
-      const dataHora = r.DataHora;
-      const nivelRaw = r.Nivel;
-
-      if (!dataHora || !nivelRaw) return;
-
-      const dt = new Date(dataHora.replace(" ", "T"));
-      const nivel = parseFloat(nivelRaw);
-
-      if (!isNaN(dt.getTime()) && !isNaN(nivel)) {
-
-        registrosValidos.push({
+        dados.push({
           dt,
-          nivel: nivel / 100
+          nivel: nivelNum / 100
         });
 
       }
 
-    });
+    }
 
-    if (registrosValidos.length === 0) return null;
+    if (!dados.length) return null;
 
-    // ===============================
-    // MAIS RECENTE
-    // ===============================
-
-    const ultimo = registrosValidos.reduce((a, b) =>
+    // pegar medição mais recente
+    const ultimo = dados.reduce((a, b) =>
       a.dt > b.dt ? a : b
     );
 
@@ -147,17 +112,16 @@ async function capturarANA(codigo) {
 
   } catch (err) {
 
-    console.log("Erro ANA estação:", codigo);
-
+    console.log("Erro ANA:", codigo);
     return null;
 
   }
 
 }
 
-// ===============================
+// =============================
 // API
-// ===============================
+// =============================
 
 export async function GET() {
 
@@ -167,9 +131,7 @@ export async function GET() {
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (!estacoes) {
-    return NextResponse.json([]);
-  }
+  if (!estacoes) return NextResponse.json([]);
 
   const resultados = [];
 
