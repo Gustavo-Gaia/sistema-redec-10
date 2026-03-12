@@ -71,7 +71,8 @@ async function capturarANA(codigo) {
     return {
       data: dt.toISOString().split("T")[0],
       hora: dt.toTimeString().slice(0, 5),
-      nivel: nivel / 100
+      nivel: nivel / 100,
+      fonte: "ANA" // <-- INJETADO NA ORIGEM
     };
 
   } catch (err) {
