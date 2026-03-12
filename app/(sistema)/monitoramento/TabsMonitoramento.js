@@ -23,11 +23,13 @@ export default function TabsMonitoramento({ rios, estacoes }) {
 
   return (
 
-    <div>
+    <div className="w-full">
 
+      {/* ============================= */}
       {/* MENU DAS ABAS */}
+      {/* ============================= */}
 
-      <div className="flex gap-2 overflow-x-auto pb-4 border-b">
+      <div className="flex gap-2 overflow-x-auto pb-4 border-b border-slate-200">
 
         {abas.map((aba) => (
 
@@ -35,9 +37,11 @@ export default function TabsMonitoramento({ rios, estacoes }) {
             key={aba.id}
             onClick={() => setAbaAtiva(aba.id)}
             className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition
+
               ${abaAtiva === aba.id
-                ? "bg-blue-600 text-white"
+                ? "bg-blue-600 text-white shadow"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"}
+              
             `}
           >
 
@@ -49,7 +53,10 @@ export default function TabsMonitoramento({ rios, estacoes }) {
 
       </div>
 
-      {/* CONTEÚDO */}
+
+      {/* ============================= */}
+      {/* CONTEÚDO DAS ABAS */}
+      {/* ============================= */}
 
       <div className="mt-6">
 
@@ -60,13 +67,33 @@ export default function TabsMonitoramento({ rios, estacoes }) {
           />
         )}
 
-        {abaAtiva === "historico" && <Historico />}
+        {abaAtiva === "historico" && (
+          <Historico
+            rios={rios}
+            estacoes={estacoes}
+          />
+        )}
 
-        {abaAtiva === "mapa" && <MapaEstacoes />}
+        {abaAtiva === "mapa" && (
+          <MapaEstacoes
+            rios={rios}
+            estacoes={estacoes}
+          />
+        )}
 
-        {abaAtiva === "relatorios" && <Relatorios />}
+        {abaAtiva === "relatorios" && (
+          <Relatorios
+            rios={rios}
+            estacoes={estacoes}
+          />
+        )}
 
-        {abaAtiva === "inserir" && <InserirMedicoes />}
+        {abaAtiva === "inserir" && (
+          <InserirMedicoes
+            rios={rios}
+            estacoes={estacoes}
+          />
+        )}
 
       </div>
 
