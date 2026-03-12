@@ -46,7 +46,9 @@ export async function GET() {
 
       const xml = await response.text()
 
-      const registros = [...xml.matchAll(/<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/g)]
+      const registros = [
+        ...xml.matchAll(/<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/g)
+      ]
 
       if (registros.length === 0) continue
 
@@ -79,10 +81,6 @@ export async function GET() {
     }
 
   }
-
-  return NextResponse.json(resultados)
-
-}
 
   return NextResponse.json(resultados)
 
