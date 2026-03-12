@@ -11,8 +11,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-async function capturarANA(codigo, tentativas = 2) {
-  // Função interna para formatar data DD/MM/YYYY
+async function capturarANA(codigo) {
   const formatarDataBR = (data) => {
     const d = String(data.getDate()).padStart(2, '0');
     const m = String(data.getMonth() + 1).padStart(2, '0');
@@ -22,86 +21,73 @@ async function capturarANA(codigo, tentativas = 2) {
 
   const hoje = new Date();
   const inicio = new Date();
-  inicio.setDate(hoje.getDate() - 5);
+  inicio.setDate(hoje.getDate() - 3); // Reduzi para 3 dias para ser mais rápido
 
   const dataFim = formatarDataBR(hoje);
   const dataInicio = formatarDataBR(inicio);
 
   const url = `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos?codEstacao=${codigo}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
 
-  for (let i = 0; i < tentativas; i++) {
-    try {
-      const resp = await fetch(url, {
-        method: 'GET',
-        // O segredo do robô Python é o tempo de espera. 
-        // Aqui usamos um sinal de aborto para não travar a função da Vercel
-        signal: AbortSignal.timeout(15000), 
-        next: { revalidate: 0 }
-      });
+  try {
+    const resp = await fetch(url, { next: { revalidate: 0 } });
+    if (!resp.ok) return null;
 
-      if (!resp.ok) continue;
+    const xml = await resp.text();
 
-      const xml = await resp.text();
+    // 1. Limpeza agressiva de namespaces para simplificar o JSON
+    const xmlLimpo = xml
+      .replace(/<\/?\w+:/g, "<")
+      .replace(/xmlns(:\w+)?="[^"]*"/g, "")
+      .trim();
 
-      // Limpeza de Namespaces (Exatamente como você faz no Python com re.sub)
-      const xmlLimpo = xml
-        .replace(/<\/?\w+:/g, "<")
-        .replace(/xmlns(:\w+)?="[^"]*"/g, "")
-        .trim();
+    const json = await parseStringPromise(xmlLimpo, { 
+      explicitArray: false, 
+      ignoreAttrs: true,
+      stripPrefix: true // Remove prefixos como diffgr:
+    });
 
-      const json = await parseStringPromise(xmlLimpo, { 
-        explicitArray: false, 
-        ignoreAttrs: true 
-      });
+    // 2. Tenta encontrar os dados nos dois caminhos possíveis (Normal ou Diffgram)
+    let registros = 
+      json?.DataTable?.diffgram?.DocumentElement?.DadosHidrometereologicos || 
+      json?.NewDataSet?.DadosHidrometereologicos ||
+      json?.DocumentElement?.DadosHidrometereologicos;
 
-      // ANA usa o termo "metereologicos" (com E)
-      let registros = json?.NewDataSet?.DadosHidrometereologicos;
+    if (!registros) return null;
 
-      if (!registros) {
-        // Se for a última tentativa e não houver registros, retorna null
-        if (i === tentativas - 1) return null;
-        continue;
+    // Normaliza para Array
+    if (!Array.isArray(registros)) registros = [registros];
+
+    const registrosValidos = [];
+
+    registros.forEach((r) => {
+      const dataHoraRaw = r.DataHora;
+      const nivelRaw = r.Nivel;
+
+      if (!dataHoraRaw || !nivelRaw) return;
+
+      const dt = new Date(dataHoraRaw.trim().replace(" ", "T"));
+      const nivel = parseFloat(nivelRaw.replace(",", "."));
+
+      if (!isNaN(dt.getTime()) && !isNaN(nivel)) {
+        registrosValidos.push({ dt, nivel: nivel / 100 });
       }
+    });
 
-      // Se vier só um registro, o parseStringPromise não cria array. Forçamos aqui.
-      if (!Array.isArray(registros)) registros = [registros];
+    if (registrosValidos.length === 0) return null;
 
-      const registrosValidos = [];
+    // Pega o mais recente
+    const ultimo = registrosValidos.reduce((a, b) => (a.dt > b.dt ? a : b));
 
-      registros.forEach((r) => {
-        const dataHoraRaw = r.DataHora;
-        const nivelRaw = r.Nivel;
+    return {
+      data: ultimo.dt.toISOString().split("T")[0],
+      hora: ultimo.dt.toTimeString().slice(0, 5),
+      nivel: ultimo.nivel
+    };
 
-        if (!dataHoraRaw || !nivelRaw || nivelRaw.trim() === "") return;
-
-        // Converte "2024-03-12 10:00:00" para Date aceitável pelo JS
-        const dt = new Date(dataHoraRaw.trim().replace(" ", "T"));
-        const nivel = parseFloat(nivelRaw.replace(",", "."));
-
-        if (!isNaN(dt.getTime()) && !isNaN(nivel)) {
-          registrosValidos.push({ dt, nivel: nivel / 100 });
-        }
-      });
-
-      if (registrosValidos.length === 0) continue;
-
-      // Retorna o mais recente (Equivalente ao max do Python)
-      const ultimo = registrosValidos.reduce((a, b) => (a.dt > b.dt ? a : b));
-
-      return {
-        data: ultimo.dt.toISOString().split("T")[0],
-        hora: ultimo.dt.toTimeString().slice(0, 5),
-        nivel: ultimo.nivel
-      };
-
-    } catch (err) {
-      console.error(`Tentativa ${i+1} falhou para ${codigo}:`, err.message);
-      if (i === tentativas - 1) return null;
-      // Espera 1 segundo antes de tentar de novo (como o time.sleep do seu robô)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
+  } catch (err) {
+    console.error(`Erro ANA ${codigo}:`, err.message);
+    return null;
   }
-  return null;
 }
 
 export async function GET() {
@@ -111,12 +97,11 @@ export async function GET() {
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (!estacoes) return NextResponse.json({ error: "Erro banco" }, { status: 500 });
+  if (!estacoes) return NextResponse.json([]);
 
   const resultados = [];
 
-  // Na Vercel Free, vamos processar em pequenos lotes ou limitar
-  // para não estourar os 10 segundos de execução.
+  // Processa as estações
   for (const estacao of estacoes) {
     const dados = await capturarANA(estacao.codigo_estacao);
     if (dados) {
