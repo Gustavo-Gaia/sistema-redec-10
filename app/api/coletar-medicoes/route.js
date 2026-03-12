@@ -14,57 +14,69 @@ const supabase = createClient(
 
 export async function GET() {
   try {
+    console.log("🚀 [ROBÔ] Iniciando coleta forçada em tempo real...");
+    
+    // Adicionamos um timestamp na URL para garantir quebra de cache da Vercel
+    const timestamp = Date.now();
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
-    // FORÇAMOS A BUSCA SEM CACHE PARA PEGAR DADOS ATUAIS (18:45)
+    // 1. BUSCA SEM CACHE
     const [dadosAna, dadosInea] = await Promise.all([
-      fetch(`${baseUrl}/api/ana`, { 
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' } 
-      }).then(r => r.json()).catch(() => []),
-      fetch(`${baseUrl}/api/inea`, { 
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' } 
-      }).then(r => r.json()).catch(() => [])
+      fetch(`${baseUrl}/api/ana?t=${timestamp}`, { cache: 'no-store' }).then(r => r.json()).catch(() => []),
+      fetch(`${baseUrl}/api/inea?t=${timestamp}`, { cache: 'no-store' }).then(r => r.json()).catch(() => [])
     ]);
 
-    // NORMALIZAÇÃO MANUAL (Garantindo a fonte aqui)
+    // 2. NORMALIZAÇÃO ROBUSTA
+    // Aqui garantimos que todos os campos necessários existam no objeto
     const medicoes = [
-      ...dadosAna.map(m => ({ 
-        estacao_id: m.estacao_id, 
-        data: m.data, 
-        hora: m.hora, 
-        nivel: m.nivel, 
-        fonte: "ANA" 
+      ...dadosAna.map(m => ({
+        estacao_id: m.estacao_id,
+        data_hora: `${m.data} ${m.hora}`,
+        nivel: m.nivel,
+        fonte: "ANA",
+        abaixo_regua: false
       })),
-      ...dadosInea.map(m => ({ 
-        estacao_id: m.estacao_id, 
-        data: m.data, 
-        hora: m.hora, 
-        nivel: m.nivel, 
-        fonte: "INEA" 
+      ...dadosInea.map(m => ({
+        estacao_id: m.estacao_id,
+        data_hora: `${m.data} ${m.hora}`,
+        nivel: m.nivel,
+        fonte: "INEA",
+        abaixo_regua: false
       }))
     ];
 
-    let inseridos = 0;
-    for (const m of medicoes) {
-      if (!m.estacao_id) continue;
+    if (medicoes.length === 0) {
+      return NextResponse.json({ status: "vazio", message: "Nenhum dado novo" });
+    }
 
-      // INSERÇÃO DIRETA
+    let inseridos = 0;
+    let ignorados = 0;
+
+    // 3. INSERÇÃO BLINDADA
+    for (const m of medicoes) {
+      if (!m.estacao_id || !m.data_hora) continue;
+
+      // Inserção explícita
       const { error } = await supabase
         .from("medicoes")
         .insert({
           estacao_id: m.estacao_id,
-          data_hora: `${m.data} ${m.hora}`,
+          data_hora: m.data_hora,
           nivel: m.nivel,
-          fonte: m.fonte, // Agora vem do .map() acima, garantidamente "ANA" ou "INEA"
-          abaixo_regua: false
+          fonte: m.fonte, 
+          abaixo_regua: m.abaixo_regua
         });
 
-      if (!error) inseridos++;
+      if (error) {
+        if (error.code === "23505") ignorados++;
+        else console.error(`❌ Erro Estação ${m.estacao_id}:`, error.message);
+      } else {
+        inseridos++;
+      }
     }
 
-    return NextResponse.json({ status: "sucesso", total: inseridos });
+    console.log(`✅ Coleta finalizada: ${inseridos} inseridos.`);
+    return NextResponse.json({ status: "sucesso", inseridos, ignorados });
 
   } catch (err) {
     return NextResponse.json({ erro: err.message }, { status: 500 });
