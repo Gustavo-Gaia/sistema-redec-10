@@ -2,16 +2,24 @@
 
 "use client"
 
-export default function SituacaoAtual() {
+import SeletorMonitoramento from "../seletor"
+
+export default function SituacaoAtual({ rios, estacoes }) {
 
   return (
 
-    <div className="text-slate-600">
+    <div>
 
-      Situação atual das estações aparecerá aqui.
+      <SeletorMonitoramento
+        rios={rios}
+        estacoes={estacoes}
+      />
+
+      <div className="text-slate-600">
+        Situação atual das estações aparecerá aqui.
+      </div>
 
     </div>
 
   )
-
 }
