@@ -1,0 +1,15 @@
+name: Disparar Robo de Coleta
+on:
+  schedule:
+    # Roda no minuto 15 de cada hora
+    - cron: '15 * * * *'
+  # Permite que você rode manualmente quando quiser (pelo site do GitHub)
+  workflow_dispatch: 
+
+jobs:
+  chamar-robo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamando a API de coleta na Vercel
+        run: |
+          curl -X GET https://sistema-redec-10.vercel.app/api/robo-coleta
