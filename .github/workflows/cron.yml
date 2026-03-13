@@ -1,9 +1,8 @@
 name: Disparar Robo de Coleta
 on:
   schedule:
-    # Roda no minuto 15 de cada hora
-    - cron: '15 * * * *'
-  # Permite que você rode manualmente quando quiser (pelo site do GitHub)
+    # Roda a cada 30 minutos
+    - cron: '*/30 * * * *'
   workflow_dispatch: 
 
 jobs:
@@ -12,4 +11,8 @@ jobs:
     steps:
       - name: Chamando a API de coleta na Vercel
         run: |
-          curl -X GET https://sistema-redec-10.vercel.app/api/robo-coleta
+          # Usa -s para modo silencioso e captura o JSON
+          # O 'jq .' formata o JSON para ficar legível no log
+          resultado=$(curl -sS https://sistema-redec-10.vercel.app/api/robo-coleta)
+          echo "Relatório do Robô:"
+          echo $resultado | jq .
