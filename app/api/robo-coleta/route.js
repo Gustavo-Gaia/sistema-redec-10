@@ -15,23 +15,13 @@ export async function GET() {
     // =========================
 
     const [respAna, respInea] = await Promise.all([
+      fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/ana`, {
+        cache: "no-store"
+      }),
 
-      fetch(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/api/ana`,
-        {
-          cache: "no-store",
-          signal: AbortSignal.timeout(20000)
-        }
-      ),
-
-      fetch(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/api/inea`,
-        {
-          cache: "no-store",
-          signal: AbortSignal.timeout(20000)
-        }
-      )
-
+      fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/inea`, {
+        cache: "no-store"
+      })
     ]);
 
     const dadosAna = await respAna.json();
@@ -55,10 +45,14 @@ export async function GET() {
 
     console.log("Total medições capturadas:", medicoes.length);
 
+    // se não houver medições
     if (medicoes.length === 0) {
+
+      console.log("Nenhuma medição encontrada.");
 
       return NextResponse.json({
         sucesso: true,
+        total_coletado: 0,
         mensagem: "Nenhuma medição encontrada"
       });
 
@@ -75,8 +69,7 @@ export async function GET() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(medicoes),
-        signal: AbortSignal.timeout(20000)
+        body: JSON.stringify(medicoes)
       }
     );
 
