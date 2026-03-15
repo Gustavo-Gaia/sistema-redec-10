@@ -13,13 +13,19 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// ignora erro de certificado do site do INEA
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false
 });
 
+// delay entre requisições
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+// ============================
+// CAPTURAR DADOS INEA
+// ============================
 
 async function capturarINEA(codigo) {
 
@@ -29,7 +35,7 @@ async function capturarINEA(codigo) {
   try {
 
     const response = await axios.get(url, {
-      timeout: 8000,
+      timeout: 10000,
       httpsAgent,
       headers: {
         "User-Agent":
@@ -75,6 +81,7 @@ async function capturarINEA(codigo) {
 
     if (registros.length === 0) return null;
 
+    // pega medição mais recente
     const ultimo = registros.reduce((a, b) =>
       a.dt > b.dt ? a : b
     );
@@ -87,7 +94,7 @@ async function capturarINEA(codigo) {
 
   } catch (error) {
 
-    console.log("Erro INEA estação:", codigo, error.message);
+    console.log(`Erro INEA estação ${codigo}:`, error.message);
 
     return null;
 
@@ -95,35 +102,65 @@ async function capturarINEA(codigo) {
 
 }
 
+// ============================
+// API
+// ============================
+
 export async function GET() {
 
-  const { data: estacoes } = await supabase
-    .from("estacoes")
-    .select("id,codigo_estacao")
-    .eq("fonte","INEA")
-    .eq("ativo",true);
+  try {
 
-  const resultados = [];
+    const { data: estacoes, error } = await supabase
+      .from("estacoes")
+      .select("id, codigo_estacao")
+      .eq("fonte","INEA")
+      .eq("ativo",true);
 
-  for (const estacao of estacoes) {
+    if (error) {
+      console.error("Erro ao buscar estações INEA:", error);
+      return NextResponse.json([]);
+    }
 
-    const dados = await capturarINEA(estacao.codigo_estacao);
+    if (!estacoes || estacoes.length === 0) {
+      return NextResponse.json([]);
+    }
 
-    if (dados) {
+    console.log("Estações INEA encontradas:", estacoes.length);
 
-      resultados.push({
-        estacao_id: estacao.id,
-        fonte: "INEA", // <--- ADICIONE ESTA LINHA
-        ...dados
-      });
+    const resultados = [];
+
+    for (const estacao of estacoes) {
+
+      const dados = await capturarINEA(estacao.codigo_estacao);
+
+      if (dados) {
+
+        resultados.push({
+          estacao_id: estacao.id,
+          fonte: "INEA",
+          ...dados
+        });
+
+      }
+
+      // evita bloqueio do servidor INEA
+      await sleep(700);
 
     }
 
-    // evita bloqueio do INEA (igual seu python)
-    await sleep(600);
+    console.log("Medições INEA capturadas:", resultados.length);
+
+    return NextResponse.json(resultados);
+
+  } catch (err) {
+
+    console.error("Erro geral na API INEA:", err);
+
+    return NextResponse.json(
+      { erro: "Falha ao capturar dados INEA" },
+      { status: 500 }
+    );
 
   }
-
-  return NextResponse.json(resultados);
 
 }
