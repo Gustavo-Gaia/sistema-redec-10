@@ -8,6 +8,8 @@ import Historico from "./abas/Historico"
 import MapaEstacoes from "./abas/MapaEstacoes"
 import Relatorios from "./abas/Relatorios"
 import InserirMedicoes from "./abas/InserirMedicoes"
+import Configuracoes from "./abas/configuracoes/Configuracoes"
+
 
 export default function TabsMonitoramento({ rios, estacoes }) {
 
@@ -18,7 +20,8 @@ export default function TabsMonitoramento({ rios, estacoes }) {
     { id: "historico", nome: "Histórico" },
     { id: "mapa", nome: "Mapa" },
     { id: "relatorios", nome: "Relatórios" },
-    { id: "inserir", nome: "Inserir Medições" }
+    { id: "inserir", nome: "Inserir Medições" },
+    { id: "config", nome: "Configurações" }
   ]
 
   return (
@@ -90,6 +93,13 @@ export default function TabsMonitoramento({ rios, estacoes }) {
 
         {abaAtiva === "inserir" && (
           <InserirMedicoes
+            rios={rios}
+            estacoes={estacoes}
+          />
+        )}
+
+        {abaAtiva === "config" && (
+          <Configuracoes
             rios={rios}
             estacoes={estacoes}
           />
