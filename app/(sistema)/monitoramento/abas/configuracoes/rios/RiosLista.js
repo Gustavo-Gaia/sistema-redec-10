@@ -4,7 +4,6 @@
 
 import { useState } from "react"
 import { createClient } from "@supabase/supabase-js"
-import { useRouter } from "next/navigation"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -13,9 +12,9 @@ const supabase = createClient(
 
 export default function RiosLista({ rios }) {
 
-  const router = useRouter()
-
   const [lista, setLista] = useState(rios)
+
+  const [loading, setLoading] = useState(false)
 
   const [novoRio, setNovoRio] = useState({
     nome: "",
@@ -30,10 +29,14 @@ export default function RiosLista({ rios }) {
 
   async function criarRio() {
 
+    if (loading) return
+
     if (!novoRio.nome) {
       alert("Digite o nome do rio")
       return
     }
+
+    setLoading(true)
 
     const { data, error } = await supabase
       .from("rios")
@@ -43,6 +46,8 @@ export default function RiosLista({ rios }) {
       })
       .select()
       .single()
+
+    setLoading(false)
 
     if (error) {
       console.log(error)
@@ -57,8 +62,6 @@ export default function RiosLista({ rios }) {
       tipo: "rio"
     })
 
-    router.refresh()
-
   }
 
   // =========================
@@ -67,6 +70,10 @@ export default function RiosLista({ rios }) {
 
   async function salvarEdicao() {
 
+    if (loading) return
+
+    setLoading(true)
+
     const { error } = await supabase
       .from("rios")
       .update({
@@ -74,27 +81,24 @@ export default function RiosLista({ rios }) {
         tipo: editando.tipo
       })
       .eq("id", editando.id)
-  
+
+    setLoading(false)
+
     if (error) {
       console.log(error)
       alert("Erro ao atualizar")
       return
     }
-  
-    // busca rios atualizados
-    const { data } = await supabase
-      .from("rios")
-      .select("*")
-      .order("nome")
-  
-    setLista(data)
-  
-    setEditando(null)
-  
-    router.refresh()
-  
-  }
 
+    setLista(
+      lista.map((r) =>
+        r.id === editando.id ? editando : r
+      )
+    )
+
+    setEditando(null)
+
+  }
 
   // =========================
   // ATIVAR / DESATIVAR
@@ -102,12 +106,18 @@ export default function RiosLista({ rios }) {
 
   async function toggleRio(rio) {
 
+    if (loading) return
+
+    setLoading(true)
+
     const { error } = await supabase
       .from("rios")
       .update({
         ativo: !rio.ativo
       })
       .eq("id", rio.id)
+
+    setLoading(false)
 
     if (error) {
       console.log(error)
@@ -123,8 +133,6 @@ export default function RiosLista({ rios }) {
       )
     )
 
-    router.refresh()
-
   }
 
   // =========================
@@ -133,22 +141,34 @@ export default function RiosLista({ rios }) {
 
   async function excluirRio(id) {
 
+    if (loading) return
+
     if (!confirm("Excluir este rio?")) return
+
+    setLoading(true)
 
     const { error } = await supabase
       .from("rios")
       .delete()
       .eq("id", id)
 
+    setLoading(false)
+
     if (error) {
+
       console.log(error)
-      alert("Erro ao excluir")
+
+      // erro de foreign key
+      if (error.code === "23503") {
+        alert("Este rio possui estações cadastradas e não pode ser excluído.")
+      } else {
+        alert("Erro ao excluir rio")
+      }
+
       return
     }
 
     setLista(lista.filter((r) => r.id !== id))
-
-    router.refresh()
 
   }
 
@@ -193,9 +213,10 @@ export default function RiosLista({ rios }) {
 
         <button
           onClick={criarRio}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg"
+          disabled={loading}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
         >
-          Adicionar
+          {loading ? "Salvando..." : "Adicionar"}
         </button>
 
       </div>
@@ -247,6 +268,7 @@ export default function RiosLista({ rios }) {
                   {editando?.id === rio.id ? (
 
                     <select
+                      className="border p-1 rounded"
                       value={editando.tipo}
                       onChange={(e) =>
                         setEditando({
@@ -268,6 +290,7 @@ export default function RiosLista({ rios }) {
 
                   <button
                     onClick={() => toggleRio(rio)}
+                    disabled={loading}
                     className={`px-2 py-1 rounded text-white ${
                       rio.ativo ? "bg-green-600" : "bg-red-600"
                     }`}
@@ -283,16 +306,18 @@ export default function RiosLista({ rios }) {
 
                     <button
                       onClick={salvarEdicao}
-                      className="bg-blue-600 text-white px-2 py-1 rounded"
+                      disabled={loading}
+                      className="bg-blue-600 text-white px-2 py-1 rounded disabled:opacity-50"
                     >
-                      Salvar
+                      {loading ? "Salvando..." : "Salvar"}
                     </button>
 
                   ) : (
 
                     <button
                       onClick={() => setEditando(rio)}
-                      className="bg-yellow-500 text-white px-2 py-1 rounded"
+                      disabled={loading}
+                      className="bg-yellow-500 text-white px-2 py-1 rounded disabled:opacity-50"
                     >
                       Editar
                     </button>
@@ -301,7 +326,8 @@ export default function RiosLista({ rios }) {
 
                   <button
                     onClick={() => excluirRio(rio.id)}
-                    className="bg-red-600 text-white px-2 py-1 rounded"
+                    disabled={loading}
+                    className="bg-red-600 text-white px-2 py-1 rounded disabled:opacity-50"
                   >
                     Excluir
                   </button>
@@ -323,4 +349,3 @@ export default function RiosLista({ rios }) {
   )
 
 }
-
