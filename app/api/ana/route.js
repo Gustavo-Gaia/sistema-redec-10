@@ -44,16 +44,13 @@ async function capturarANA(codigo) {
 
     const resp = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0" },
-      cache: "no-store"
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000) // evita travamento
     });
 
     if (!resp.ok) return null;
 
-    let xml = await resp.text();
-
-    // ============================
-    // PEGAR PRIMEIRA MEDIÇÃO
-    // ============================
+    const xml = await resp.text();
 
     const match = xml.match(
       /<DadosHidrometereologicos[\s\S]*?<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/
@@ -72,12 +69,12 @@ async function capturarANA(codigo) {
       data: dt.toISOString().split("T")[0],
       hora: dt.toTimeString().slice(0, 5),
       nivel: nivel / 100,
-      fonte: "ANA" // <-- INJETADO NA ORIGEM
+      fonte: "ANA"
     };
 
   } catch (err) {
 
-    console.log("Erro ANA:", codigo);
+    console.log(`Erro ANA estação ${codigo}:`, err.message);
     return null;
 
   }
@@ -90,32 +87,60 @@ async function capturarANA(codigo) {
 
 export async function GET() {
 
-  const { data: estacoes } = await supabase
-    .from("estacoes")
-    .select("id, codigo_estacao")
-    .eq("fonte", "ANA")
-    .eq("ativo", true);
+  try {
 
-  if (!estacoes) return NextResponse.json([]);
+    const { data: estacoes, error } = await supabase
+      .from("estacoes")
+      .select("id, codigo_estacao")
+      .eq("fonte", "ANA")
+      .eq("ativo", true);
 
-  const resultados = [];
-
-  for (const estacao of estacoes) {
-
-    const dados = await capturarANA(estacao.codigo_estacao);
-
-    if (dados) {
-
-      resultados.push({
-        estacao_id: estacao.id,
-        fonte: "ANA", // <--- ADICIONE ESTA LINHA
-        ...dados
-      });
-
+    if (error) {
+      console.error("Erro ao buscar estações ANA:", error);
+      return NextResponse.json([]);
     }
 
-  }
+    if (!estacoes || estacoes.length === 0) {
+      return NextResponse.json([]);
+    }
 
-  return NextResponse.json(resultados);
+    console.log("Estações ANA encontradas:", estacoes.length);
+
+    // ============================
+    // CAPTURA EM PARALELO
+    // ============================
+
+    const promessas = estacoes.map(async (estacao) => {
+
+      const dados = await capturarANA(estacao.codigo_estacao);
+
+      if (!dados) return null;
+
+      return {
+        estacao_id: estacao.id,
+        ...dados
+      };
+
+    });
+
+    const resultadosBrutos = await Promise.all(promessas);
+
+    // remove null
+    const resultados = resultadosBrutos.filter(r => r !== null);
+
+    console.log("Medições ANA capturadas:", resultados.length);
+
+    return NextResponse.json(resultados);
+
+  } catch (err) {
+
+    console.error("Erro geral na API ANA:", err);
+
+    return NextResponse.json(
+      { erro: "Falha ao capturar dados ANA" },
+      { status: 500 }
+    );
+
+  }
 
 }
