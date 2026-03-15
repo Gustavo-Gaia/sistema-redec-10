@@ -29,9 +29,9 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   const [editando, setEditando] = useState(null)
 
-  // =========================
+  // ======================
   // CRIAR ESTAÇÃO
-  // =========================
+  // ======================
 
   async function criarEstacao() {
 
@@ -76,9 +76,9 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   }
 
-  // =========================
+  // ======================
   // SALVAR EDIÇÃO
-  // =========================
+  // ======================
 
   async function salvarEdicao() {
 
@@ -96,11 +96,11 @@ export default function EstacoesLista({ rios, estacoes }) {
       return
     }
 
-    setLista(
-      lista.map((e) =>
-        e.id === editando.id ? editando : e
-      )
-    )
+    const { data } = await supabase
+      .from("estacoes")
+      .select("*")
+
+    setLista(data)
 
     setEditando(null)
 
@@ -108,9 +108,9 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   }
 
-  // =========================
+  // ======================
   // ATIVAR / DESATIVAR
-  // =========================
+  // ======================
 
   async function toggleEstacao(estacao) {
 
@@ -123,7 +123,6 @@ export default function EstacoesLista({ rios, estacoes }) {
 
     if (error) {
       console.log(error)
-      alert("Erro")
       return
     }
 
@@ -139,9 +138,9 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   }
 
-  // =========================
+  // ======================
   // EXCLUIR
-  // =========================
+  // ======================
 
   async function excluirEstacao(id) {
 
@@ -154,7 +153,6 @@ export default function EstacoesLista({ rios, estacoes }) {
 
     if (error) {
       console.log(error)
-      alert("Erro")
       return
     }
 
@@ -164,9 +162,15 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   }
 
+  // ======================
+  // INTERFACE
+  // ======================
+
   return (
 
     <div className="space-y-6">
+
+      {/* NOVA ESTAÇÃO */}
 
       <div className="grid md:grid-cols-4 gap-2">
 
@@ -230,42 +234,6 @@ export default function EstacoesLista({ rios, estacoes }) {
           }
         />
 
-        <input
-          placeholder="Nível transbordo"
-          className="border p-2 rounded-lg"
-          value={nova.nivel_transbordo}
-          onChange={(e) =>
-            setNova({
-              ...nova,
-              nivel_transbordo: e.target.value
-            })
-          }
-        />
-
-        <input
-          placeholder="Latitude"
-          className="border p-2 rounded-lg"
-          value={nova.latitude}
-          onChange={(e) =>
-            setNova({
-              ...nova,
-              latitude: e.target.value
-            })
-          }
-        />
-
-        <input
-          placeholder="Longitude"
-          className="border p-2 rounded-lg"
-          value={nova.longitude}
-          onChange={(e) =>
-            setNova({
-              ...nova,
-              longitude: e.target.value
-            })
-          }
-        />
-
         <button
           onClick={criarEstacao}
           className="bg-green-600 text-white px-4 py-2 rounded-lg"
@@ -275,8 +243,112 @@ export default function EstacoesLista({ rios, estacoes }) {
 
       </div>
 
+      {/* TABELA */}
+
+      <div className="overflow-auto">
+
+        <table className="w-full text-sm">
+
+          <thead className="bg-slate-100">
+
+            <tr>
+              <th className="p-2">Município</th>
+              <th className="p-2">Fonte</th>
+              <th className="p-2">Código</th>
+              <th className="p-2">Transbordo</th>
+              <th className="p-2">Status</th>
+              <th className="p-2">Ações</th>
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            {lista.map((e) => (
+
+              <tr key={e.id} className="border-b">
+
+                <td className="p-2">
+
+                  {editando?.id === e.id ? (
+
+                    <input
+                      value={editando.municipio}
+                      onChange={(ev) =>
+                        setEditando({
+                          ...editando,
+                          municipio: ev.target.value
+                        })
+                      }
+                    />
+
+                  ) : e.municipio}
+
+                </td>
+
+                <td className="text-center">{e.fonte}</td>
+
+                <td className="text-center">{e.codigo_estacao}</td>
+
+                <td className="text-center">{e.nivel_transbordo}</td>
+
+                <td className="text-center">
+
+                  <button
+                    onClick={() => toggleEstacao(e)}
+                    className={`px-2 py-1 rounded text-white ${
+                      e.ativo ? "bg-green-600" : "bg-red-600"
+                    }`}
+                  >
+                    {e.ativo ? "Ativo" : "Inativo"}
+                  </button>
+
+                </td>
+
+                <td className="flex gap-2 justify-center">
+
+                  {editando?.id === e.id ? (
+
+                    <button
+                      onClick={salvarEdicao}
+                      className="bg-blue-600 text-white px-2 py-1 rounded"
+                    >
+                      Salvar
+                    </button>
+
+                  ) : (
+
+                    <button
+                      onClick={() => setEditando(e)}
+                      className="bg-yellow-500 text-white px-2 py-1 rounded"
+                    >
+                      Editar
+                    </button>
+
+                  )}
+
+                  <button
+                    onClick={() => excluirEstacao(e.id)}
+                    className="bg-red-600 text-white px-2 py-1 rounded"
+                  >
+                    Excluir
+                  </button>
+
+                </td>
+
+              </tr>
+
+            ))}
+
+          </tbody>
+
+        </table>
+
+      </div>
+
     </div>
 
   )
 
 }
+
