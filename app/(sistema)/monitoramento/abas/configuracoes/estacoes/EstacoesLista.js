@@ -13,7 +13,6 @@ const supabase = createClient(
 export default function EstacoesLista({ rios, estacoes }) {
 
   const [lista, setLista] = useState(estacoes)
-
   const [loading, setLoading] = useState(false)
 
   const [nova, setNova] = useState({
@@ -227,7 +226,6 @@ export default function EstacoesLista({ rios, estacoes }) {
               {r.nome}
             </option>
           ))}
-
         </select>
 
         <input
@@ -264,9 +262,9 @@ export default function EstacoesLista({ rios, estacoes }) {
         />
 
         <input
-          placeholder="Nível de transbordo"
-          type="number"
-          step="0.01"
+          placeholder="Nível transbordo"
+          type="text"
+          inputMode="decimal"
           className="border p-2 rounded-lg"
           value={nova.nivel_transbordo}
           onChange={(e) =>
@@ -279,8 +277,8 @@ export default function EstacoesLista({ rios, estacoes }) {
 
         <input
           placeholder="Latitude"
-          type="number"
-          step="0.000001"
+          type="text"
+          inputMode="decimal"
           className="border p-2 rounded-lg"
           value={nova.latitude}
           onChange={(e) =>
@@ -293,8 +291,8 @@ export default function EstacoesLista({ rios, estacoes }) {
 
         <input
           placeholder="Longitude"
-          type="number"
-          step="0.000001"
+          type="text"
+          inputMode="decimal"
           className="border p-2 rounded-lg"
           value={nova.longitude}
           onChange={(e) =>
@@ -343,17 +341,121 @@ export default function EstacoesLista({ rios, estacoes }) {
 
               <tr key={e.id} className="border-b">
 
-                <td className="p-2">{e.municipio}</td>
+                <td className="p-2">
+
+                  {editando?.id === e.id ? (
+                    <input
+                      className="border p-1 rounded w-full"
+                      value={editando.municipio}
+                      onChange={(ev) =>
+                        setEditando({
+                          ...editando,
+                          municipio: ev.target.value
+                        })
+                      }
+                    />
+                  ) : e.municipio}
+
+                </td>
 
                 <td className="text-center">
                   {riosMap[e.rio_id] || "-"}
                 </td>
 
-                <td className="text-center">{e.fonte}</td>
-                <td className="text-center">{e.codigo_estacao}</td>
-                <td className="text-center">{e.nivel_transbordo}</td>
-                <td className="text-center">{e.latitude}</td>
-                <td className="text-center">{e.longitude}</td>
+                <td className="text-center">
+
+                  {editando?.id === e.id ? (
+                    <select
+                      className="border p-1 rounded"
+                      value={editando.fonte}
+                      onChange={(ev) =>
+                        setEditando({
+                          ...editando,
+                          fonte: ev.target.value
+                        })
+                      }
+                    >
+                      <option value="ANA">ANA</option>
+                      <option value="INEA">INEA</option>
+                      <option value="COMDEC">COMDEC</option>
+                    </select>
+                  ) : e.fonte}
+
+                </td>
+
+                <td className="text-center">
+
+                  {editando?.id === e.id ? (
+                    <input
+                      className="border p-1 rounded w-full"
+                      value={editando.codigo_estacao || ""}
+                      onChange={(ev) =>
+                        setEditando({
+                          ...editando,
+                          codigo_estacao: ev.target.value
+                        })
+                      }
+                    />
+                  ) : e.codigo_estacao}
+
+                </td>
+
+                <td className="text-center">
+
+                  {editando?.id === e.id ? (
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="border p-1 rounded w-full"
+                      value={editando.nivel_transbordo || ""}
+                      onChange={(ev) =>
+                        setEditando({
+                          ...editando,
+                          nivel_transbordo: ev.target.value
+                        })
+                      }
+                    />
+                  ) : e.nivel_transbordo}
+
+                </td>
+
+                <td className="text-center">
+
+                  {editando?.id === e.id ? (
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="border p-1 rounded w-full"
+                      value={editando.latitude || ""}
+                      onChange={(ev) =>
+                        setEditando({
+                          ...editando,
+                          latitude: ev.target.value
+                        })
+                      }
+                    />
+                  ) : e.latitude}
+
+                </td>
+
+                <td className="text-center">
+
+                  {editando?.id === e.id ? (
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="border p-1 rounded w-full"
+                      value={editando.longitude || ""}
+                      onChange={(ev) =>
+                        setEditando({
+                          ...editando,
+                          longitude: ev.target.value
+                        })
+                      }
+                    />
+                  ) : e.longitude}
+
+                </td>
 
                 <td className="text-center">
 
@@ -371,13 +473,26 @@ export default function EstacoesLista({ rios, estacoes }) {
 
                 <td className="flex gap-2 justify-center">
 
-                  <button
-                    onClick={() => setEditando(e)}
-                    disabled={loading}
-                    className="bg-yellow-500 text-white px-2 py-1 rounded"
-                  >
-                    Editar
-                  </button>
+                  {editando?.id === e.id ? (
+
+                    <button
+                      onClick={salvarEdicao}
+                      className="bg-blue-600 text-white px-2 py-1 rounded"
+                    >
+                      Salvar
+                    </button>
+
+                  ) : (
+
+                    <button
+                      onClick={() => setEditando(e)}
+                      disabled={loading}
+                      className="bg-yellow-500 text-white px-2 py-1 rounded"
+                    >
+                      Editar
+                    </button>
+
+                  )}
 
                   <button
                     onClick={() => excluirEstacao(e.id)}
