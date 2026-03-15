@@ -4,7 +4,6 @@
 
 import { useState } from "react"
 import { createClient } from "@supabase/supabase-js"
-import { useRouter } from "next/navigation"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -13,9 +12,9 @@ const supabase = createClient(
 
 export default function EstacoesLista({ rios, estacoes }) {
 
-  const router = useRouter()
-
   const [lista, setLista] = useState(estacoes)
+
+  const [loading, setLoading] = useState(false)
 
   const [nova, setNova] = useState({
     rio_id: "",
@@ -29,16 +28,26 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   const [editando, setEditando] = useState(null)
 
+  // mapa de rios
+  const riosMap = {}
+  rios.forEach((r) => {
+    riosMap[r.id] = r.nome
+  })
+
   // =============================
   // CRIAR ESTAÇÃO
   // =============================
 
   async function criarEstacao() {
 
+    if (loading) return
+
     if (!nova.rio_id || !nova.municipio) {
       alert("Selecione o rio e informe o município")
       return
     }
+
+    setLoading(true)
 
     const { data, error } = await supabase
       .from("estacoes")
@@ -60,6 +69,8 @@ export default function EstacoesLista({ rios, estacoes }) {
       .select()
       .single()
 
+    setLoading(false)
+
     if (error) {
       console.log(error)
       alert("Erro ao criar estação")
@@ -78,8 +89,6 @@ export default function EstacoesLista({ rios, estacoes }) {
       longitude: ""
     })
 
-    router.refresh()
-
   }
 
   // =============================
@@ -87,6 +96,10 @@ export default function EstacoesLista({ rios, estacoes }) {
   // =============================
 
   async function salvarEdicao() {
+
+    if (loading) return
+
+    setLoading(true)
 
     const { error } = await supabase
       .from("estacoes")
@@ -106,22 +119,21 @@ export default function EstacoesLista({ rios, estacoes }) {
       })
       .eq("id", editando.id)
 
+    setLoading(false)
+
     if (error) {
       console.log(error)
       alert("Erro ao atualizar estação")
       return
     }
 
-    const { data } = await supabase
-      .from("estacoes")
-      .select("*")
-      .order("municipio")
-
-    setLista(data)
+    setLista(
+      lista.map((e) =>
+        e.id === editando.id ? editando : e
+      )
+    )
 
     setEditando(null)
-
-    router.refresh()
 
   }
 
@@ -131,12 +143,18 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   async function toggleEstacao(estacao) {
 
+    if (loading) return
+
+    setLoading(true)
+
     const { error } = await supabase
       .from("estacoes")
       .update({
         ativo: !estacao.ativo
       })
       .eq("id", estacao.id)
+
+    setLoading(false)
 
     if (error) {
       console.log(error)
@@ -152,8 +170,6 @@ export default function EstacoesLista({ rios, estacoes }) {
       )
     )
 
-    router.refresh()
-
   }
 
   // =============================
@@ -162,12 +178,18 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   async function excluirEstacao(id) {
 
+    if (loading) return
+
     if (!confirm("Excluir estação?")) return
+
+    setLoading(true)
 
     const { error } = await supabase
       .from("estacoes")
       .delete()
       .eq("id", id)
+
+    setLoading(false)
 
     if (error) {
       console.log(error)
@@ -176,8 +198,6 @@ export default function EstacoesLista({ rios, estacoes }) {
     }
 
     setLista(lista.filter((e) => e.id !== id))
-
-    router.refresh()
 
   }
 
@@ -200,7 +220,6 @@ export default function EstacoesLista({ rios, estacoes }) {
             setNova({ ...nova, rio_id: e.target.value })
           }
         >
-
           <option value="">Selecionar rio</option>
 
           {rios.map((r) => (
@@ -288,9 +307,10 @@ export default function EstacoesLista({ rios, estacoes }) {
 
         <button
           onClick={criarEstacao}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg"
+          disabled={loading}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
         >
-          Adicionar Estação
+          {loading ? "Salvando..." : "Adicionar Estação"}
         </button>
 
       </div>
@@ -305,6 +325,7 @@ export default function EstacoesLista({ rios, estacoes }) {
 
             <tr>
               <th className="p-2">Município</th>
+              <th className="p-2">Rio</th>
               <th className="p-2">Fonte</th>
               <th className="p-2">Código</th>
               <th className="p-2">Transbordo</th>
@@ -323,6 +344,11 @@ export default function EstacoesLista({ rios, estacoes }) {
               <tr key={e.id} className="border-b">
 
                 <td className="p-2">{e.municipio}</td>
+
+                <td className="text-center">
+                  {riosMap[e.rio_id] || "-"}
+                </td>
+
                 <td className="text-center">{e.fonte}</td>
                 <td className="text-center">{e.codigo_estacao}</td>
                 <td className="text-center">{e.nivel_transbordo}</td>
@@ -333,6 +359,7 @@ export default function EstacoesLista({ rios, estacoes }) {
 
                   <button
                     onClick={() => toggleEstacao(e)}
+                    disabled={loading}
                     className={`px-2 py-1 rounded text-white ${
                       e.ativo ? "bg-green-600" : "bg-red-600"
                     }`}
@@ -346,6 +373,7 @@ export default function EstacoesLista({ rios, estacoes }) {
 
                   <button
                     onClick={() => setEditando(e)}
+                    disabled={loading}
                     className="bg-yellow-500 text-white px-2 py-1 rounded"
                   >
                     Editar
@@ -353,6 +381,7 @@ export default function EstacoesLista({ rios, estacoes }) {
 
                   <button
                     onClick={() => excluirEstacao(e.id)}
+                    disabled={loading}
                     className="bg-red-600 text-white px-2 py-1 rounded"
                   >
                     Excluir
@@ -375,5 +404,3 @@ export default function EstacoesLista({ rios, estacoes }) {
   )
 
 }
-
-
