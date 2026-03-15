@@ -1,5 +1,7 @@
 /* app/(sistema)/monitoramento/abas/configuracoes/estacoes/EstacoesLista.js */
 
+/* app/(sistema)/monitoramento/abas/configuracoes/estacoes/EstacoesLista.js */
+
 "use client"
 
 import { useState } from "react"
@@ -27,11 +29,44 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   const [editando, setEditando] = useState(null)
 
-  // mapa de rios
+  // =============================
+  // MAPA DE RIOS
+  // =============================
+
   const riosMap = {}
   rios.forEach((r) => {
     riosMap[r.id] = r.nome
   })
+
+  // =============================
+  // CONVERTER DECIMAL (aceita vírgula)
+  // =============================
+
+  function parseDecimal(valor) {
+
+    if (valor === "" || valor === null || valor === undefined) {
+      return null
+    }
+
+    const numero = parseFloat(
+      valor.toString().replace(",", ".")
+    )
+
+    return isNaN(numero) ? null : numero
+
+  }
+
+  // =============================
+  // FORMATAR 2 CASAS DECIMAIS
+  // =============================
+
+  function formatDecimal(valor) {
+
+    if (valor === null || valor === undefined) return "-"
+
+    return Number(valor).toFixed(2)
+
+  }
 
   // =============================
   // CRIAR ESTAÇÃO
@@ -55,15 +90,9 @@ export default function EstacoesLista({ rios, estacoes }) {
         municipio: nova.municipio,
         fonte: nova.fonte,
         codigo_estacao: nova.codigo_estacao,
-        nivel_transbordo: nova.nivel_transbordo
-          ? Number(nova.nivel_transbordo)
-          : null,
-        latitude: nova.latitude
-          ? Number(nova.latitude)
-          : null,
-        longitude: nova.longitude
-          ? Number(nova.longitude)
-          : null
+        nivel_transbordo: parseDecimal(nova.nivel_transbordo),
+        latitude: parseDecimal(nova.latitude),
+        longitude: parseDecimal(nova.longitude)
       })
       .select()
       .single()
@@ -106,15 +135,9 @@ export default function EstacoesLista({ rios, estacoes }) {
         municipio: editando.municipio,
         fonte: editando.fonte,
         codigo_estacao: editando.codigo_estacao,
-        nivel_transbordo: editando.nivel_transbordo
-          ? Number(editando.nivel_transbordo)
-          : null,
-        latitude: editando.latitude
-          ? Number(editando.latitude)
-          : null,
-        longitude: editando.longitude
-          ? Number(editando.longitude)
-          : null
+        nivel_transbordo: parseDecimal(editando.nivel_transbordo),
+        latitude: parseDecimal(editando.latitude),
+        longitude: parseDecimal(editando.longitude)
       })
       .eq("id", editando.id)
 
@@ -128,7 +151,14 @@ export default function EstacoesLista({ rios, estacoes }) {
 
     setLista(
       lista.map((e) =>
-        e.id === editando.id ? editando : e
+        e.id === editando.id
+          ? {
+              ...editando,
+              nivel_transbordo: parseDecimal(editando.nivel_transbordo),
+              latitude: parseDecimal(editando.latitude),
+              longitude: parseDecimal(editando.longitude)
+            }
+          : e
       )
     )
 
@@ -263,7 +293,6 @@ export default function EstacoesLista({ rios, estacoes }) {
 
         <input
           placeholder="Nível transbordo"
-          type="text"
           inputMode="decimal"
           className="border p-2 rounded-lg"
           value={nova.nivel_transbordo}
@@ -277,7 +306,6 @@ export default function EstacoesLista({ rios, estacoes }) {
 
         <input
           placeholder="Latitude"
-          type="text"
           inputMode="decimal"
           className="border p-2 rounded-lg"
           value={nova.latitude}
@@ -291,7 +319,6 @@ export default function EstacoesLista({ rios, estacoes }) {
 
         <input
           placeholder="Longitude"
-          type="text"
           inputMode="decimal"
           className="border p-2 rounded-lg"
           value={nova.longitude}
@@ -404,7 +431,6 @@ export default function EstacoesLista({ rios, estacoes }) {
 
                   {editando?.id === e.id ? (
                     <input
-                      type="text"
                       inputMode="decimal"
                       className="border p-1 rounded w-full"
                       value={editando.nivel_transbordo || ""}
@@ -415,7 +441,7 @@ export default function EstacoesLista({ rios, estacoes }) {
                         })
                       }
                     />
-                  ) : e.nivel_transbordo}
+                  ) : formatDecimal(e.nivel_transbordo)}
 
                 </td>
 
@@ -423,7 +449,6 @@ export default function EstacoesLista({ rios, estacoes }) {
 
                   {editando?.id === e.id ? (
                     <input
-                      type="text"
                       inputMode="decimal"
                       className="border p-1 rounded w-full"
                       value={editando.latitude || ""}
@@ -434,7 +459,7 @@ export default function EstacoesLista({ rios, estacoes }) {
                         })
                       }
                     />
-                  ) : e.latitude}
+                  ) : formatDecimal(e.latitude)}
 
                 </td>
 
@@ -442,7 +467,6 @@ export default function EstacoesLista({ rios, estacoes }) {
 
                   {editando?.id === e.id ? (
                     <input
-                      type="text"
                       inputMode="decimal"
                       className="border p-1 rounded w-full"
                       value={editando.longitude || ""}
@@ -453,7 +477,7 @@ export default function EstacoesLista({ rios, estacoes }) {
                         })
                       }
                     />
-                  ) : e.longitude}
+                  ) : formatDecimal(e.longitude)}
 
                 </td>
 
@@ -519,3 +543,4 @@ export default function EstacoesLista({ rios, estacoes }) {
   )
 
 }
+
