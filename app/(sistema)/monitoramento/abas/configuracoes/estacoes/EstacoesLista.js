@@ -4,6 +4,7 @@
 
 import { useState } from "react"
 import { createClient } from "@supabase/supabase-js"
+import { useRouter } from "next/navigation"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -11,6 +12,8 @@ const supabase = createClient(
 )
 
 export default function EstacoesLista({ rios, estacoes }) {
+
+  const router = useRouter()
 
   const [lista, setLista] = useState(estacoes)
 
@@ -32,16 +35,27 @@ export default function EstacoesLista({ rios, estacoes }) {
 
   async function criarEstacao() {
 
-    if (!nova.rio_id || !nova.municipio)
-      return alert("Preencha os campos obrigatórios")
+    if (!nova.rio_id || !nova.municipio) {
+      alert("Preencha rio e município")
+      return
+    }
 
     const { data, error } = await supabase
       .from("estacoes")
-      .insert(nova)
+      .insert({
+        rio_id: Number(nova.rio_id),
+        municipio: nova.municipio,
+        fonte: nova.fonte,
+        codigo_estacao: nova.codigo_estacao,
+        nivel_transbordo: nova.nivel_transbordo || null,
+        latitude: nova.latitude || null,
+        longitude: nova.longitude || null
+      })
       .select()
       .single()
 
     if (error) {
+      console.log(error)
       alert("Erro ao criar estação")
       return
     }
@@ -58,6 +72,8 @@ export default function EstacoesLista({ rios, estacoes }) {
       longitude: ""
     })
 
+    router.refresh()
+
   }
 
   // =========================
@@ -68,10 +84,14 @@ export default function EstacoesLista({ rios, estacoes }) {
 
     const { error } = await supabase
       .from("estacoes")
-      .update(editando)
+      .update({
+        municipio: editando.municipio,
+        nivel_transbordo: editando.nivel_transbordo
+      })
       .eq("id", editando.id)
 
     if (error) {
+      console.log(error)
       alert("Erro ao atualizar")
       return
     }
@@ -84,6 +104,8 @@ export default function EstacoesLista({ rios, estacoes }) {
 
     setEditando(null)
 
+    router.refresh()
+
   }
 
   // =========================
@@ -94,10 +116,16 @@ export default function EstacoesLista({ rios, estacoes }) {
 
     const { error } = await supabase
       .from("estacoes")
-      .update({ ativo: !estacao.ativo })
+      .update({
+        ativo: !estacao.ativo
+      })
       .eq("id", estacao.id)
 
-    if (error) return alert("Erro")
+    if (error) {
+      console.log(error)
+      alert("Erro")
+      return
+    }
 
     setLista(
       lista.map((e) =>
@@ -106,6 +134,8 @@ export default function EstacoesLista({ rios, estacoes }) {
           : e
       )
     )
+
+    router.refresh()
 
   }
 
@@ -122,21 +152,21 @@ export default function EstacoesLista({ rios, estacoes }) {
       .delete()
       .eq("id", id)
 
-    if (error) return alert("Erro")
+    if (error) {
+      console.log(error)
+      alert("Erro")
+      return
+    }
 
     setLista(lista.filter((e) => e.id !== id))
 
-  }
+    router.refresh()
 
-  // =========================
-  // INTERFACE
-  // =========================
+  }
 
   return (
 
     <div className="space-y-6">
-
-      {/* NOVA ESTAÇÃO */}
 
       <div className="grid md:grid-cols-4 gap-2">
 
@@ -242,117 +272,6 @@ export default function EstacoesLista({ rios, estacoes }) {
         >
           Adicionar
         </button>
-
-      </div>
-
-      {/* TABELA */}
-
-      <div className="overflow-auto">
-
-        <table className="w-full text-sm">
-
-          <thead className="bg-slate-100">
-
-            <tr>
-              <th className="p-2 text-left">Município</th>
-              <th className="p-2">Fonte</th>
-              <th className="p-2">Código</th>
-              <th className="p-2">Transbordo</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Ações</th>
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {lista.map((e) => (
-
-              <tr key={e.id} className="border-b">
-
-                <td className="p-2">
-
-                  {editando?.id === e.id ? (
-
-                    <input
-                      value={editando.municipio}
-                      onChange={(ev) =>
-                        setEditando({
-                          ...editando,
-                          municipio: ev.target.value
-                        })
-                      }
-                    />
-
-                  ) : e.municipio}
-
-                </td>
-
-                <td className="p-2 text-center">
-                  {e.fonte}
-                </td>
-
-                <td className="p-2 text-center">
-                  {e.codigo_estacao}
-                </td>
-
-                <td className="p-2 text-center">
-                  {e.nivel_transbordo}
-                </td>
-
-                <td className="p-2 text-center">
-
-                  <button
-                    onClick={() => toggleEstacao(e)}
-                    className={`px-2 py-1 rounded text-white ${
-                      e.ativo
-                        ? "bg-green-600"
-                        : "bg-red-600"
-                    }`}
-                  >
-                    {e.ativo ? "Ativo" : "Inativo"}
-                  </button>
-
-                </td>
-
-                <td className="p-2 flex gap-2 justify-center">
-
-                  {editando?.id === e.id ? (
-
-                    <button
-                      onClick={salvarEdicao}
-                      className="bg-blue-600 text-white px-2 py-1 rounded"
-                    >
-                      Salvar
-                    </button>
-
-                  ) : (
-
-                    <button
-                      onClick={() => setEditando(e)}
-                      className="bg-yellow-500 text-white px-2 py-1 rounded"
-                    >
-                      Editar
-                    </button>
-
-                  )}
-
-                  <button
-                    onClick={() => excluirEstacao(e.id)}
-                    className="bg-red-600 text-white px-2 py-1 rounded"
-                  >
-                    Excluir
-                  </button>
-
-                </td>
-
-              </tr>
-
-            ))}
-
-          </tbody>
-
-        </table>
 
       </div>
 
