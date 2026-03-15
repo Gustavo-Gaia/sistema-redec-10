@@ -1,7 +1,5 @@
 /* app/(sistema)/monitoramento/abas/configuracoes/estacoes/EstacoesLista.js */
 
-/* app/(sistema)/monitoramento/abas/configuracoes/estacoes/EstacoesLista.js */
-
 "use client"
 
 import { useState } from "react"
