@@ -4,6 +4,7 @@
 
 import { useState } from "react"
 import { createClient } from "@supabase/supabase-js"
+import { useRouter } from "next/navigation"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -11,6 +12,8 @@ const supabase = createClient(
 )
 
 export default function RiosLista({ rios }) {
+
+  const router = useRouter()
 
   const [lista, setLista] = useState(rios)
 
@@ -21,21 +24,28 @@ export default function RiosLista({ rios }) {
 
   const [editando, setEditando] = useState(null)
 
-  // ===============================
+  // =========================
   // CRIAR RIO
-  // ===============================
+  // =========================
 
   async function criarRio() {
 
-    if (!novoRio.nome) return alert("Digite o nome do rio")
+    if (!novoRio.nome) {
+      alert("Digite o nome do rio")
+      return
+    }
 
     const { data, error } = await supabase
       .from("rios")
-      .insert(novoRio)
+      .insert({
+        nome: novoRio.nome,
+        tipo: novoRio.tipo
+      })
       .select()
       .single()
 
     if (error) {
+      console.log(error)
       alert("Erro ao criar rio")
       return
     }
@@ -47,20 +57,26 @@ export default function RiosLista({ rios }) {
       tipo: "rio"
     })
 
+    router.refresh()
+
   }
 
-  // ===============================
-  // EDITAR RIO
-  // ===============================
+  // =========================
+  // SALVAR EDIÇÃO
+  // =========================
 
   async function salvarEdicao() {
 
     const { error } = await supabase
       .from("rios")
-      .update(editando)
+      .update({
+        nome: editando.nome,
+        tipo: editando.tipo
+      })
       .eq("id", editando.id)
 
     if (error) {
+      console.log(error)
       alert("Erro ao atualizar")
       return
     }
@@ -73,20 +89,28 @@ export default function RiosLista({ rios }) {
 
     setEditando(null)
 
+    router.refresh()
+
   }
 
-  // ===============================
+  // =========================
   // ATIVAR / DESATIVAR
-  // ===============================
+  // =========================
 
   async function toggleRio(rio) {
 
     const { error } = await supabase
       .from("rios")
-      .update({ ativo: !rio.ativo })
+      .update({
+        ativo: !rio.ativo
+      })
       .eq("id", rio.id)
 
-    if (error) return alert("Erro")
+    if (error) {
+      console.log(error)
+      alert("Erro ao alterar status")
+      return
+    }
 
     setLista(
       lista.map((r) =>
@@ -96,11 +120,13 @@ export default function RiosLista({ rios }) {
       )
     )
 
+    router.refresh()
+
   }
 
-  // ===============================
+  // =========================
   // EXCLUIR
-  // ===============================
+  // =========================
 
   async function excluirRio(id) {
 
@@ -111,21 +137,27 @@ export default function RiosLista({ rios }) {
       .delete()
       .eq("id", id)
 
-    if (error) return alert("Erro ao excluir")
+    if (error) {
+      console.log(error)
+      alert("Erro ao excluir")
+      return
+    }
 
     setLista(lista.filter((r) => r.id !== id))
 
+    router.refresh()
+
   }
 
-  // ===============================
+  // =========================
   // INTERFACE
-  // ===============================
+  // =========================
 
   return (
 
     <div className="space-y-6">
 
-      {/* FORM NOVO RIO */}
+      {/* NOVO RIO */}
 
       <div className="flex flex-col md:flex-row gap-2">
 
@@ -175,9 +207,9 @@ export default function RiosLista({ rios }) {
 
             <tr>
               <th className="p-2 text-left">Nome</th>
-              <th className="p-2">Tipo</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Ações</th>
+              <th className="p-2 text-center">Tipo</th>
+              <th className="p-2 text-center">Status</th>
+              <th className="p-2 text-center">Ações</th>
             </tr>
 
           </thead>
@@ -234,9 +266,7 @@ export default function RiosLista({ rios }) {
                   <button
                     onClick={() => toggleRio(rio)}
                     className={`px-2 py-1 rounded text-white ${
-                      rio.ativo
-                        ? "bg-green-600"
-                        : "bg-red-600"
+                      rio.ativo ? "bg-green-600" : "bg-red-600"
                     }`}
                   >
                     {rio.ativo ? "Ativo" : "Inativo"}
@@ -244,7 +274,7 @@ export default function RiosLista({ rios }) {
 
                 </td>
 
-                <td className="p-2 text-center flex gap-2 justify-center">
+                <td className="p-2 flex gap-2 justify-center">
 
                   {editando?.id === rio.id ? (
 
@@ -290,3 +320,4 @@ export default function RiosLista({ rios }) {
   )
 
 }
+
