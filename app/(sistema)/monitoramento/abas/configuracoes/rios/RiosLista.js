@@ -74,24 +74,27 @@ export default function RiosLista({ rios }) {
         tipo: editando.tipo
       })
       .eq("id", editando.id)
-
+  
     if (error) {
       console.log(error)
       alert("Erro ao atualizar")
       return
     }
-
-    setLista(
-      lista.map((r) =>
-        r.id === editando.id ? editando : r
-      )
-    )
-
+  
+    // busca rios atualizados
+    const { data } = await supabase
+      .from("rios")
+      .select("*")
+      .order("nome")
+  
+    setLista(data)
+  
     setEditando(null)
-
+  
     router.refresh()
-
+  
   }
+
 
   // =========================
   // ATIVAR / DESATIVAR
