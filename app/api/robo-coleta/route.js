@@ -8,27 +8,37 @@ export async function GET() {
 
   try {
 
+    console.log("===== INICIANDO COLETA AUTOMÁTICA =====");
+
     // =========================
-    // BUSCAR ANA
+    // BUSCAR ANA + INEA EM PARALELO
     // =========================
 
-    const respAna = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/ana`,
-      { cache: "no-store" }
-    );
+    const [respAna, respInea] = await Promise.all([
+
+      fetch(
+        `${process.env.NEXT_PUBLIC_SITE_URL}/api/ana`,
+        {
+          cache: "no-store",
+          signal: AbortSignal.timeout(20000)
+        }
+      ),
+
+      fetch(
+        `${process.env.NEXT_PUBLIC_SITE_URL}/api/inea`,
+        {
+          cache: "no-store",
+          signal: AbortSignal.timeout(20000)
+        }
+      )
+
+    ]);
 
     const dadosAna = await respAna.json();
-
-    // =========================
-    // BUSCAR INEA
-    // =========================
-
-    const respInea = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/inea`,
-      { cache: "no-store" }
-    );
-
     const dadosInea = await respInea.json();
+
+    console.log("Medições ANA:", dadosAna.length);
+    console.log("Medições INEA:", dadosInea.length);
 
     // =========================
     // JUNTAR DADOS
@@ -43,8 +53,19 @@ export async function GET() {
       abaixo_regua: false
     }));
 
+    console.log("Total medições capturadas:", medicoes.length);
+
+    if (medicoes.length === 0) {
+
+      return NextResponse.json({
+        sucesso: true,
+        mensagem: "Nenhuma medição encontrada"
+      });
+
+    }
+
     // =========================
-    // SALVAR
+    // SALVAR NO BANCO
     // =========================
 
     const respSalvar = await fetch(
@@ -54,27 +75,35 @@ export async function GET() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(medicoes)
+        body: JSON.stringify(medicoes),
+        signal: AbortSignal.timeout(20000)
       }
     );
 
     const resultado = await respSalvar.json();
 
+    console.log("Resultado salvamento:", resultado);
+
+    console.log("===== COLETA FINALIZADA =====");
+
     return NextResponse.json({
       sucesso: true,
-      total: medicoes.length,
+      total_coletado: medicoes.length,
       ...resultado
     });
 
   } catch (err) {
 
-    console.log("Erro no robô:", err);
+    console.error("Erro no robô de coleta:", err);
 
-    return NextResponse.json({
-      erro: "Falha na coleta automática"
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        erro: "Falha na coleta automática",
+        detalhes: err.message
+      },
+      { status: 500 }
+    );
 
   }
 
 }
-
