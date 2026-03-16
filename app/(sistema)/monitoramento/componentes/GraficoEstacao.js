@@ -12,7 +12,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Area,
-  AreaChart
+  AreaChart,
+  Dot
 } from "recharts"
 
 export default function GraficoEstacao({ estacao }) {
@@ -62,24 +63,31 @@ export default function GraficoEstacao({ estacao }) {
   const extremo = cota ? cota * 1.2 : null
 
 
-  /* COMPONENTE DE LABEL CUSTOMIZADO */
+  const ultimoNivel =
+    dados.length > 0 ? dados[dados.length - 1].nivel : null
 
-  const LabelLinha = ({ value, viewBox, texto, cor }) => {
+
+  /* LABEL CUSTOMIZADO */
+
+  const LabelLinha = ({ viewBox, texto, cor }) => {
 
     const { x, width, y } = viewBox
 
     return (
+
       <g>
+
         <rect
-          x={x + width - 90}
+          x={x + width - 120}
           y={y - 10}
-          width="85"
+          width="115"
           height="20"
           fill="white"
           rx="4"
         />
+
         <text
-          x={x + width - 80}
+          x={x + width - 110}
           y={y + 4}
           fill={cor}
           fontSize="11"
@@ -87,7 +95,33 @@ export default function GraficoEstacao({ estacao }) {
         >
           {texto}
         </text>
+
       </g>
+
+    )
+
+  }
+
+
+  /* PONTO DESTACADO DO NÍVEL ATUAL */
+
+  const CustomDot = (props) => {
+
+    const { cx, cy, index } = props
+
+    if (index !== dados.length - 1) return null
+
+    return (
+
+      <circle
+        cx={cx}
+        cy={cy}
+        r={6}
+        fill="#2563eb"
+        stroke="#ffffff"
+        strokeWidth={2}
+      />
+
     )
 
   }
@@ -103,9 +137,11 @@ export default function GraficoEstacao({ estacao }) {
           Evolução do Nível do Rio
         </h3>
 
-        <span className="text-xs text-slate-400">
-          Últimas medições
-        </span>
+        {ultimoNivel && (
+          <span className="text-sm font-semibold text-blue-600">
+            Nível atual: {ultimoNivel.toFixed(2)} m
+          </span>
+        )}
 
       </div>
 
@@ -116,38 +152,24 @@ export default function GraficoEstacao({ estacao }) {
 
           <AreaChart data={dados}>
 
-            {/* DEGRADÊ DO RIO */}
-
             <defs>
 
               <linearGradient id="colorNivel" x1="0" y1="0" x2="0" y2="1">
 
-                <stop
-                  offset="5%"
-                  stopColor="#2563eb"
-                  stopOpacity={0.35}
-                />
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
 
-                <stop
-                  offset="95%"
-                  stopColor="#2563eb"
-                  stopOpacity={0}
-                />
+                <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
 
               </linearGradient>
 
             </defs>
 
 
-            {/* GRID */}
-
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="#e5e7eb"
             />
 
-
-            {/* EIXOS */}
 
             <XAxis
               dataKey="hora"
@@ -160,8 +182,6 @@ export default function GraficoEstacao({ estacao }) {
             />
 
 
-            {/* TOOLTIP */}
-
             <Tooltip
               contentStyle={{
                 borderRadius: "10px",
@@ -171,9 +191,10 @@ export default function GraficoEstacao({ estacao }) {
             />
 
 
-            {/* LINHA ALERTA */}
+            {/* ALERTA */}
 
             {alerta && (
+
               <ReferenceLine
                 y={alerta}
                 stroke="#facc15"
@@ -182,17 +203,19 @@ export default function GraficoEstacao({ estacao }) {
                 label={(props) =>
                   <LabelLinha
                     {...props}
-                    texto="ALERTA (85%)"
+                    texto={`ALERTA (${alerta.toFixed(2)} m)`}
                     cor="#ca8a04"
                   />
                 }
               />
+
             )}
 
 
-            {/* LINHA TRANSBORDO */}
+            {/* TRANSBORDO */}
 
             {transbordo && (
+
               <ReferenceLine
                 y={transbordo}
                 stroke="#ef4444"
@@ -201,17 +224,19 @@ export default function GraficoEstacao({ estacao }) {
                 label={(props) =>
                   <LabelLinha
                     {...props}
-                    texto="TRANSBORDO"
+                    texto={`TRANSBORDO (${transbordo.toFixed(2)} m)`}
                     cor="#dc2626"
                   />
                 }
               />
+
             )}
 
 
-            {/* LINHA EXTREMO */}
+            {/* EXTREMO */}
 
             {extremo && (
+
               <ReferenceLine
                 y={extremo}
                 stroke="#9333ea"
@@ -220,11 +245,12 @@ export default function GraficoEstacao({ estacao }) {
                 label={(props) =>
                   <LabelLinha
                     {...props}
-                    texto="EXTREMO"
+                    texto={`EXTREMO (${extremo.toFixed(2)} m)`}
                     cor="#7e22ce"
                   />
                 }
               />
+
             )}
 
 
@@ -236,7 +262,9 @@ export default function GraficoEstacao({ estacao }) {
               stroke="#2563eb"
               strokeWidth={3}
               fill="url(#colorNivel)"
-              dot={false}
+              dot={<CustomDot />}
+              isAnimationActive={true}
+              animationDuration={800}
             />
 
           </AreaChart>
