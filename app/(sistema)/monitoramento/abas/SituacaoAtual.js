@@ -4,7 +4,7 @@
 
 import { useMonitoramento } from "../MonitoramentoContext"
 
-import SeletorMonitoramento from "../../../../monitoramento/seletor"
+import SeletorMonitoramento from "../seletor"
 
 import CardEstacao from "../componentes/CardEstacao"
 import GraficoEstacao from "../componentes/GraficoEstacao"
