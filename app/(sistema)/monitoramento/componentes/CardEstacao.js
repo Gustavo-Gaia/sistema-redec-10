@@ -78,7 +78,7 @@ export default function CardEstacao() {
         </h3>
 
         <p className="text-sm text-slate-500">
-          Rio {estacaoSelecionada.rio || "—"}
+          Rio {estacaoSelecionada.rio_nome || "—"}
         </p>
 
       </div>
