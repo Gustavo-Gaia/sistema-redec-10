@@ -1,12 +1,12 @@
 /* app/(sistema)/monitoramento/componentes/GraficoEstacao.js */
 
+/* app/(sistema)/monitoramento/componentes/GraficoEstacao.js */
+
 "use client"
 
 import { useEffect, useState } from "react"
 
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -42,7 +42,7 @@ export default function GraficoEstacao({ estacao }) {
             minute: "2-digit"
           }),
 
-          nivel: m.abaixo_regua ? null : m.nivel
+          nivel: m.abaixo_regua ? null : Number(m.nivel)
 
         }))
 
@@ -58,11 +58,13 @@ export default function GraficoEstacao({ estacao }) {
   if (!estacao) return null
 
 
-  const cota = estacao.nivel_transbordo
+  /* CÁLCULOS HIDROLÓGICOS */
 
-  const alerta = cota ? (cota * 0.85).toFixed(2) : null
-  const transbordo = cota
-  const extremo = cota ? (cota * 1.2).toFixed(2) : null
+  const cota = Number(estacao.nivel_transbordo)
+
+  const alerta = cota ? cota * 0.85 : null
+  const transbordo = cota || null
+  const extremo = cota ? cota * 1.2 : null
 
 
   return (
@@ -88,34 +90,54 @@ export default function GraficoEstacao({ estacao }) {
 
           <AreaChart data={dados}>
 
-            <defs>
+            {/* DEGRADÊ DO RIO */}
 
-              {/* degradê do rio */}
+            <defs>
 
               <linearGradient id="colorNivel" x1="0" y1="0" x2="0" y2="1">
 
-                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35}/>
+                <stop
+                  offset="5%"
+                  stopColor="#2563eb"
+                  stopOpacity={0.35}
+                />
 
-                <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                <stop
+                  offset="95%"
+                  stopColor="#2563eb"
+                  stopOpacity={0}
+                />
 
               </linearGradient>
 
             </defs>
 
 
+            {/* GRID */}
+
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="#e5e7eb"
             />
+
+
+            {/* EIXO X */}
 
             <XAxis
               dataKey="hora"
               tick={{ fontSize: 12 }}
             />
 
+
+            {/* EIXO Y (AJUSTADO PARA MOSTRAR LINHAS) */}
+
             <YAxis
               tick={{ fontSize: 12 }}
+              domain={[0, extremo ? extremo * 1.1 : "auto"]}
             />
+
+
+            {/* TOOLTIP */}
 
             <Tooltip
               contentStyle={{
@@ -134,6 +156,7 @@ export default function GraficoEstacao({ estacao }) {
                 y={alerta}
                 stroke="#facc15"
                 strokeDasharray="6 6"
+                strokeWidth={2}
                 label="Alerta (85%)"
               />
 
@@ -148,6 +171,7 @@ export default function GraficoEstacao({ estacao }) {
                 y={transbordo}
                 stroke="#ef4444"
                 strokeDasharray="6 6"
+                strokeWidth={2}
                 label="Transbordo"
               />
 
@@ -162,13 +186,14 @@ export default function GraficoEstacao({ estacao }) {
                 y={extremo}
                 stroke="#9333ea"
                 strokeDasharray="6 6"
+                strokeWidth={2}
                 label="Extremo"
               />
 
             )}
 
 
-            {/* ÁREA DO RIO */}
+            {/* ÁREA DO NÍVEL DO RIO */}
 
             <Area
               type="monotone"
