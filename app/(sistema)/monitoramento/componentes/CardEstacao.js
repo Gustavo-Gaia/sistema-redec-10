@@ -1,5 +1,4 @@
 /* app/(sistema)/monitoramento/componentes/CardEstacao.js */
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -12,161 +11,77 @@ export default function CardEstacao() {
 
   useEffect(() => {
     if (!estacaoSelecionada) return
-
     async function carregar() {
-      const res = await fetch(
-        `/api/historico-estacao?id=${estacaoSelecionada.id}&limit=1`
-      )
+      const res = await fetch(`/api/historico-estacao?id=${estacaoSelecionada.id}&limit=1`)
       const dados = await res.json()
       setMedicao(dados?.[0] || null)
     }
-
     carregar()
   }, [estacaoSelecionada])
 
   if (!estacaoSelecionada) {
     return (
-      <div className="bg-white border rounded-xl p-6 text-center text-slate-500">
-        Selecione um rio e município para visualizar a estação.
+      <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-400">
+        Selecione uma estação para exibir o monitoramento.
       </div>
     )
   }
 
   const situacao = calcularSituacao(estacaoSelecionada, medicao)
   const cota = estacaoSelecionada.nivel_transbordo
-  let percentual = null
-  if (medicao && !medicao.abaixo_regua && cota) {
-    percentual = (medicao.nivel / cota) * 100
-  }
-
-  const posicao = percentual ? Math.min(percentual, 120) : 0
-
-  // COR DA BARRA DE STATUS
-  const corBarra =
-    situacao.texto === "Normal"
-      ? "#10b981" // verde
-      : situacao.texto === "Alerta"
-      ? "#facc15" // amarelo
-      : situacao.texto === "Transbordo"
-      ? "#ef4444" // vermelho
-      : situacao.texto === "Extremo"
-      ? "#9333ea" // roxo
-      : "#2563eb" // azul padrão
-
-  // NOME DO RIO (corrigindo duplicação)
-  const nomeRio = estacaoSelecionada.nome_rio
-    ? estacaoSelecionada.nome_rio
-    : estacaoSelecionada.rio_id || "—"
+  const percentual = (medicao && !medicao.abaixo_regua && cota) ? (medicao.nivel / cota) * 100 : 0
+  
+  // Limpeza do Nome do Rio
+  const nomeRio = estacaoSelecionada.nome_rio || estacaoSelecionada.rio_id || "—"
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-6 md:p-7 transition-shadow hover:shadow-2xl">
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8">
       
       {/* CABEÇALHO */}
-      <div className="mb-6">
-        <h3 className="text-xl md:text-2xl font-bold text-slate-800">
-          {estacaoSelecionada.municipio}
-        </h3>
-        <p className="text-sm md:text-base text-slate-500">
-          {nomeRio}
-        </p>
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h3 className="text-2xl font-black text-slate-900">{estacaoSelecionada.municipio}</h3>
+          <p className="text-slate-500 font-medium">{nomeRio}</p>
+        </div>
+        <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest ${situacao.cor} text-white shadow-sm`}>
+          {situacao.texto}
+        </div>
       </div>
 
-      {/* GRID DE INFORMAÇÕES */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+      {/* DASHBOARD PRINCIPAL */}
+      <div className="flex flex-col md:flex-row gap-8 items-center">
         
-        {/* STATUS */}
-        <div>
-          <div className="text-xs md:text-sm text-slate-500 mb-1 uppercase tracking-wide">
-            Status
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${situacao.cor}`} />
-            <span className="font-semibold text-slate-800">{situacao.texto}</span>
-          </div>
-        </div>
-
-        {/* NÍVEL */}
-        <div>
-          <div className="text-xs md:text-sm text-slate-500 mb-1 uppercase tracking-wide">
-            Nível Atual
-          </div>
-          <div className="text-lg md:text-xl font-bold text-slate-800">
-            {medicao?.abaixo_regua ? "A/R" : medicao?.nivel ? `${medicao.nivel} m` : "—"}
-          </div>
-        </div>
-
-        {/* PERCENTUAL */}
-        <div>
-          <div className="text-xs md:text-sm text-slate-500 mb-1 uppercase tracking-wide">
-            Percentual da Cota
-          </div>
-          <div className="text-lg md:text-xl font-bold text-slate-800">
-            {percentual ? `${percentual.toFixed(0)}%` : "—"}
-          </div>
-        </div>
-
-        {/* COTA */}
-        <div>
-          <div className="text-xs md:text-sm text-slate-500 mb-1 uppercase tracking-wide">
-            Cota de Transbordo
-          </div>
-          <div className="text-lg md:text-xl font-bold text-slate-800">
-            {cota ? `${cota} m` : "—"}
-          </div>
-        </div>
-      </div>
-
-      {/* RÉGUA HIDROLÓGICA */}
-      {percentual && (
-        <div className="mt-6">
-          {/* ESCALA COM LABELS */}
-          <div className="flex justify-between text-xs text-slate-400 mb-2">
-            <span>0 m</span>
-            <span>{cota} m</span>
-          </div>
-
-          {/* BARRA DE NÍVEL */}
-          <div className="relative h-6">
-            <div
-              className="absolute top-2 w-full h-2 rounded-full bg-slate-200"
+        {/* INDICADOR VISUAL (Substituindo a régua antiga) */}
+        <div className="relative w-32 h-32 flex items-center justify-center">
+          <svg className="w-full h-full transform -rotate-90">
+            <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100" />
+            <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" 
+              strokeDasharray={364} 
+              strokeDashoffset={364 - (Math.min(percentual, 100) / 100 * 364)}
+              className={situacao.cor.replace('bg-', 'text-')}
+              strokeLinecap="round"
             />
-
-            {/* BARRA DE STATUS */}
-            <div
-              className="absolute top-2 h-2 rounded-full transition-all duration-700"
-              style={{ width: `${posicao}%`, backgroundColor: corBarra }}
-            />
-
-            {/* MARCADOR DO NÍVEL */}
-            <div
-              className="absolute top-0 w-5 h-5 bg-white border-2 border-slate-600 rounded-full shadow-md transition-all duration-700"
-              style={{ left: `calc(${posicao}% - 10px)` }}
-            />
-
-            {/* TICKS DE REFERÊNCIA */}
-            <div className="absolute top-0 left-[85%] h-4 w-px bg-yellow-400" />
-            <div className="absolute top-0 left-[100%] h-4 w-px bg-red-500" />
-            <div className="absolute top-0 left-[120%] h-4 w-px bg-purple-600" />
-          </div>
-
-          {/* LABELS DE REFERÊNCIA */}
-          <div className="flex justify-between text-xs text-slate-400 mt-2">
-            <span>Alerta</span>
-            <span>Transbordo</span>
-            <span>Extremo</span>
-          </div>
-
-          {/* VALOR CENTRAL */}
-          <div className="text-center text-sm md:text-base font-semibold text-slate-700 mt-3">
-            {medicao.nivel} m ({percentual.toFixed(0)}%)
+          </svg>
+          <div className="absolute text-center">
+            <span className="block text-2xl font-black text-slate-900">{percentual.toFixed(0)}%</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400">da cota</span>
           </div>
         </div>
-      )}
 
-      {/* RODAPÉ */}
-      <div className="mt-6 pt-4 border-t border-slate-200 flex justify-between">
-        <span className="text-xs text-slate-400 italic">Fonte: INEA</span>
-        <span className="text-xs text-slate-400">Monitoramento hidrológico</span>
+        {/* MÉTRICAS */}
+        <div className="flex-1 grid grid-cols-2 gap-4 w-full">
+          {[
+            { label: "Nível Atual", value: medicao?.abaixo_regua ? "A/R" : medicao?.nivel ? `${medicao.nivel} m` : "—" },
+            { label: "Cota Limite", value: cota ? `${cota} m` : "—" },
+            { label: "Fonte", value: "INEA" },
+            { label: "Atualizado", value: medicao?.data_hora ? new Date(medicao.data_hora).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--" }
+          ].map((item, idx) => (
+            <div key={idx} className="bg-slate-50 p-3 rounded-xl">
+              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{item.label}</p>
+              <p className="text-sm font-bold text-slate-900">{item.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
