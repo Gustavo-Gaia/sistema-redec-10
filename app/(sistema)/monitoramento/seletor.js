@@ -1,4 +1,4 @@
-/* app/monitoramento/seletor.js */
+/* app/(sistema)/monitoramento/seletor.js */
 
 "use client"
 
@@ -24,108 +24,112 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
 
   return (
 
-    <div className="grid md:grid-cols-2 gap-6 mb-8">
+    <div className="bg-white border rounded-xl shadow-sm p-4 md:p-6 mb-6">
 
-      {/* ========================= */}
-      {/* SELETOR RIO */}
-      {/* ========================= */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
 
-      <div>
+        {/* ========================= */}
+        {/* SELETOR RIO */}
+        {/* ========================= */}
 
-        <label className="block text-sm font-medium text-slate-700 mb-2">
-          Selecionar Rio
-        </label>
+        <div>
 
-        <select
-          className="w-full p-2 border rounded-lg"
-          value={rioSelecionado || ""}
-          onChange={(e) => {
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Selecionar Rio
+          </label>
 
-            setRioSelecionado(e.target.value)
+          <select
+            className="w-full p-3 border rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none"
+            value={rioSelecionado || ""}
+            onChange={(e) => {
 
-            setMunicipioSelecionado("")
+              setRioSelecionado(e.target.value)
 
-            setEstacaoSelecionada(null)
+              setMunicipioSelecionado("")
 
-          }}
-        >
+              setEstacaoSelecionada(null)
 
-          <option value="" disabled hidden>
-            Selecione o rio
-          </option>
+            }}
+          >
 
-          {[...rios]
-            .sort((a, b) => {
+            <option value="" disabled hidden>
+              Selecione o rio
+            </option>
 
-              if (a.tipo === b.tipo)
-                return a.nome.localeCompare(b.nome)
+            {[...rios]
+              .sort((a, b) => {
 
-              if (a.tipo === "rio") return -1
+                if (a.tipo === b.tipo)
+                  return a.nome.localeCompare(b.nome)
 
-              if (b.tipo === "rio") return 1
+                if (a.tipo === "rio") return -1
 
-              return 0
+                if (b.tipo === "rio") return 1
 
-            })
-            .map((rio) => (
+                return 0
 
-              <option key={rio.id} value={rio.id}>
-                {rio.nome}
+              })
+              .map((rio) => (
+
+                <option key={rio.id} value={rio.id}>
+                  {rio.nome}
+                </option>
+
+              ))}
+
+          </select>
+
+        </div>
+
+
+        {/* ========================= */}
+        {/* SELETOR MUNICÍPIO */}
+        {/* ========================= */}
+
+        <div>
+
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Selecionar Município
+          </label>
+
+          <select
+            className="w-full p-3 border rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100"
+            value={municipioSelecionado || ""}
+            disabled={!rioSelecionado}
+            onChange={(e) => {
+
+              const municipio = e.target.value
+
+              setMunicipioSelecionado(municipio)
+
+              const estacao = estacoes.find(
+                (est) =>
+                  est.municipio === municipio &&
+                  est.rio_id === Number(rioSelecionado)
+              )
+
+              setEstacaoSelecionada(estacao)
+
+            }}
+          >
+
+            <option value="" disabled hidden>
+              {rioSelecionado
+                ? "Selecione o Município"
+                : "Escolha primeiro o rio"}
+            </option>
+
+            {municipiosUnicos.map((municipio) => (
+
+              <option key={municipio} value={municipio}>
+                {municipio}
               </option>
 
             ))}
 
-        </select>
+          </select>
 
-      </div>
-
-
-      {/* ========================= */}
-      {/* SELETOR MUNICÍPIO */}
-      {/* ========================= */}
-
-      <div>
-
-        <label className="block text-sm font-medium text-slate-700 mb-2">
-          Selecionar Município
-        </label>
-
-        <select
-          className="w-full p-2 border rounded-lg"
-          value={municipioSelecionado || ""}
-          disabled={!rioSelecionado}
-          onChange={(e) => {
-
-            const municipio = e.target.value
-
-            setMunicipioSelecionado(municipio)
-
-            const estacao = estacoes.find(
-              (est) =>
-                est.municipio === municipio &&
-                est.rio_id === Number(rioSelecionado)
-            )
-
-            setEstacaoSelecionada(estacao)
-
-          }}
-        >
-
-          <option value="" disabled hidden>
-            {rioSelecionado
-              ? "Selecione o Município"
-              : "Escolha primeiro o rio"}
-          </option>
-
-          {municipiosUnicos.map((municipio) => (
-
-            <option key={municipio} value={municipio}>
-              {municipio}
-            </option>
-
-          ))}
-
-        </select>
+        </div>
 
       </div>
 
