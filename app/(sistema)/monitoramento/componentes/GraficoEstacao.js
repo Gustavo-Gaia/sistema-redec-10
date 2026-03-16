@@ -4,11 +4,24 @@
 
 import { useEffect, useState } from "react"
 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+  ReferenceLine
+} from "recharts"
+
 export default function GraficoEstacao({ estacao }) {
 
   const [dados, setDados] = useState([])
 
   useEffect(() => {
+
+    if (!estacao) return
 
     async function carregar() {
 
@@ -18,13 +31,40 @@ export default function GraficoEstacao({ estacao }) {
 
       const json = await res.json()
 
-      setDados(json)
+      const formatado = json.map((m) => ({
+
+        data: new Date(m.data_hora).toLocaleDateString("pt-BR"),
+
+        hora: new Date(m.data_hora).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit"
+        }),
+
+        nivel: m.abaixo_regua ? null : m.nivel
+
+      }))
+
+      setDados(formatado)
 
     }
 
     carregar()
 
   }, [estacao])
+
+
+
+  if (!estacao) {
+
+    return (
+      <div className="bg-white border rounded-xl p-6 text-slate-500">
+        Selecione uma estação
+      </div>
+    )
+
+  }
+
+
 
   if (!dados.length) {
 
@@ -36,32 +76,67 @@ export default function GraficoEstacao({ estacao }) {
 
   }
 
+
+
   return (
 
-    <div className="bg-white border rounded-xl shadow-sm p-6">
+    <div className="bg-white border rounded-xl shadow-sm p-5 md:p-6">
 
-      <h3 className="font-bold text-slate-800 mb-4">
-        Evolução do nível do rio
+      <h3 className="text-lg font-bold text-slate-800 mb-4">
+
+        Evolução do Nível do Rio
+
       </h3>
 
-      <div className="space-y-2">
 
-        {dados.map((item, i) => (
 
-          <div
-            key={i}
-            className="flex justify-between text-sm border-b pb-1"
-          >
+      <div className="w-full h-72 md:h-80">
 
-            <span>{item.hora}</span>
+        <ResponsiveContainer>
 
-            <span className="font-semibold">
-              {item.nivel} m
-            </span>
+          <LineChart data={dados}>
 
-          </div>
+            <CartesianGrid strokeDasharray="3 3" />
 
-        ))}
+            <XAxis
+              dataKey="hora"
+              tick={{ fontSize: 12 }}
+            />
+
+            <YAxis
+              tick={{ fontSize: 12 }}
+            />
+
+            <Tooltip
+              formatter={(value) => `${value} m`}
+            />
+
+            {/* LINHA DO RIO */}
+
+            <Line
+              type="monotone"
+              dataKey="nivel"
+              stroke="#2563eb"
+              strokeWidth={3}
+              dot={false}
+            />
+
+            {/* LINHA DA COTA */}
+
+            {estacao.nivel_transbordo && (
+
+              <ReferenceLine
+                y={estacao.nivel_transbordo}
+                stroke="red"
+                strokeDasharray="6 6"
+                label="Cota de Transbordo"
+              />
+
+            )}
+
+          </LineChart>
+
+        </ResponsiveContainer>
 
       </div>
 
