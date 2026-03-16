@@ -17,40 +17,67 @@ export default function SituacaoAtual({ rios, estacoes }) {
 
   return (
 
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
 
+      {/* ===================== */}
       {/* SELETOR */}
+      {/* ===================== */}
 
       <SeletorMonitoramento
         rios={rios}
         estacoes={estacoes}
       />
 
-      {/* CARD */}
+
+      {/* ===================== */}
+      {/* CARD DA ESTAÇÃO */}
+      {/* ===================== */}
 
       <CardEstacao />
 
+
+      {/* ===================== */}
       {/* GRÁFICO */}
+      {/* ===================== */}
 
       {estacaoSelecionada && (
-        <GraficoEstacao
-          estacao={estacaoSelecionada}
-        />
+
+        <div className="w-full">
+
+          <GraficoEstacao
+            estacao={estacaoSelecionada}
+          />
+
+        </div>
+
       )}
 
+
+      {/* ===================== */}
       {/* HISTÓRICO */}
+      {/* ===================== */}
 
       {estacaoSelecionada && (
-        <TabelaHistorico
-          estacao={estacaoSelecionada}
-        />
+
+        <div className="w-full">
+
+          <TabelaHistorico
+            estacao={estacaoSelecionada}
+          />
+
+        </div>
+
       )}
 
+
+      {/* ===================== */}
       {/* LEGENDA */}
+      {/* ===================== */}
 
       <LegendaStatus />
 
     </div>
 
   )
+
 }
