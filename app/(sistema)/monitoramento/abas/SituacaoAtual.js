@@ -5,6 +5,7 @@
 import SeletorMonitoramento from "../seletor"
 import ResumoSituacao from "../componentes/ResumoSituacao"
 import ListaEstacoes from "../componentes/ListaEstacoes"
+import PainelEstacao from "../componentes/PainelEstacao"
 
 export default function SituacaoAtual({
   rios,
@@ -31,7 +32,8 @@ export default function SituacaoAtual({
         ultimasMedicoes={ultimasMedicoes}
         rios={rios}
       />
-
+          
+      <PainelEstacao />
     </div>
 
   )
