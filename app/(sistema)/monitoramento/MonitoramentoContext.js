@@ -11,13 +11,19 @@ export function MonitoramentoProvider({ children }) {
   const [rioSelecionado, setRioSelecionado] = useState(null)
   const [municipioSelecionado, setMunicipioSelecionado] = useState(null)
 
+  const [estacaoSelecionada, setEstacaoSelecionada] = useState(null)
+
   return (
     <MonitoramentoContext.Provider
       value={{
         rioSelecionado,
         setRioSelecionado,
+
         municipioSelecionado,
-        setMunicipioSelecionado
+        setMunicipioSelecionado,
+
+        estacaoSelecionada,
+        setEstacaoSelecionada
       }}
     >
       {children}
