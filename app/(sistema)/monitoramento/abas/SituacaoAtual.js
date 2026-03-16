@@ -2,38 +2,54 @@
 
 "use client"
 
-import SeletorMonitoramento from "../seletor"
-import ResumoSituacao from "../componentes/ResumoSituacao"
+import { useMonitoramento } from "../MonitoramentoContext"
 
-import PainelEstacao from "../componentes/PainelEstacao"
+import SeletorMonitoramento from "@/app/monitoramento/seletor"
 
-export default function SituacaoAtual({
-  rios,
-  estacoes,
-  ultimasMedicoes
-}) {
+import CardEstacao from "../componentes/CardEstacao"
+import GraficoEstacao from "../componentes/GraficoEstacao"
+import TabelaHistorico from "../componentes/TabelaHistorico"
+import LegendaStatus from "../componentes/LegendaStatus"
+
+export default function SituacaoAtual({ rios, estacoes }) {
+
+  const { estacaoSelecionada } = useMonitoramento()
 
   return (
 
-    <div>
+    <div className="space-y-8">
+
+      {/* SELETOR */}
 
       <SeletorMonitoramento
         rios={rios}
         estacoes={estacoes}
       />
 
-      <ResumoSituacao
-        estacoes={estacoes}
-        ultimasMedicoes={ultimasMedicoes}
-      />
+      {/* CARD */}
 
-      <ListaEstacoes
-        estacoes={estacoes}
-        ultimasMedicoes={ultimasMedicoes}
-        rios={rios}
-      />
-          
-      <PainelEstacao />
+      <CardEstacao />
+
+      {/* GRÁFICO */}
+
+      {estacaoSelecionada && (
+        <GraficoEstacao
+          estacao={estacaoSelecionada}
+        />
+      )}
+
+      {/* HISTÓRICO */}
+
+      {estacaoSelecionada && (
+        <TabelaHistorico
+          estacao={estacaoSelecionada}
+        />
+      )}
+
+      {/* LEGENDA */}
+
+      <LegendaStatus />
+
     </div>
 
   )
