@@ -10,7 +10,8 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
     rioSelecionado,
     setRioSelecionado,
     municipioSelecionado,
-    setMunicipioSelecionado
+    setMunicipioSelecionado,
+    setEstacaoSelecionada
   } = useMonitoramento()
 
   const municipiosFiltrados = estacoes.filter(
@@ -25,6 +26,10 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
 
     <div className="grid md:grid-cols-2 gap-6 mb-8">
 
+      {/* ========================= */}
+      {/* SELETOR RIO */}
+      {/* ========================= */}
+
       <div>
 
         <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -35,8 +40,13 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
           className="w-full p-2 border rounded-lg"
           value={rioSelecionado || ""}
           onChange={(e) => {
+
             setRioSelecionado(e.target.value)
+
             setMunicipioSelecionado("")
+
+            setEstacaoSelecionada(null)
+
           }}
         >
 
@@ -46,20 +56,33 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
 
           {[...rios]
             .sort((a, b) => {
-              if (a.tipo === b.tipo) return a.nome.localeCompare(b.nome)
+
+              if (a.tipo === b.tipo)
+                return a.nome.localeCompare(b.nome)
+
               if (a.tipo === "rio") return -1
+
               if (b.tipo === "rio") return 1
+
               return 0
+
             })
             .map((rio) => (
+
               <option key={rio.id} value={rio.id}>
                 {rio.nome}
               </option>
+
             ))}
 
         </select>
 
       </div>
+
+
+      {/* ========================= */}
+      {/* SELETOR MUNICÍPIO */}
+      {/* ========================= */}
 
       <div>
 
@@ -70,8 +93,22 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
         <select
           className="w-full p-2 border rounded-lg"
           value={municipioSelecionado || ""}
-          onChange={(e) => setMunicipioSelecionado(e.target.value)}
           disabled={!rioSelecionado}
+          onChange={(e) => {
+
+            const municipio = e.target.value
+
+            setMunicipioSelecionado(municipio)
+
+            const estacao = estacoes.find(
+              (est) =>
+                est.municipio === municipio &&
+                est.rio_id === Number(rioSelecionado)
+            )
+
+            setEstacaoSelecionada(estacao)
+
+          }}
         >
 
           <option value="" disabled hidden>
@@ -81,9 +118,11 @@ export default function SeletorMonitoramento({ rios, estacoes }) {
           </option>
 
           {municipiosUnicos.map((municipio) => (
+
             <option key={municipio} value={municipio}>
               {municipio}
             </option>
+
           ))}
 
         </select>
