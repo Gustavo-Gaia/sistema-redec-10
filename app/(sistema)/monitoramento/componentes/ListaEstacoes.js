@@ -3,12 +3,19 @@
 "use client"
 
 import { calcularSituacao } from "../utils/calcularSituacao"
+import { useMonitoramento } from "../MonitoramentoContext"
 
 export default function ListaEstacoes({
-  estacoes,
-  ultimasMedicoes,
-  rios
+  estacoes = [],
+  ultimasMedicoes = [],
+  rios = []
 }) {
+
+  const { setEstacaoSelecionada } = useMonitoramento()
+
+  /* ============================= */
+  /* MONTAR LISTA COM SITUAÇÃO */
+  /* ============================= */
 
   const lista = estacoes.map((estacao) => {
 
@@ -18,7 +25,9 @@ export default function ListaEstacoes({
 
     const situacao = calcularSituacao(estacao, medicao)
 
-    const rio = rios.find((r) => r.id === estacao.rio_id)
+    const rio = rios.find(
+      (r) => r.id === estacao.rio_id
+    )
 
     return {
       ...estacao,
@@ -29,14 +38,27 @@ export default function ListaEstacoes({
 
   })
 
+  /* ============================= */
+  /* RENDER */
+  /* ============================= */
+
   return (
 
     <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+
+      {lista.length === 0 && (
+
+        <div className="p-6 text-center text-slate-500">
+          Nenhuma estação encontrada
+        </div>
+
+      )}
 
       {lista.map((estacao) => (
 
         <div
           key={estacao.id}
+          onClick={() => setEstacaoSelecionada(estacao)}
           className="flex items-center justify-between p-4 border-b last:border-none hover:bg-slate-50 transition cursor-pointer"
         >
 
@@ -80,7 +102,7 @@ export default function ListaEstacoes({
             ) : estacao.medicao?.nivel ? (
 
               <span className="font-semibold text-slate-800">
-                {estacao.medicao.nivel} m
+                {Number(estacao.medicao.nivel).toFixed(2)} m
               </span>
 
             ) : (
