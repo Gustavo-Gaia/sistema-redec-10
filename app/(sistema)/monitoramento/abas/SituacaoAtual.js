@@ -3,8 +3,13 @@
 "use client"
 
 import SeletorMonitoramento from "../seletor"
+import ResumoSituacao from "../componentes/ResumoSituacao"
 
-export default function SituacaoAtual({ rios, estacoes }) {
+export default function SituacaoAtual({
+  rios,
+  estacoes,
+  ultimasMedicoes
+}) {
 
   return (
 
@@ -15,8 +20,13 @@ export default function SituacaoAtual({ rios, estacoes }) {
         estacoes={estacoes}
       />
 
+      <ResumoSituacao
+        estacoes={estacoes}
+        ultimasMedicoes={ultimasMedicoes}
+      />
+
       <div className="text-slate-600">
-        Situação atual das estações aparecerá aqui.
+        Lista de estações aparecerá aqui.
       </div>
 
     </div>
