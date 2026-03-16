@@ -14,22 +14,17 @@ export default function GraficoEstacao({ estacao }) {
   useEffect(() => {
     if (!estacao) return
     async function carregar() {
-      // Carrega as últimas 100 leituras para o histórico
       const res = await fetch(`/api/historico-estacao?id=${estacao.id}&limit=100`)
       const json = await res.json()
-      
       const formatado = json.reverse().map((m) => ({
-        // Formata a hora para exibir no eixo X
         hora: new Date(m.data_hora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
         nivel: m.abaixo_regua ? null : Number(m.nivel),
-        timestamp: new Date(m.data_hora).getTime() // Útil para ordenação se necessário
       }))
       setDados(formatado)
     }
     carregar()
   }, [estacao])
 
-  // Lógica de Tendência (compara o último com o penúltimo registro)
   const tendencia = useMemo(() => {
     if (dados.length < 2) return { icon: <Minus size={16}/>, texto: "Estável", cor: "text-slate-400" }
     const ultimo = dados[dados.length - 1].nivel
@@ -41,20 +36,26 @@ export default function GraficoEstacao({ estacao }) {
 
   if (!estacao) return null
 
-  // Cálculos Hidrológicos
   const cotaTransbordo = Number(estacao.nivel_transbordo)
   const cotaAlerta = cotaTransbordo ? cotaTransbordo * 0.85 : null
   const cotaExtremo = cotaTransbordo ? cotaTransbordo * 1.2 : null
   const ultimoNivel = dados.length > 0 ? dados[dados.length - 1].nivel : 0
 
-  // Gradiente Fixo Voltou (Cor Azul Padrão do Sistema)
-  const corFixaGrafico = "#2563eb"
+  // Função para estilizar os rótulos das linhas de referência
+  const renderLabel = (texto, valor, cor) => ({
+    position: 'top',
+    offset: 10,
+    fill: cor,
+    fontSize: 10,
+    fontWeight: 900,
+    className: "uppercase tracking-tighter",
+    value: `${texto} (${valor.toFixed(2)}m)`
+  })
 
   return (
-    <div className="bg-white border border-slate-100 rounded-[2rem] shadow-xl shadow-slate-200/50 p-6">
+    <div className="bg-white border border-slate-100 rounded-[2rem] shadow-xl shadow-slate-200/50 p-6 transition-all duration-500">
       
-      {/* HEADER DO GRÁFICO */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
         <div>
           <h3 className="text-xl font-black text-slate-900 tracking-tight">Evolução Histórica do Nível</h3>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Últimas 100 leituras do sensor</p>
@@ -66,21 +67,19 @@ export default function GraficoEstacao({ estacao }) {
             <span className="text-xs font-black uppercase">{tendencia.texto}</span>
           </div>
           <div className="text-right">
-            <span className="block text-xs font-black text-slate-400 uppercase tracking-tighter text-[9px]">Nível Atual</span>
+            <span className="block text-[9px] font-black text-slate-400 uppercase tracking-tighter">Nível Atual</span>
             <span className="text-2xl font-black text-slate-900 leading-none">{ultimoNivel?.toFixed(2)}m</span>
           </div>
         </div>
       </div>
 
-      {/* ÁREA DO GRÁFICO */}
       <div className="w-full h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={dados} margin={{ top: 10, right: 30, left: -20, bottom: 0 }}>
+          <AreaChart data={dados} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
             <defs>
-              {/* Gradiente Fixo para consistência visual */}
               <linearGradient id="colorNivelFix" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={corFixaGrafico} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={corFixaGrafico} stopOpacity={0} />
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
               </linearGradient>
             </defs>
 
@@ -91,46 +90,56 @@ export default function GraficoEstacao({ estacao }) {
               axisLine={false} 
               tickLine={false} 
               tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} 
-              minTickGap={25}
+              minTickGap={30}
             />
             
             <YAxis 
               axisLine={false} 
               tickLine={false} 
               tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
-              // Garante que a cota extrema e um pouco acima estejam visíveis
-              domain={[0, (dataMax) => Math.max(dataMax, cotaExtremo ? cotaExtremo * 1.1 : 0)]}
+              domain={[0, (dataMax) => Math.max(dataMax, cotaExtremo ? cotaExtremo * 1.1 : 5)]}
             />
 
-            <Tooltip 
-              content={<CustomTooltip />} 
-              cursor={{ stroke: '#e2e8f0', strokeWidth: 2 }}
-            />
+            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 2 }} />
 
-            {/* Linhas de Referência Hidrológicas (Fixas no Layout) */}
+            {/* LINHAS DE REFERÊNCIA COM LABELS CORRIGIDOS */}
             {cotaAlerta && (
-              <ReferenceLine y={cotaAlerta} stroke="#facc15" strokeDasharray="5 5" strokeWidth={1.5}>
-                <LabelLinha texto="ALERTA" cor="#ca8a04" value={`${cotaAlerta.toFixed(2)}m`} />
-              </ReferenceLine>
+              <ReferenceLine 
+                y={cotaAlerta} 
+                stroke="#facc15" 
+                strokeDasharray="5 5" 
+                strokeWidth={2}
+                label={renderLabel("Alerta", cotaAlerta, "#ca8a04")}
+              />
             )}
+            
             {cotaTransbordo && (
-              <ReferenceLine y={cotaTransbordo} stroke="#ef4444" strokeDasharray="5 5" strokeWidth={1.5}>
-                <LabelLinha texto="TRANSBORDO" cor="#b91c1c" value={`${cotaTransbordo.toFixed(2)}m`} />
-              </ReferenceLine>
+              <ReferenceLine 
+                y={cotaTransbordo} 
+                stroke="#ef4444" 
+                strokeDasharray="5 5" 
+                strokeWidth={2}
+                label={renderLabel("Transbordo", cotaTransbordo, "#b91c1c")}
+              />
             )}
+            
             {cotaExtremo && (
-              <ReferenceLine y={cotaExtremo} stroke="#9333ea" strokeDasharray="5 5" strokeWidth={1.5}>
-                <LabelLinha texto="EXTREMO" cor="#7e22ce" value={`${cotaExtremo.toFixed(2)}m`} />
-              </ReferenceLine>
+              <ReferenceLine 
+                y={cotaExtremo} 
+                stroke="#9333ea" 
+                strokeDasharray="5 5" 
+                strokeWidth={2}
+                label={renderLabel("Extremo", cotaExtremo, "#7e22ce")}
+              />
             )}
 
             <Area
               type="monotone"
               dataKey="nivel"
-              stroke={corFixaGrafico}
+              stroke="#2563eb"
               strokeWidth={4}
               fillOpacity={1}
-              fill="url(#colorNivelFix)" // Usando o gradiente fixo
+              fill="url(#colorNivelFix)"
               animationDuration={1000}
             />
           </AreaChart>
@@ -140,7 +149,6 @@ export default function GraficoEstacao({ estacao }) {
   )
 }
 
-// Sub-componente para os Tooltips flutuantes (Glassmorphism)
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -153,20 +161,4 @@ const CustomTooltip = ({ active, payload, label }) => {
     )
   }
   return null
-}
-
-// Sub-componente para renderizar os labels Fixos sobre as linhas de referência
-function LabelLinha({ texto, cor, value, viewBox }) {
-  const { x, width } = viewBox;
-  return (
-    <text 
-      x={x + width - 5} // Fixado na extrema direita do gráfico
-      y={viewBox.y - 8} // Levemente acima da linha
-      textAnchor="end" // Alinhado à direita
-      fill={cor}
-      className="text-[10px] font-black uppercase tracking-tighter"
-    >
-      {texto} ({value})
-    </text>
-  );
 }
