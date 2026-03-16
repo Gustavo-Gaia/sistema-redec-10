@@ -1,7 +1,5 @@
 /* app/(sistema)/monitoramento/componentes/GraficoEstacao.js */
 
-/* app/(sistema)/monitoramento/componentes/GraficoEstacao.js */
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -14,7 +12,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Area,
-  AreaChart
+  AreaChart,
+  ReferenceArea
 } from "recharts"
 
 export default function GraficoEstacao({ estacao }) {
@@ -58,8 +57,6 @@ export default function GraficoEstacao({ estacao }) {
   if (!estacao) return null
 
 
-  /* CÁLCULOS HIDROLÓGICOS */
-
   const cota = Number(estacao.nivel_transbordo)
 
   const alerta = cota ? cota * 0.85 : null
@@ -90,54 +87,50 @@ export default function GraficoEstacao({ estacao }) {
 
           <AreaChart data={dados}>
 
-            {/* DEGRADÊ DO RIO */}
-
             <defs>
 
               <linearGradient id="colorNivel" x1="0" y1="0" x2="0" y2="1">
 
-                <stop
-                  offset="5%"
-                  stopColor="#2563eb"
-                  stopOpacity={0.35}
-                />
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35}/>
 
-                <stop
-                  offset="95%"
-                  stopColor="#2563eb"
-                  stopOpacity={0}
-                />
+                <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
 
               </linearGradient>
 
             </defs>
 
 
-            {/* GRID */}
+            {/* ZONAS DE RISCO */}
 
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="#e5e7eb"
-            />
+            {alerta && (
+              <ReferenceArea y1={0} y2={alerta} fill="#22c55e" fillOpacity={0.08}/>
+            )}
+
+            {alerta && transbordo && (
+              <ReferenceArea y1={alerta} y2={transbordo} fill="#facc15" fillOpacity={0.08}/>
+            )}
+
+            {transbordo && extremo && (
+              <ReferenceArea y1={transbordo} y2={extremo} fill="#ef4444" fillOpacity={0.08}/>
+            )}
+
+            {extremo && (
+              <ReferenceArea y1={extremo} y2={extremo * 1.3} fill="#9333ea" fillOpacity={0.08}/>
+            )}
 
 
-            {/* EIXO X */}
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
 
             <XAxis
               dataKey="hora"
               tick={{ fontSize: 12 }}
             />
 
-
-            {/* EIXO Y (AJUSTADO PARA MOSTRAR LINHAS) */}
-
             <YAxis
               tick={{ fontSize: 12 }}
-              domain={[0, extremo ? extremo * 1.1 : "auto"]}
+              domain={[0, extremo ? extremo * 1.3 : "auto"]}
             />
 
-
-            {/* TOOLTIP */}
 
             <Tooltip
               contentStyle={{
@@ -148,25 +141,19 @@ export default function GraficoEstacao({ estacao }) {
             />
 
 
-            {/* LINHA ALERTA */}
+            {/* LINHAS DE REFERÊNCIA */}
 
             {alerta && (
-
               <ReferenceLine
                 y={alerta}
                 stroke="#facc15"
                 strokeDasharray="6 6"
                 strokeWidth={2}
-                label="Alerta (85%)"
+                label="Alerta"
               />
-
             )}
 
-
-            {/* LINHA TRANSBORDO */}
-
             {transbordo && (
-
               <ReferenceLine
                 y={transbordo}
                 stroke="#ef4444"
@@ -174,14 +161,9 @@ export default function GraficoEstacao({ estacao }) {
                 strokeWidth={2}
                 label="Transbordo"
               />
-
             )}
 
-
-            {/* LINHA EXTREMO */}
-
             {extremo && (
-
               <ReferenceLine
                 y={extremo}
                 stroke="#9333ea"
@@ -189,11 +171,10 @@ export default function GraficoEstacao({ estacao }) {
                 strokeWidth={2}
                 label="Extremo"
               />
-
             )}
 
 
-            {/* ÁREA DO NÍVEL DO RIO */}
+            {/* NÍVEL DO RIO */}
 
             <Area
               type="monotone"
