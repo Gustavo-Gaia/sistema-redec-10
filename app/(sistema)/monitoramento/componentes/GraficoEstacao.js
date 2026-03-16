@@ -12,8 +12,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Area,
-  AreaChart,
-  ReferenceArea
+  AreaChart
 } from "recharts"
 
 export default function GraficoEstacao({ estacao }) {
@@ -35,14 +34,11 @@ export default function GraficoEstacao({ estacao }) {
       const formatado = json
         .reverse()
         .map((m) => ({
-
           hora: new Date(m.data_hora).toLocaleTimeString("pt-BR", {
             hour: "2-digit",
             minute: "2-digit"
           }),
-
           nivel: m.abaixo_regua ? null : Number(m.nivel)
-
         }))
 
       setDados(formatado)
@@ -57,11 +53,44 @@ export default function GraficoEstacao({ estacao }) {
   if (!estacao) return null
 
 
+  /* CÁLCULOS HIDROLÓGICOS */
+
   const cota = Number(estacao.nivel_transbordo)
 
   const alerta = cota ? cota * 0.85 : null
   const transbordo = cota || null
   const extremo = cota ? cota * 1.2 : null
+
+
+  /* COMPONENTE DE LABEL CUSTOMIZADO */
+
+  const LabelLinha = ({ value, viewBox, texto, cor }) => {
+
+    const { x, width, y } = viewBox
+
+    return (
+      <g>
+        <rect
+          x={x + width - 90}
+          y={y - 10}
+          width="85"
+          height="20"
+          fill="white"
+          rx="4"
+        />
+        <text
+          x={x + width - 80}
+          y={y + 4}
+          fill={cor}
+          fontSize="11"
+          fontWeight="600"
+        >
+          {texto}
+        </text>
+      </g>
+    )
+
+  }
 
 
   return (
@@ -87,39 +116,38 @@ export default function GraficoEstacao({ estacao }) {
 
           <AreaChart data={dados}>
 
+            {/* DEGRADÊ DO RIO */}
+
             <defs>
 
               <linearGradient id="colorNivel" x1="0" y1="0" x2="0" y2="1">
 
-                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35}/>
+                <stop
+                  offset="5%"
+                  stopColor="#2563eb"
+                  stopOpacity={0.35}
+                />
 
-                <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                <stop
+                  offset="95%"
+                  stopColor="#2563eb"
+                  stopOpacity={0}
+                />
 
               </linearGradient>
 
             </defs>
 
 
-            {/* ZONAS DE RISCO */}
+            {/* GRID */}
 
-            {alerta && (
-              <ReferenceArea y1={0} y2={alerta} fill="#22c55e" fillOpacity={0.08}/>
-            )}
-
-            {alerta && transbordo && (
-              <ReferenceArea y1={alerta} y2={transbordo} fill="#facc15" fillOpacity={0.08}/>
-            )}
-
-            {transbordo && extremo && (
-              <ReferenceArea y1={transbordo} y2={extremo} fill="#ef4444" fillOpacity={0.08}/>
-            )}
-
-            {extremo && (
-              <ReferenceArea y1={extremo} y2={extremo * 1.3} fill="#9333ea" fillOpacity={0.08}/>
-            )}
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#e5e7eb"
+            />
 
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            {/* EIXOS */}
 
             <XAxis
               dataKey="hora"
@@ -128,9 +156,11 @@ export default function GraficoEstacao({ estacao }) {
 
             <YAxis
               tick={{ fontSize: 12 }}
-              domain={[0, extremo ? extremo * 1.3 : "auto"]}
+              domain={[0, extremo ? extremo * 1.1 : "auto"]}
             />
 
+
+            {/* TOOLTIP */}
 
             <Tooltip
               contentStyle={{
@@ -141,7 +171,7 @@ export default function GraficoEstacao({ estacao }) {
             />
 
 
-            {/* LINHAS DE REFERÊNCIA */}
+            {/* LINHA ALERTA */}
 
             {alerta && (
               <ReferenceLine
@@ -149,9 +179,18 @@ export default function GraficoEstacao({ estacao }) {
                 stroke="#facc15"
                 strokeDasharray="6 6"
                 strokeWidth={2}
-                label="Alerta"
+                label={(props) =>
+                  <LabelLinha
+                    {...props}
+                    texto="ALERTA (85%)"
+                    cor="#ca8a04"
+                  />
+                }
               />
             )}
+
+
+            {/* LINHA TRANSBORDO */}
 
             {transbordo && (
               <ReferenceLine
@@ -159,9 +198,18 @@ export default function GraficoEstacao({ estacao }) {
                 stroke="#ef4444"
                 strokeDasharray="6 6"
                 strokeWidth={2}
-                label="Transbordo"
+                label={(props) =>
+                  <LabelLinha
+                    {...props}
+                    texto="TRANSBORDO"
+                    cor="#dc2626"
+                  />
+                }
               />
             )}
+
+
+            {/* LINHA EXTREMO */}
 
             {extremo && (
               <ReferenceLine
@@ -169,7 +217,13 @@ export default function GraficoEstacao({ estacao }) {
                 stroke="#9333ea"
                 strokeDasharray="6 6"
                 strokeWidth={2}
-                label="Extremo"
+                label={(props) =>
+                  <LabelLinha
+                    {...props}
+                    texto="EXTREMO"
+                    cor="#7e22ce"
+                  />
+                }
               />
             )}
 
