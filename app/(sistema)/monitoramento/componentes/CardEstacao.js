@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { useMonitoramento } from "../MonitoramentoContext"
 import { calcularSituacao } from "../utils/calcularSituacao"
-import { Waves, Clock, Database, MapPin, Activity, Shield Check } from "lucide-react"
+import { Waves, Clock, Database, Activity, ShieldCheck } from "lucide-react"
 
 export default function CardEstacao() {
   const { estacaoSelecionada } = useMonitoramento()
@@ -21,7 +21,8 @@ export default function CardEstacao() {
   }, [estacaoSelecionada])
 
   const { situacao, percentual, corHex } = useMemo(() => {
-    if (!estacaoSelecionada) return {}
+    if (!estacaoSelecionada) return { situacao: { texto: "—", cor: "bg-slate-200" }, percentual: 0, corHex: "#e2e8f0" }
+    
     const sit = calcularSituacao(estacaoSelecionada, medicao)
     const cota = estacaoSelecionada.nivel_transbordo
     const perc = (medicao && !medicao.abaixo_regua && cota) ? (medicao.nivel / cota) * 100 : 0
@@ -33,13 +34,17 @@ export default function CardEstacao() {
       "Extremo": "#9333ea"
     }
 
-    return { situacao: sit, percentual: perc, corHex: cores[sit.texto] || "#3b82f6" }
+    return { 
+      situacao: sit, 
+      percentual: perc, 
+      corHex: cores[sit.texto] || "#3b82f6" 
+    }
   }, [estacaoSelecionada, medicao])
 
   if (!estacaoSelecionada) {
     return (
-      <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] p-12 text-center text-slate-400">
-        Selecione uma estação no mapa ou na lista.
+      <div className="bg-white border border-slate-200 rounded-[2.5rem] p-12 text-center text-slate-400">
+        Selecione uma estação para monitorar.
       </div>
     )
   }
@@ -48,7 +53,7 @@ export default function CardEstacao() {
   const offset = strokeDash - (Math.min(percentual, 120) / 120 * strokeDash)
 
   return (
-    <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-2xl shadow-slate-200/40 p-6 md:p-10 transition-all duration-500">
+    <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-2xl shadow-slate-200/40 p-6 md:p-10">
       
       {/* CABEÇALHO */}
       <div className="flex flex-col md:flex-row justify-between items-start mb-10 gap-6">
@@ -60,7 +65,7 @@ export default function CardEstacao() {
           <h3 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
             {estacaoSelecionada.municipio}
           </h3>
-          <p className="text-xl text-slate-400 font-medium italic">
+          <p className="text-xl text-slate-400 font-medium italic uppercase tracking-wide">
             {estacaoSelecionada.nome_rio || "—"}
           </p>
         </div>
@@ -73,29 +78,28 @@ export default function CardEstacao() {
 
       <div className="flex flex-col lg:flex-row gap-12 items-center">
         
-        {/* GAUGE CIRCULAR - CORRIGIDO O Z-INDEX DO TEXTO */}
-        <div className="relative flex items-center justify-center">
+        {/* GAUGE CIRCULAR - TEXTO SEPARADO DO SVG PARA NÃO SOBREPOR */}
+        <div className="relative flex items-center justify-center w-44 h-44">
           <div 
-            className="absolute inset-0 rounded-full blur-3xl opacity-10 transition-all duration-1000"
+            className="absolute inset-0 rounded-full blur-3xl opacity-10"
             style={{ backgroundColor: corHex }}
           />
           
-          <svg className="w-44 h-44 transform -rotate-90 relative z-0">
-            <circle cx="64" cy="64" r="58" stroke="#f8fafc" strokeWidth="10" fill="transparent" />
+          <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+            <circle cx="88" cy="88" r="75" stroke="#f8fafc" strokeWidth="12" fill="transparent" />
             <circle
-              cx="64" cy="64" r="58"
+              cx="88" cy="88" r="75"
               stroke={corHex}
               strokeWidth="12"
               fill="transparent"
-              strokeDasharray={strokeDash}
-              strokeDashoffset={offset}
+              strokeDasharray={471} // Ajustado para o novo raio de 75
+              strokeDashoffset={471 - (Math.min(percentual, 120) / 120 * 471)}
               strokeLinecap="round"
               className="transition-all duration-1000 ease-in-out"
             />
           </svg>
           
-          {/* Texto Centralizado com Z-Index superior */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+          <div className="relative z-10 flex flex-col items-center justify-center">
             <div className="flex items-baseline">
               <span className="text-4xl font-black text-slate-900 leading-none">{percentual.toFixed(0)}</span>
               <span className="text-lg font-bold text-slate-400 ml-0.5">%</span>
@@ -106,7 +110,7 @@ export default function CardEstacao() {
           </div>
         </div>
 
-        {/* MÉTRICAS - SUBSTITUÍDO STATUS POR FONTE */}
+        {/* MÉTRICAS - FONTE DINÂMICA INTEGRADA */}
         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <MetricCard 
             label="Nível Atual" 
@@ -124,10 +128,9 @@ export default function CardEstacao() {
             value={medicao?.data_hora ? new Date(medicao.data_hora).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} 
             icon={<Clock className="text-slate-400" size={16} />}
           />
-          {/* NOVO BOX: FONTE DINÂMICA DO BANCO */}
           <MetricCard 
             label="Fonte da Estação" 
-            value={estacaoSelecionada.fonte || "Não informada"} 
+            value={estacaoSelecionada.fonte || "INEA"} 
             icon={<ShieldCheck className="text-green-500" size={16} />}
           />
         </div>
@@ -138,7 +141,7 @@ export default function CardEstacao() {
 
 function MetricCard({ label, value, icon, isMain = false }) {
   return (
-    <div className={`p-6 rounded-[1.8rem] border transition-all duration-300 ${isMain ? 'bg-blue-50/40 border-blue-100' : 'bg-slate-50/50 border-slate-100'}`}>
+    <div className={`p-6 rounded-[1.8rem] border transition-all duration-300 ${isMain ? 'bg-blue-50/40 border-blue-100 shadow-sm' : 'bg-slate-50/50 border-slate-100'}`}>
       <div className="flex items-center gap-2 mb-2">
         {icon}
         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
