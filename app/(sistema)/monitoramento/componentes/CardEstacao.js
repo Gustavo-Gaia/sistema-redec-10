@@ -33,7 +33,6 @@ export default function CardEstacao() {
   }, [estacaoSelecionada])
 
 
-
   if (!estacaoSelecionada) {
 
     return (
@@ -44,61 +43,54 @@ export default function CardEstacao() {
 
   }
 
-
-
   const situacao = calcularSituacao(estacaoSelecionada, medicao)
 
-
+  const cota = estacaoSelecionada.nivel_transbordo
 
   let percentual = null
 
   if (
     medicao &&
     !medicao.abaixo_regua &&
-    estacaoSelecionada.nivel_transbordo
+    cota
   ) {
 
-    percentual = (
-      (medicao.nivel / estacaoSelecionada.nivel_transbordo) * 100
-    ).toFixed(0)
+    percentual = (medicao.nivel / cota) * 100
 
   }
 
+  const alerta = 85
+  const transbordo = 100
+  const extremo = 120
 
+  const posicao = percentual ? Math.min(percentual, 120) : 0
 
   return (
 
-    <div className="bg-white border rounded-xl shadow-sm p-5 md:p-6">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 md:p-7">
 
       {/* CABEÇALHO */}
 
-      <div className="mb-5">
+      <div className="mb-6">
 
-        <h3 className="text-lg md:text-xl font-bold text-slate-800">
-
+        <h3 className="text-xl font-bold text-slate-800">
           {estacaoSelecionada.municipio}
-
         </h3>
 
         <p className="text-sm text-slate-500">
-          Estação de monitoramento
+          Rio {estacaoSelecionada.rio || "—"}
         </p>
 
       </div>
 
 
+      {/* GRID */}
 
-      {/* GRID RESPONSIVO */}
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-
-
-
-        {/* STATUS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
 
         <div>
 
-          <div className="text-xs md:text-sm text-slate-500 mb-1">
+          <div className="text-xs text-slate-500 mb-1 uppercase tracking-wide">
             Status
           </div>
 
@@ -106,7 +98,7 @@ export default function CardEstacao() {
 
             <div className={`w-3 h-3 rounded-full ${situacao.cor}`} />
 
-            <span className="font-semibold text-slate-800 text-sm md:text-base">
+            <span className="font-semibold text-slate-800">
               {situacao.texto}
             </span>
 
@@ -114,17 +106,13 @@ export default function CardEstacao() {
 
         </div>
 
-
-
-        {/* NÍVEL */}
-
         <div>
 
-          <div className="text-xs md:text-sm text-slate-500 mb-1">
+          <div className="text-xs text-slate-500 mb-1 uppercase tracking-wide">
             Nível Atual
           </div>
 
-          <div className="font-bold text-slate-800 text-base md:text-lg">
+          <div className="text-lg font-bold text-slate-800">
 
             {medicao?.abaixo_regua
               ? "A/R"
@@ -136,43 +124,121 @@ export default function CardEstacao() {
 
         </div>
 
-
-
-        {/* PERCENTUAL */}
-
         <div>
 
-          <div className="text-xs md:text-sm text-slate-500 mb-1">
+          <div className="text-xs text-slate-500 mb-1 uppercase tracking-wide">
             Percentual da Cota
           </div>
 
-          <div className="font-bold text-slate-800 text-base md:text-lg">
+          <div className="text-lg font-bold text-slate-800">
 
-            {percentual ? `${percentual}%` : "—"}
+            {percentual ? `${percentual.toFixed(0)}%` : "—"}
 
           </div>
 
         </div>
-
-
-
-        {/* COTA */}
 
         <div>
 
-          <div className="text-xs md:text-sm text-slate-500 mb-1">
+          <div className="text-xs text-slate-500 mb-1 uppercase tracking-wide">
             Cota de Transbordo
           </div>
 
-          <div className="font-bold text-slate-800 text-base md:text-lg">
+          <div className="text-lg font-bold text-slate-800">
 
-            {estacaoSelecionada.nivel_transbordo
-              ? `${estacaoSelecionada.nivel_transbordo} m`
-              : "—"}
+            {cota ? `${cota} m` : "—"}
 
           </div>
 
         </div>
+
+      </div>
+
+
+      {/* RÉGUA HIDROLÓGICA */}
+
+      {percentual && (
+
+        <div className="mt-8">
+
+          {/* LABELS SUPERIORES */}
+
+          <div className="flex justify-between text-xs text-slate-400 mb-2">
+
+            <span>0 m</span>
+
+            <span>{cota} m</span>
+
+          </div>
+
+
+          {/* ESCALA */}
+
+          <div className="relative h-6">
+
+            <div className="absolute top-2 w-full h-2 bg-slate-200 rounded-full" />
+
+
+            {/* BARRA NÍVEL */}
+
+            <div
+              className={`absolute top-2 h-2 rounded-full transition-all duration-700 ${situacao.cor}`}
+              style={{ width: `${posicao}%` }}
+            />
+
+
+            {/* MARCADOR */}
+
+            <div
+              className="absolute top-0 w-5 h-5 bg-white border-2 border-slate-600 rounded-full shadow-md transition-all duration-700"
+              style={{ left: `calc(${posicao}% - 10px)` }}
+            />
+
+
+            {/* TICKS */}
+
+            <div className="absolute top-0 left-[85%] h-4 w-px bg-yellow-400" />
+            <div className="absolute top-0 left-[100%] h-4 w-px bg-red-500" />
+            <div className="absolute top-0 left-[120%] h-4 w-px bg-purple-600" />
+
+          </div>
+
+
+          {/* LABELS */}
+
+          <div className="flex justify-between text-xs text-slate-400 mt-2">
+
+            <span>Alerta</span>
+            <span>Transbordo</span>
+            <span>Extremo</span>
+
+          </div>
+
+
+          {/* VALOR */}
+
+          <div className="text-center text-sm font-semibold text-slate-700 mt-3">
+
+            {medicao.nivel} m ({percentual.toFixed(0)}%)
+
+          </div>
+
+        </div>
+
+      )}
+
+
+      {/* RODAPÉ */}
+
+      <div className="mt-6 pt-4 border-t border-slate-200 flex justify-between">
+
+        <span className="text-xs text-slate-400 italic">
+          Fonte: INEA
+        </span>
+
+        <span className="text-xs text-slate-400">
+          Monitoramento hidrológico
+        </span>
 
       </div>
 
