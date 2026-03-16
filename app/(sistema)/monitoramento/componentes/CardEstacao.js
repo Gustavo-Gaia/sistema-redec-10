@@ -24,7 +24,7 @@ export default function CardEstacao() {
 
       const dados = await res.json()
 
-      setMedicao(dados[0])
+      setMedicao(dados?.[0] || null)
 
     }
 
@@ -32,78 +32,144 @@ export default function CardEstacao() {
 
   }, [estacaoSelecionada])
 
+
+
   if (!estacaoSelecionada) {
 
     return (
-      <div className="bg-white border rounded-xl p-6 text-slate-500">
-        Selecione um município para visualizar a estação.
+      <div className="bg-white border rounded-xl p-6 text-center text-slate-500">
+        Selecione um rio e município para visualizar a estação.
       </div>
     )
 
   }
 
+
+
   const situacao = calcularSituacao(estacaoSelecionada, medicao)
 
-  const percentual = medicao
-    ? ((medicao.nivel / estacaoSelecionada.nivel_transbordo) * 100).toFixed(0)
-    : null
+
+
+  let percentual = null
+
+  if (
+    medicao &&
+    !medicao.abaixo_regua &&
+    estacaoSelecionada.nivel_transbordo
+  ) {
+
+    percentual = (
+      (medicao.nivel / estacaoSelecionada.nivel_transbordo) * 100
+    ).toFixed(0)
+
+  }
+
+
 
   return (
 
-    <div className="bg-white border rounded-xl shadow-sm p-6">
+    <div className="bg-white border rounded-xl shadow-sm p-5 md:p-6">
 
-      <h3 className="text-lg font-bold text-slate-800 mb-4">
+      {/* CABEÇALHO */}
 
-        {estacaoSelecionada.municipio}
+      <div className="mb-5">
 
-      </h3>
+        <h3 className="text-lg md:text-xl font-bold text-slate-800">
 
-      <div className="grid md:grid-cols-4 gap-6">
+          {estacaoSelecionada.municipio}
+
+        </h3>
+
+        <p className="text-sm text-slate-500">
+          Estação de monitoramento
+        </p>
+
+      </div>
+
+
+
+      {/* GRID RESPONSIVO */}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+
+
+
+        {/* STATUS */}
 
         <div>
 
-          <div className="text-sm text-slate-500">
+          <div className="text-xs md:text-sm text-slate-500 mb-1">
             Status
           </div>
 
-          <div className={`font-bold ${situacao.cor}`}>
-            {situacao.nome}
+          <div className="flex items-center gap-2">
+
+            <div className={`w-3 h-3 rounded-full ${situacao.cor}`} />
+
+            <span className="font-semibold text-slate-800 text-sm md:text-base">
+              {situacao.texto}
+            </span>
+
           </div>
 
         </div>
 
+
+
+        {/* NÍVEL */}
+
         <div>
 
-          <div className="text-sm text-slate-500">
+          <div className="text-xs md:text-sm text-slate-500 mb-1">
             Nível Atual
           </div>
 
-          <div className="font-bold text-slate-800">
-            {medicao?.nivel ? `${medicao.nivel} m` : "—"}
+          <div className="font-bold text-slate-800 text-base md:text-lg">
+
+            {medicao?.abaixo_regua
+              ? "A/R"
+              : medicao?.nivel
+              ? `${medicao.nivel} m`
+              : "—"}
+
           </div>
 
         </div>
 
+
+
+        {/* PERCENTUAL */}
+
         <div>
 
-          <div className="text-sm text-slate-500">
+          <div className="text-xs md:text-sm text-slate-500 mb-1">
             Percentual da Cota
           </div>
 
-          <div className="font-bold text-slate-800">
+          <div className="font-bold text-slate-800 text-base md:text-lg">
+
             {percentual ? `${percentual}%` : "—"}
+
           </div>
 
         </div>
 
+
+
+        {/* COTA */}
+
         <div>
 
-          <div className="text-sm text-slate-500">
+          <div className="text-xs md:text-sm text-slate-500 mb-1">
             Cota de Transbordo
           </div>
 
-          <div className="font-bold text-slate-800">
-            {estacaoSelecionada.nivel_transbordo} m
+          <div className="font-bold text-slate-800 text-base md:text-lg">
+
+            {estacaoSelecionada.nivel_transbordo
+              ? `${estacaoSelecionada.nivel_transbordo} m`
+              : "—"}
+
           </div>
 
         </div>
@@ -113,4 +179,5 @@ export default function CardEstacao() {
     </div>
 
   )
+
 }
