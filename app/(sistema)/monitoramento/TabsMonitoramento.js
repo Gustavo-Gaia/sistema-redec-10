@@ -1,4 +1,5 @@
 /* app/(sistema)/monitoramento/TabsMonitoramento.js */
+
 "use client"
 
 import { useState } from "react"
@@ -10,8 +11,11 @@ import Relatorios from "./abas/Relatorios"
 import InserirMedicoes from "./abas/InserirMedicoes"
 import Configuracoes from "./abas/configuracoes/Configuracoes"
 
-
-export default function TabsMonitoramento({ rios, estacoes }) {
+export default function TabsMonitoramento({
+  rios,
+  estacoes,
+  ultimasMedicoes
+}) {
 
   const [abaAtiva, setAbaAtiva] = useState("situacao")
 
@@ -39,12 +43,12 @@ export default function TabsMonitoramento({ rios, estacoes }) {
           <button
             key={aba.id}
             onClick={() => setAbaAtiva(aba.id)}
-            className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition
+            className={`
+              px-4 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition
 
               ${abaAtiva === aba.id
                 ? "bg-blue-600 text-white shadow"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"}
-              
             `}
           >
 
@@ -56,7 +60,6 @@ export default function TabsMonitoramento({ rios, estacoes }) {
 
       </div>
 
-
       {/* ============================= */}
       {/* CONTEÚDO DAS ABAS */}
       {/* ============================= */}
@@ -67,6 +70,7 @@ export default function TabsMonitoramento({ rios, estacoes }) {
           <SituacaoAtual
             rios={rios}
             estacoes={estacoes}
+            ultimasMedicoes={ultimasMedicoes}
           />
         )}
 
