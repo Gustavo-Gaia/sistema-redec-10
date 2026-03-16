@@ -4,6 +4,7 @@
 
 import SeletorMonitoramento from "../seletor"
 import ResumoSituacao from "../componentes/ResumoSituacao"
+import ListaEstacoes from "../componentes/ListaEstacoes"
 
 export default function SituacaoAtual({
   rios,
@@ -25,9 +26,11 @@ export default function SituacaoAtual({
         ultimasMedicoes={ultimasMedicoes}
       />
 
-      <div className="text-slate-600">
-        Lista de estações aparecerá aqui.
-      </div>
+      <ListaEstacoes
+        estacoes={estacoes}
+        ultimasMedicoes={ultimasMedicoes}
+        rios={rios}
+      />
 
     </div>
 
