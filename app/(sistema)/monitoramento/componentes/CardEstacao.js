@@ -7,7 +7,6 @@ import { useMonitoramento } from "../MonitoramentoContext"
 import { calcularSituacao } from "../utils/calcularSituacao"
 
 export default function CardEstacao() {
-
   const { estacaoSelecionada } = useMonitoramento()
   const [medicao, setMedicao] = useState(null)
 
@@ -42,6 +41,23 @@ export default function CardEstacao() {
 
   const posicao = percentual ? Math.min(percentual, 120) : 0
 
+  // COR DA BARRA DE STATUS
+  const corBarra =
+    situacao.texto === "Normal"
+      ? "#10b981" // verde
+      : situacao.texto === "Alerta"
+      ? "#facc15" // amarelo
+      : situacao.texto === "Transbordo"
+      ? "#ef4444" // vermelho
+      : situacao.texto === "Extremo"
+      ? "#9333ea" // roxo
+      : "#2563eb" // azul padrão
+
+  // NOME DO RIO (corrigindo duplicação)
+  const nomeRio = estacaoSelecionada.nome_rio
+    ? estacaoSelecionada.nome_rio
+    : estacaoSelecionada.rio_id || "—"
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-6 md:p-7 transition-shadow hover:shadow-2xl">
       
@@ -51,7 +67,7 @@ export default function CardEstacao() {
           {estacaoSelecionada.municipio}
         </h3>
         <p className="text-sm md:text-base text-slate-500">
-          Rio {estacaoSelecionada.nome_rio || estacaoSelecionada.rio_id || "—"}
+          {nomeRio}
         </p>
       </div>
 
@@ -103,7 +119,6 @@ export default function CardEstacao() {
       {/* RÉGUA HIDROLÓGICA */}
       {percentual && (
         <div className="mt-6">
-
           {/* ESCALA COM LABELS */}
           <div className="flex justify-between text-xs text-slate-400 mb-2">
             <span>0 m</span>
@@ -112,15 +127,14 @@ export default function CardEstacao() {
 
           {/* BARRA DE NÍVEL */}
           <div className="relative h-6">
-            <div className="absolute top-2 w-full h-2 bg-slate-200 rounded-full" />
+            <div
+              className="absolute top-2 w-full h-2 rounded-full bg-slate-200"
+            />
 
-            {/* BARRA DE NÍVEL COM DEGRADÊ */}
+            {/* BARRA DE STATUS */}
             <div
               className="absolute top-2 h-2 rounded-full transition-all duration-700"
-              style={{
-                width: `${posicao}%`,
-                background: `linear-gradient(to right, #10b981, #facc15, #ef4444, #9333ea)`
-              }}
+              style={{ width: `${posicao}%`, backgroundColor: corBarra }}
             />
 
             {/* MARCADOR DO NÍVEL */}
