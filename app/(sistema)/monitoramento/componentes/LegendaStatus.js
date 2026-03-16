@@ -2,34 +2,75 @@
 
 export default function LegendaStatus() {
 
+  const itens = [
+
+    {
+      cor: "bg-green-500",
+      texto: "Normal — abaixo de 85% da cota de transbordo"
+    },
+
+    {
+      cor: "bg-yellow-500",
+      texto: "Alerta — entre 85% e 99% da cota"
+    },
+
+    {
+      cor: "bg-red-500",
+      texto: "Transbordo — entre 100% e 120% da cota"
+    },
+
+    {
+      cor: "bg-purple-600",
+      texto: "Risco Hidrológico Extremo — acima de 120%"
+    },
+
+    {
+      cor: "bg-gray-400",
+      texto: "Sem cota de transbordo — monitoramento sem referência"
+    },
+
+    {
+      cor: "bg-slate-500",
+      texto: "A/R — Abaixo da Régua de medição"
+    }
+
+  ]
+
   return (
 
-    <div className="bg-white border rounded-xl p-6">
+    <div className="bg-white border rounded-xl shadow-sm p-5 md:p-6">
 
-      <h3 className="font-bold text-slate-800 mb-4">
-        Legenda de Situação
+      <h3 className="text-lg font-bold text-slate-800 mb-4">
+        Legenda Hidrológica
       </h3>
 
-      <div className="flex gap-6 text-sm">
+      <div className="space-y-2 text-sm">
 
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          Normal
-        </div>
+        {itens.map((item, i) => (
 
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-          Alerta
-        </div>
+          <div
+            key={i}
+            className="flex items-center gap-3"
+          >
 
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500"></div>
-          Transbordo
-        </div>
+            <div
+              className={`w-3 h-3 rounded-full ${item.cor}`}
+            />
+
+            <span className="text-slate-700">
+
+              {item.texto}
+
+            </span>
+
+          </div>
+
+        ))}
 
       </div>
 
     </div>
 
   )
+
 }
