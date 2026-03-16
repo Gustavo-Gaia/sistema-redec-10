@@ -26,23 +26,23 @@ export default function GraficoEstacao({ estacao }) {
     async function carregar() {
 
       const res = await fetch(
-        `/api/historico-estacao?id=${estacao.id}`
+        `/api/historico-estacao?id=${estacao.id}&limit=100`
       )
 
       const json = await res.json()
 
-      const formatado = json.map((m) => ({
+      const formatado = json
+        .reverse()
+        .map((m) => ({
 
-        data: new Date(m.data_hora).toLocaleDateString("pt-BR"),
+          hora: new Date(m.data_hora).toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit"
+          }),
 
-        hora: new Date(m.data_hora).toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit"
-        }),
+          nivel: m.abaixo_regua ? null : m.nivel
 
-        nivel: m.abaixo_regua ? null : m.nivel
-
-      }))
+        }))
 
       setDados(formatado)
 
@@ -52,43 +52,13 @@ export default function GraficoEstacao({ estacao }) {
 
   }, [estacao])
 
-
-
-  if (!estacao) {
-
-    return (
-      <div className="bg-white border rounded-xl p-6 text-slate-500">
-        Selecione uma estação
-      </div>
-    )
-
-  }
-
-
-
-  if (!dados.length) {
-
-    return (
-      <div className="bg-white border rounded-xl p-6 text-slate-500">
-        Sem dados para gráfico
-      </div>
-    )
-
-  }
-
-
-
   return (
 
     <div className="bg-white border rounded-xl shadow-sm p-5 md:p-6">
 
       <h3 className="text-lg font-bold text-slate-800 mb-4">
-
         Evolução do Nível do Rio
-
       </h3>
-
-
 
       <div className="w-full h-72 md:h-80">
 
@@ -98,18 +68,11 @@ export default function GraficoEstacao({ estacao }) {
 
             <CartesianGrid strokeDasharray="3 3" />
 
-            <XAxis
-              dataKey="hora"
-              tick={{ fontSize: 12 }}
-            />
+            <XAxis dataKey="hora" tick={{ fontSize: 12 }} />
 
-            <YAxis
-              tick={{ fontSize: 12 }}
-            />
+            <YAxis tick={{ fontSize: 12 }} />
 
-            <Tooltip
-              formatter={(value) => `${value} m`}
-            />
+            <Tooltip formatter={(value) => `${value} m`} />
 
             {/* LINHA DO RIO */}
 
@@ -121,13 +84,13 @@ export default function GraficoEstacao({ estacao }) {
               dot={false}
             />
 
-            {/* LINHA DA COTA */}
+            {/* COTA DE TRANSBORDO */}
 
-            {estacao.nivel_transbordo && (
+            {estacao?.nivel_transbordo && (
 
               <ReferenceLine
                 y={estacao.nivel_transbordo}
-                stroke="red"
+                stroke="#ef4444"
                 strokeDasharray="6 6"
                 label="Cota de Transbordo"
               />
