@@ -11,16 +11,47 @@ const supabase = createClient(
 
 export default async function Monitoramento() {
 
-  const { data: rios } = await supabase
+  /* ============================= */
+  /* BUSCAR RIOS ATIVOS */
+  /* ============================= */
+
+  const { data: rios, error: erroRios } = await supabase
     .from("rios")
     .select("*")
     .eq("ativo", true)
     .order("nome")
 
-  const { data: estacoes } = await supabase
+  if (erroRios) {
+    console.error("Erro ao buscar rios:", erroRios)
+  }
+
+  /* ============================= */
+  /* BUSCAR ESTAÇÕES ATIVAS */
+  /* ============================= */
+
+  const { data: estacoes, error: erroEstacoes } = await supabase
     .from("estacoes")
     .select("*")
     .eq("ativo", true)
+
+  if (erroEstacoes) {
+    console.error("Erro ao buscar estações:", erroEstacoes)
+  }
+
+  /* ============================= */
+  /* BUSCAR ÚLTIMAS MEDIÇÕES */
+  /* ============================= */
+
+  const { data: ultimasMedicoes, error: erroMedicoes } = await supabase
+    .rpc("ultimas_medicoes")
+
+  if (erroMedicoes) {
+    console.error("Erro ao buscar últimas medições:", erroMedicoes)
+  }
+
+  /* ============================= */
+  /* RENDER */
+  /* ============================= */
 
   return (
 
@@ -36,11 +67,10 @@ export default async function Monitoramento() {
           Sistema de acompanhamento das estações hidrológicas da região.
         </p>
 
-        {/* ABAS DO MONITORAMENTO */}
-
         <TabsMonitoramento
-          rios={rios}
-          estacoes={estacoes}
+          rios={rios || []}
+          estacoes={estacoes || []}
+          ultimasMedicoes={ultimasMedicoes || []}
         />
 
       </div>
