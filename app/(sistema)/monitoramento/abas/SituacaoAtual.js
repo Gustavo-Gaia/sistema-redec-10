@@ -2,79 +2,62 @@
 
 "use client"
 
+import dynamic from "next/dynamic"
+
 import { useMonitoramento } from "../MonitoramentoContext"
 
-import SeletorMonitoramento from "../seletor"
-
-import CardEstacao from "../componentes/CardEstacao"
-import GraficoEstacao from "../componentes/GraficoEstacao"
-import TabelaHistorico from "../componentes/TabelaHistorico"
+import PainelEstacao from "../componentes/PainelEstacao"
 import LegendaStatus from "../componentes/LegendaStatus"
 
-export default function SituacaoAtual({ rios, estacoes }) {
+// 🚨 IMPORTANTE (SSR OFF)
+const MapaMonitoramento = dynamic(
+  () => import("../componentes/MapaMonitoramento"),
+  { ssr: false }
+)
+
+export default function SituacaoAtual() {
 
   const { estacaoSelecionada } = useMonitoramento()
 
   return (
 
-    <div className="space-y-6 md:space-y-8">
+    <div className="relative w-full h-[calc(100vh-140px)]">
 
-      {/* ===================== */}
-      {/* SELETOR */}
-      {/* ===================== */}
+      {/* ============================= */}
+      {/* MAPA (FUNDO) */}
+      {/* ============================= */}
 
-      <SeletorMonitoramento
-        rios={rios}
-        estacoes={estacoes}
-      />
+      <MapaMonitoramento />
 
+      {/* ============================= */}
+      {/* LEGENDA FLUTUANTE */}
+      {/* ============================= */}
 
-      {/* ===================== */}
-      {/* CARD DA ESTAÇÃO */}
-      {/* ===================== */}
+      <div className="absolute bottom-4 left-4 z-[500]">
+        <LegendaStatus />
+      </div>
 
-      <CardEstacao />
+      {/* ============================= */}
+      {/* PAINEL LATERAL */}
+      {/* ============================= */}
 
+      <PainelEstacao />
 
-      {/* ===================== */}
-      {/* GRÁFICO */}
-      {/* ===================== */}
+      {/* ============================= */}
+      {/* ESTADO INICIAL */}
+      {/* ============================= */}
 
-      {estacaoSelecionada && (
+      {!estacaoSelecionada && (
 
-        <div className="w-full">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500]">
 
-          <GraficoEstacao
-            estacao={estacaoSelecionada}
-          />
-
-        </div>
-
-      )}
-
-
-      {/* ===================== */}
-      {/* HISTÓRICO */}
-      {/* ===================== */}
-
-      {estacaoSelecionada && (
-
-        <div className="w-full">
-
-          <TabelaHistorico
-            estacao={estacaoSelecionada}
-          />
+          <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-xl shadow text-sm text-slate-700">
+            Clique em uma estação no mapa para visualizar os dados
+          </div>
 
         </div>
 
       )}
-
-
-      {/* ===================== */}
-      {/* LEGENDA */}
-      {/* ===================== */}
-
-      <LegendaStatus />
 
     </div>
 
