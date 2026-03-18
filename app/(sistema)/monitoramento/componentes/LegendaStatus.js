@@ -11,25 +11,25 @@ export default function LegendaStatus() {
   ];
 
   return (
-    <div className="bg-white/95 backdrop-blur-sm border border-slate-300 rounded-2xl shadow-2xl p-3 md:px-5 md:py-3 antialiased">
-      {/* Título com cor mais forte para dar nitidez */}
-      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] mb-2 px-1">
+    <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-3xl shadow-xl p-3 md:px-6 md:py-3.5 antialiased">
+      {/* Título mais suave e refinado */}
+      <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 px-1 leading-none">
         Legenda Hidrológica
       </h3>
 
-      <div className="grid grid-cols-2 md:flex md:flex-row gap-x-6 gap-y-3 md:gap-8">
+      <div className="grid grid-cols-2 md:flex md:flex-row gap-x-8 gap-y-4 md:gap-10">
         {itens.map((item, i) => (
-          <div key={i} className="flex items-center gap-2.5">
-            {/* Bolinha com sombra interna para não sumir no fundo */}
-            <div className={`w-3.5 h-3.5 rounded-full ${item.cor} border border-white shadow-sm flex-shrink-0`} />
+          <div key={i} className="flex items-center gap-3">
+            {/* Indicador de Cor Menor e mais sutil */}
+            <div className={`w-3 h-3 rounded-full ${item.cor} border-2 border-white shadow-sm flex-shrink-0`} />
             
-            <div className="flex flex-col leading-none">
-              {/* Título em Slate-900 (quase preto) para máxima nitidez */}
-              <span className="text-[12px] font-black text-slate-900 whitespace-nowrap tracking-tight">
+            <div className="flex flex-col leading-none gap-0.5">
+              {/* Título mais fino (font-bold) e cor suave (slate-700) */}
+              <span className="text-[12px] font-bold text-slate-700 whitespace-nowrap tracking-tight">
                 {item.titulo}
               </span>
-              {/* Descrição em Slate-500 (cinza nítido) */}
-              <span className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">
+              {/* Descrição em Slate-400 (cinza elegante e legível) */}
+              <span className="text-[9px] font-medium text-slate-400 uppercase tracking-tight">
                 {item.desc}
               </span>
             </div>
