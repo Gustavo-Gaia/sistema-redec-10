@@ -12,13 +12,13 @@ export default function PainelEstacao() {
 
   const {
     estacaoSelecionada,
-    limparSelecao
+    setEstacaoSelecionada
   } = useMonitoramento()
 
   const aberto = !!estacaoSelecionada
 
   function fechar() {
-    limparSelecao()
+    setEstacaoSelecionada(null)
   }
 
   return (
@@ -30,7 +30,7 @@ export default function PainelEstacao() {
       <div
         onClick={fechar}
         className={`
-          fixed inset-0 bg-black/40 backdrop-blur-sm z-[900]
+          fixed inset-0 bg-black/50 backdrop-blur-sm z-[999]
           transition-opacity duration-300
           ${aberto ? "opacity-100 visible" : "opacity-0 invisible"}
         `}
@@ -43,34 +43,34 @@ export default function PainelEstacao() {
       <div
         className={`
           fixed z-[1000] bg-white shadow-2xl
-          transition-all duration-300 ease-in-out
+          transition-all duration-300 ease-in-out flex flex-col
 
-          /* MOBILE */
-          bottom-0 left-0 w-full h-[85%] rounded-t-2xl
+          /* MOBILE (bottom sheet) */
+          bottom-0 left-0 w-full h-[90%] rounded-t-2xl
 
-          /* DESKTOP */
-          md:top-0 md:right-0 md:h-full md:w-[380px] md:rounded-none
+          /* DESKTOP (modal central) */
+          md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2
+          md:w-[900px] md:h-[85vh] md:rounded-2xl
 
           ${aberto
-            ? "translate-y-0 md:translate-x-0"
-            : "translate-y-full md:translate-x-full"}
+            ? "translate-y-0 opacity-100"
+            : "translate-y-full md:translate-y-[-40%] opacity-0 pointer-events-none"}
         `}
       >
 
         {estacaoSelecionada && (
 
-          <div className="h-full flex flex-col">
-
+          <>
             {/* HEADER */}
             <div className="flex items-center justify-between p-4 border-b">
 
-              <h2 className="font-bold text-slate-800">
+              <h2 className="font-bold text-slate-800 text-lg">
                 Detalhes da Estação
               </h2>
 
               <button
                 onClick={fechar}
-                className="p-2 rounded-lg hover:bg-slate-100 transition"
+                className="text-slate-500 hover:text-slate-800 text-xl"
               >
                 ✕
               </button>
@@ -88,12 +88,12 @@ export default function PainelEstacao() {
 
             </div>
 
-          </div>
-
+          </>
         )}
 
       </div>
     </>
   )
 }
+
 
