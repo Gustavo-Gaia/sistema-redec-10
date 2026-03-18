@@ -5,6 +5,8 @@
 import Sidebar from "@/components/Sidebar"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import "leaflet/dist/leaflet.css"
+
 
 export default function SistemaLayout({ children }) {
 
