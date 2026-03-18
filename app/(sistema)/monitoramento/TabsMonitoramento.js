@@ -6,7 +6,6 @@ import { useState } from "react"
 
 import SituacaoAtual from "./abas/SituacaoAtual"
 import Historico from "./abas/Historico"
-import MapaEstacoes from "./abas/MapaEstacoes"
 import Relatorios from "./abas/Relatorios"
 import InserirMedicoes from "./abas/InserirMedicoes"
 import Configuracoes from "./abas/configuracoes/Configuracoes"
@@ -22,7 +21,6 @@ export default function TabsMonitoramento({
   const abas = [
     { id: "situacao", nome: "Situação Atual" },
     { id: "historico", nome: "Histórico" },
-    { id: "mapa", nome: "Mapa" },
     { id: "relatorios", nome: "Relatórios" },
     { id: "inserir", nome: "Inserir Medições" },
     { id: "config", nome: "Configurações" }
@@ -51,9 +49,7 @@ export default function TabsMonitoramento({
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"}
             `}
           >
-
             {aba.nome}
-
           </button>
 
         ))}
@@ -67,22 +63,11 @@ export default function TabsMonitoramento({
       <div className="mt-6">
 
         {abaAtiva === "situacao" && (
-          <SituacaoAtual
-            rios={rios}
-            estacoes={estacoes}
-            ultimasMedicoes={ultimasMedicoes}
-          />
+          <SituacaoAtual />
         )}
 
         {abaAtiva === "historico" && (
           <Historico
-            rios={rios}
-            estacoes={estacoes}
-          />
-        )}
-
-        {abaAtiva === "mapa" && (
-          <MapaEstacoes
             rios={rios}
             estacoes={estacoes}
           />
