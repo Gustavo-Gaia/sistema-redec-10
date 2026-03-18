@@ -2,6 +2,7 @@
 
 "use client"
 
+import { useState } from "react"
 import { useMonitoramento } from "../MonitoramentoContext"
 
 import CardEstacao from "./CardEstacao"
@@ -12,21 +13,24 @@ export default function PainelEstacao() {
 
   const {
     estacaoSelecionada,
-    setEstacaoSelecionada
+    selecionarEstacao
   } = useMonitoramento()
+
+  const [aba, setAba] = useState("resumo")
 
   const aberto = !!estacaoSelecionada
 
   function fechar() {
-    setEstacaoSelecionada(null)
+    selecionarEstacao(null)
+  }
+
+  function voltarMapa() {
+    selecionarEstacao(null)
   }
 
   return (
     <>
-      {/* ============================= */}
       {/* BACKDROP */}
-      {/* ============================= */}
-
       <div
         onClick={fechar}
         className={`
@@ -36,19 +40,14 @@ export default function PainelEstacao() {
         `}
       />
 
-      {/* ============================= */}
       {/* PAINEL */}
-      {/* ============================= */}
-
       <div
         className={`
-          fixed z-[1000] bg-white shadow-2xl
-          transition-all duration-300 ease-in-out flex flex-col
+          fixed z-[1000] bg-white shadow-2xl flex flex-col
+          transition-all duration-300
 
-          /* MOBILE (bottom sheet) */
           bottom-0 left-0 w-full h-[90%] rounded-t-2xl
 
-          /* DESKTOP (modal central) */
           md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2
           md:w-[900px] md:h-[85vh] md:rounded-2xl
 
@@ -59,32 +58,76 @@ export default function PainelEstacao() {
       >
 
         {estacaoSelecionada && (
-
           <>
             {/* HEADER */}
             <div className="flex items-center justify-between p-4 border-b">
 
-              <h2 className="font-bold text-slate-800 text-lg">
-                Detalhes da Estação
+              <h2 className="font-bold text-slate-800">
+                {estacaoSelecionada.nome || "Estação"}
               </h2>
 
-              <button
-                onClick={fechar}
-                className="text-slate-500 hover:text-slate-800 text-xl"
-              >
-                ✕
-              </button>
+              <div className="flex gap-2">
+
+                {/* BOTÃO VER NO MAPA */}
+                <button
+                  onClick={voltarMapa}
+                  className="text-sm px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200"
+                >
+                  Ver no mapa
+                </button>
+
+                {/* FECHAR */}
+                <button
+                  onClick={fechar}
+                  className="text-slate-500 hover:text-slate-800 text-lg"
+                >
+                  ✕
+                </button>
+
+              </div>
+
+            </div>
+
+            {/* TABS */}
+            <div className="flex border-b">
+
+              {[
+                { id: "resumo", label: "Resumo" },
+                { id: "grafico", label: "Gráfico" },
+                { id: "historico", label: "Histórico" }
+              ].map((t) => (
+
+                <button
+                  key={t.id}
+                  onClick={() => setAba(t.id)}
+                  className={`
+                    flex-1 p-3 text-sm font-medium
+                    ${aba === t.id
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-slate-500"}
+                  `}
+                >
+                  {t.label}
+                </button>
+
+              ))}
 
             </div>
 
             {/* CONTEÚDO */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4">
 
-              <CardEstacao />
+              {aba === "resumo" && (
+                <CardEstacao />
+              )}
 
-              <GraficoEstacao estacao={estacaoSelecionada} />
+              {aba === "grafico" && (
+                <GraficoEstacao estacao={estacaoSelecionada} />
+              )}
 
-              <TabelaHistorico estacao={estacaoSelecionada} />
+              {aba === "historico" && (
+                <TabelaHistorico estacao={estacaoSelecionada} />
+              )}
 
             </div>
 
@@ -95,5 +138,4 @@ export default function PainelEstacao() {
     </>
   )
 }
-
 
