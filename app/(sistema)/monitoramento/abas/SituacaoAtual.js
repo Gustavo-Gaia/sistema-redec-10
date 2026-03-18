@@ -2,65 +2,89 @@
 
 "use client"
 
-import dynamic from "next/dynamic"
-
 import { useMonitoramento } from "../MonitoramentoContext"
+import { X } from "lucide-react"
 
-import PainelEstacao from "../componentes/PainelEstacao"
-import LegendaStatus from "../componentes/LegendaStatus"
+import CardEstacao from "./CardEstacao"
+import GraficoEstacao from "./GraficoEstacao"
+import TabelaHistorico from "./TabelaHistorico"
 
-// 🚨 IMPORTANTE (SSR OFF)
-const MapaMonitoramento = dynamic(
-  () => import("../componentes/MapaMonitoramento"),
-  { ssr: false }
-)
+export default function PainelEstacao() {
 
-export default function SituacaoAtual() {
+  const { estacaoSelecionada, setEstacaoSelecionada } = useMonitoramento()
 
-  const { estacaoSelecionada } = useMonitoramento()
+  const aberto = !!estacaoSelecionada
 
   return (
-
-    <div className="relative w-full h-[calc(100vh-140px)]">
-
+    <>
       {/* ============================= */}
-      {/* MAPA (FUNDO) */}
+      {/* BACKDROP */}
       {/* ============================= */}
 
-      <MapaMonitoramento />
+      <div
+        onClick={() => setEstacaoSelecionada(null)}
+        className={`
+          fixed inset-0 bg-black/40 backdrop-blur-sm z-[900]
+          transition-opacity duration-300
+          ${aberto ? "opacity-100 visible" : "opacity-0 invisible"}
+        `}
+      />
 
       {/* ============================= */}
-      {/* LEGENDA FLUTUANTE */}
+      {/* PAINEL */}
       {/* ============================= */}
 
-      <div className="absolute bottom-4 left-4 z-[500]">
-        <LegendaStatus />
-      </div>
+      <div
+        className={`
+          fixed z-[1000] bg-white shadow-2xl
+          transition-all duration-300 ease-in-out
 
-      {/* ============================= */}
-      {/* PAINEL LATERAL */}
-      {/* ============================= */}
+          /* MOBILE */
+          bottom-0 left-0 w-full h-[80%] rounded-t-2xl
 
-      <PainelEstacao />
+          /* DESKTOP */
+          md:top-0 md:right-0 md:h-full md:w-[380px] md:rounded-none
 
-      {/* ============================= */}
-      {/* ESTADO INICIAL */}
-      {/* ============================= */}
+          ${aberto
+            ? "translate-y-0 md:translate-x-0"
+            : "translate-y-full md:translate-x-full"}
+        `}
+      >
 
-      {!estacaoSelecionada && (
+        {/* ============================= */}
+        {/* HEADER */}
+        {/* ============================= */}
 
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500]">
+        <div className="flex items-center justify-between p-4 border-b">
 
-          <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-xl shadow text-sm text-slate-700">
-            Clique em uma estação no mapa para visualizar os dados
-          </div>
+          <h2 className="font-semibold text-slate-800">
+            Detalhes da Estação
+          </h2>
+
+          <button
+            onClick={() => setEstacaoSelecionada(null)}
+            className="p-2 rounded-lg hover:bg-slate-100 transition"
+          >
+            <X size={18} />
+          </button>
 
         </div>
 
-      )}
+        {/* ============================= */}
+        {/* CONTEÚDO */}
+        {/* ============================= */}
 
-    </div>
+        <div className="overflow-y-auto h-[calc(100%-60px)] p-4 space-y-6">
 
+          <CardEstacao estacao={estacaoSelecionada} />
+
+          <GraficoEstacao estacao={estacaoSelecionada} />
+
+          <TabelaHistorico estacao={estacaoSelecionada} />
+
+        </div>
+
+      </div>
+    </>
   )
-
 }
