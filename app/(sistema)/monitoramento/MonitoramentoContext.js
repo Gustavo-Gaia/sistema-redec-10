@@ -15,19 +15,36 @@ export function MonitoramentoProvider({
 
   const [estacaoSelecionada, setEstacaoSelecionada] = useState(null)
 
-  // 🔥 Cruzar dados (ESTA É A MÁGICA)
+  /* ======================================== */
+  /* 🔥 MAPA DE MEDIÇÕES (O(1)) */
+  /* ======================================== */
+
+  const medicoesPorEstacao = useMemo(() => {
+    const map = {}
+
+    for (const m of ultimasMedicoes) {
+      map[m.estacao_id] = m
+    }
+
+    return map
+  }, [ultimasMedicoes])
+
+  /* ======================================== */
+  /* 🔥 ESTAÇÕES COM DADOS COMPLETOS */
+  /* ======================================== */
+
   const estacoesComDados = useMemo(() => {
 
     return estacoes.map((estacao) => {
 
-      const medicao = ultimasMedicoes.find(
-        (m) => m.estacao_id === estacao.id
-      )
+      const medicao = medicoesPorEstacao[estacao.id]
 
       const situacao = calcularSituacao(estacao, medicao)
 
       const percentual =
-        medicao && estacao.nivel_transbordo
+        medicao &&
+        !medicao.abaixo_regua &&
+        estacao.nivel_transbordo
           ? (medicao.nivel / estacao.nivel_transbordo) * 100
           : 0
 
@@ -40,9 +57,12 @@ export function MonitoramentoProvider({
 
     })
 
-  }, [estacoes, ultimasMedicoes])
+  }, [estacoes, medicoesPorEstacao])
 
-  // 🔥 Dados da estação selecionada já prontos
+  /* ======================================== */
+  /* 🔥 ESTAÇÃO SELECIONADA COMPLETA */
+  /* ======================================== */
+
   const estacaoAtual = useMemo(() => {
     if (!estacaoSelecionada) return null
 
@@ -51,19 +71,37 @@ export function MonitoramentoProvider({
     )
   }, [estacaoSelecionada, estacoesComDados])
 
+  /* ======================================== */
+  /* 🔥 FUNÇÕES AUXILIARES (UX MAPA) */
+  /* ======================================== */
+
+  const selecionarEstacao = (estacao) => {
+    setEstacaoSelecionada(estacao)
+  }
+
+  const limparSelecao = () => {
+    setEstacaoSelecionada(null)
+  }
+
+  /* ======================================== */
+  /* PROVIDER */
+  /* ======================================== */
+
   return (
     <MonitoramentoContext.Provider
       value={{
 
-        // 🔥 LISTA COMPLETA PRO MAPA
+        // 🔥 DADOS PRINCIPAIS
         estacoes: estacoesComDados,
 
         // 🔥 SELEÇÃO
         estacaoSelecionada,
-        setEstacaoSelecionada,
+        estacaoAtual,
+        selecionarEstacao,
+        limparSelecao,
 
-        // 🔥 DADOS PRONTOS PRO PAINEL
-        estacaoAtual
+        // 🔥 EXTRA (se precisar)
+        medicoesPorEstacao
 
       }}
     >
