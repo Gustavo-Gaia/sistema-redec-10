@@ -4,35 +4,93 @@
 
 import { useMonitoramento } from "../MonitoramentoContext"
 
+import CardEstacao from "./CardEstacao"
+import GraficoEstacao from "./GraficoEstacao"
+import TabelaHistorico from "./TabelaHistorico"
+
 export default function PainelEstacao() {
 
-  const { estacaoSelecionada } = useMonitoramento()
+  const {
+    estacaoSelecionada,
+    setEstacaoSelecionada
+  } = useMonitoramento()
 
-  if (!estacaoSelecionada) {
-    return null
+  // FECHAR PAINEL
+  function fechar() {
+    setEstacaoSelecionada(null)
   }
 
   return (
 
-    <div className="mt-8 bg-white border rounded-xl shadow-sm p-6">
+    <>
+      {/* ============================= */}
+      {/* BACKDROP (escurece fundo) */}
+      {/* ============================= */}
 
-      <h3 className="text-xl font-bold text-slate-800 mb-2">
+      {estacaoSelecionada && (
+        <div
+          onClick={fechar}
+          className="fixed inset-0 bg-black/30 z-40"
+        />
+      )}
 
-        {estacaoSelecionada.municipio}
+      {/* ============================= */}
+      {/* PAINEL */}
+      {/* ============================= */}
 
-      </h3>
+      <div
+        className={`
+          fixed z-50 bg-white shadow-2xl
+          transition-all duration-300
 
-      <p className="text-slate-600 mb-4">
-        Estação hidrológica selecionada
-      </p>
+          /* DESKTOP */
+          top-0 right-0 h-full w-[380px]
 
-      <div className="text-slate-500">
+          /* MOBILE */
+          md:w-[380px] w-full md:h-full h-[85%] md:rounded-none rounded-t-2xl md:top-0 bottom-0
 
-        Gráfico da estação aparecerá aqui.
+          ${estacaoSelecionada
+            ? "translate-x-0 md:translate-x-0 translate-y-0"
+            : "translate-x-full md:translate-x-full translate-y-full"}
+        `}
+      >
+
+        {estacaoSelecionada && (
+
+          <div className="h-full flex flex-col">
+
+            {/* HEADER */}
+            <div className="flex items-center justify-between p-4 border-b">
+
+              <h2 className="font-bold text-slate-800">
+                Detalhes da Estação
+              </h2>
+
+              <button
+                onClick={fechar}
+                className="text-slate-500 hover:text-slate-800"
+              >
+                ✕
+              </button>
+
+            </div>
+
+            {/* CONTEÚDO */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
+              <CardEstacao />
+
+              <GraficoEstacao estacao={estacaoSelecionada} />
+
+              <TabelaHistorico estacao={estacaoSelecionada} />
+
+            </div>
+
+          </div>
+
+        )}
 
       </div>
-
-    </div>
-
+    </>
   )
 }
