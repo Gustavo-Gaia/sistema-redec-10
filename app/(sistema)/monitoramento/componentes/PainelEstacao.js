@@ -12,27 +12,29 @@ export default function PainelEstacao() {
 
   const {
     estacaoSelecionada,
-    setEstacaoSelecionada
+    limparSelecao
   } = useMonitoramento()
 
-  // FECHAR PAINEL
+  const aberto = !!estacaoSelecionada
+
   function fechar() {
-    setEstacaoSelecionada(null)
+    limparSelecao()
   }
 
   return (
-
     <>
       {/* ============================= */}
-      {/* BACKDROP (escurece fundo) */}
+      {/* BACKDROP */}
       {/* ============================= */}
 
-      {estacaoSelecionada && (
-        <div
-          onClick={fechar}
-          className="fixed inset-0 bg-black/30 z-40"
-        />
-      )}
+      <div
+        onClick={fechar}
+        className={`
+          fixed inset-0 bg-black/40 backdrop-blur-sm z-[900]
+          transition-opacity duration-300
+          ${aberto ? "opacity-100 visible" : "opacity-0 invisible"}
+        `}
+      />
 
       {/* ============================= */}
       {/* PAINEL */}
@@ -40,18 +42,18 @@ export default function PainelEstacao() {
 
       <div
         className={`
-          fixed z-50 bg-white shadow-2xl
-          transition-all duration-300
-
-          /* DESKTOP */
-          top-0 right-0 h-full w-[380px]
+          fixed z-[1000] bg-white shadow-2xl
+          transition-all duration-300 ease-in-out
 
           /* MOBILE */
-          md:w-[380px] w-full md:h-full h-[85%] md:rounded-none rounded-t-2xl md:top-0 bottom-0
+          bottom-0 left-0 w-full h-[85%] rounded-t-2xl
 
-          ${estacaoSelecionada
-            ? "translate-x-0 md:translate-x-0 translate-y-0"
-            : "translate-x-full md:translate-x-full translate-y-full"}
+          /* DESKTOP */
+          md:top-0 md:right-0 md:h-full md:w-[380px] md:rounded-none
+
+          ${aberto
+            ? "translate-y-0 md:translate-x-0"
+            : "translate-y-full md:translate-x-full"}
         `}
       >
 
@@ -68,7 +70,7 @@ export default function PainelEstacao() {
 
               <button
                 onClick={fechar}
-                className="text-slate-500 hover:text-slate-800"
+                className="p-2 rounded-lg hover:bg-slate-100 transition"
               >
                 ✕
               </button>
@@ -94,3 +96,4 @@ export default function PainelEstacao() {
     </>
   )
 }
+
