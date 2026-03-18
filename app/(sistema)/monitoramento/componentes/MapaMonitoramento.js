@@ -2,12 +2,12 @@
 
 "use client"
 
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet"
+import { MapContainer, TileLayer, CircleMarker, useMap } from "react-leaflet"
 import { useEffect } from "react"
 import { useMonitoramento } from "../MonitoramentoContext"
 
 // ===============================
-// CONTROLADOR DE FOCO (flyTo)
+// FLY TO
 // ===============================
 
 function FlyToEstacao({ estacao }) {
@@ -27,7 +27,26 @@ function FlyToEstacao({ estacao }) {
 }
 
 // ===============================
-// MAPA PRINCIPAL
+// COR POR STATUS
+// ===============================
+
+function getCor(situacao) {
+  switch (situacao?.texto) {
+    case "Normal":
+      return "#22c55e"
+    case "Alerta":
+      return "#eab308"
+    case "Transbordo":
+      return "#ef4444"
+    case "Extremo":
+      return "#9333ea"
+    default:
+      return "#3b82f6"
+  }
+}
+
+// ===============================
+// MAPA
 // ===============================
 
 export default function MapaMonitoramento() {
@@ -35,17 +54,17 @@ export default function MapaMonitoramento() {
   const {
     estacoes,
     estacaoSelecionada,
-    setEstacaoSelecionada
+    selecionarEstacao
   } = useMonitoramento()
 
   return (
 
-    <div className="w-full h-[500px] rounded-2xl overflow-hidden border border-slate-200">
+    <div className="w-full h-full rounded-2xl overflow-hidden">
 
       <MapContainer
-        center={[-22.9, -43.2]} // RJ padrão (ajustamos depois se quiser)
+        center={[-22.9, -43.2]}
         zoom={8}
-        className="w-full h-full"
+        className="w-full h-full z-0"
       >
 
         {/* BASE MAP */}
@@ -57,43 +76,29 @@ export default function MapaMonitoramento() {
         {/* FLY TO */}
         <FlyToEstacao estacao={estacaoSelecionada} />
 
-        {/* MARKERS */}
+        {/* MARCADORES */}
         {estacoes.map((e) => {
 
           if (!e.latitude || !e.longitude) return null
 
-          const cor = e.situacao?.cor?.includes("red")
-            ? "#ef4444"
-            : e.situacao?.cor?.includes("yellow")
-            ? "#eab308"
-            : "#22c55e"
+          const cor = getCor(e.situacao)
+          const selecionada = estacaoSelecionada?.id === e.id
 
           return (
             <CircleMarker
               key={e.id}
               center={[e.latitude, e.longitude]}
-              radius={10}
+              radius={selecionada ? 14 : 10}
               pathOptions={{
                 color: cor,
                 fillColor: cor,
-                fillOpacity: 0.8
+                fillOpacity: 0.9,
+                weight: selecionada ? 3 : 1
               }}
               eventHandlers={{
-                click: () => setEstacaoSelecionada(e)
+                click: () => selecionarEstacao(e)
               }}
-            >
-              <Popup>
-                <div className="text-sm">
-                  <strong>{e.nome || "Estação"}</strong>
-                  <br />
-                  {e.municipio}
-                  <br />
-                  {e.medicao?.nivel
-                    ? `${Number(e.medicao.nivel).toFixed(2)} m`
-                    : "Sem dados"}
-                </div>
-              </Popup>
-            </CircleMarker>
+            />
           )
         })}
 
