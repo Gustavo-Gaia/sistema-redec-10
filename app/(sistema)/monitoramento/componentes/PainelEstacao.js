@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMonitoramento } from "../MonitoramentoContext"
 
 import CardEstacao from "./CardEstacao"
@@ -16,7 +16,7 @@ export default function PainelEstacao() {
     selecionarEstacao
   } = useMonitoramento()
 
-  const [aba, setAba] = useState("resumo")
+  const [aba, setAba] = useState("visao")
 
   const aberto = !!estacaoSelecionada
 
@@ -24,9 +24,12 @@ export default function PainelEstacao() {
     selecionarEstacao(null)
   }
 
-  function voltarMapa() {
-    selecionarEstacao(null)
-  }
+  // 🔥 SEMPRE VOLTAR PRA VISÃO GERAL AO TROCAR ESTAÇÃO
+  useEffect(() => {
+    if (estacaoSelecionada) {
+      setAba("visao")
+    }
+  }, [estacaoSelecionada])
 
   return (
     <>
@@ -46,8 +49,10 @@ export default function PainelEstacao() {
           fixed z-[1000] bg-white shadow-2xl flex flex-col
           transition-all duration-300
 
+          /* MOBILE */
           bottom-0 left-0 w-full h-[90%] rounded-t-2xl
 
+          /* DESKTOP */
           md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2
           md:w-[900px] md:h-[85vh] md:rounded-2xl
 
@@ -68,9 +73,9 @@ export default function PainelEstacao() {
 
               <div className="flex gap-2">
 
-                {/* BOTÃO VER NO MAPA */}
+                {/* VER NO MAPA */}
                 <button
-                  onClick={voltarMapa}
+                  onClick={fechar}
                   className="text-sm px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200"
                 >
                   Ver no mapa
@@ -91,38 +96,40 @@ export default function PainelEstacao() {
             {/* TABS */}
             <div className="flex border-b">
 
-              {[
-                { id: "resumo", label: "Resumo" },
-                { id: "grafico", label: "Gráfico" },
-                { id: "historico", label: "Histórico" }
-              ].map((t) => (
+              <button
+                onClick={() => setAba("visao")}
+                className={`
+                  flex-1 p-3 text-sm font-medium transition
+                  ${aba === "visao"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-slate-500 hover:text-slate-700"}
+                `}
+              >
+                Visão geral
+              </button>
 
-                <button
-                  key={t.id}
-                  onClick={() => setAba(t.id)}
-                  className={`
-                    flex-1 p-3 text-sm font-medium
-                    ${aba === t.id
-                      ? "border-b-2 border-blue-600 text-blue-600"
-                      : "text-slate-500"}
-                  `}
-                >
-                  {t.label}
-                </button>
-
-              ))}
+              <button
+                onClick={() => setAba("historico")}
+                className={`
+                  flex-1 p-3 text-sm font-medium transition
+                  ${aba === "historico"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-slate-500 hover:text-slate-700"}
+                `}
+              >
+                Histórico
+              </button>
 
             </div>
 
             {/* CONTEÚDO */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
 
-              {aba === "resumo" && (
-                <CardEstacao />
-              )}
-
-              {aba === "grafico" && (
-                <GraficoEstacao estacao={estacaoSelecionada} />
+              {aba === "visao" && (
+                <>
+                  <CardEstacao />
+                  <GraficoEstacao estacao={estacaoSelecionada} />
+                </>
               )}
 
               {aba === "historico" && (
