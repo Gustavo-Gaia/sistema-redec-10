@@ -55,7 +55,10 @@ export default async function Monitoramento() {
 
   return (
 
-    <MonitoramentoProvider>
+    <MonitoramentoProvider
+      estacoes={estacoes || []}
+      ultimasMedicoes={ultimasMedicoes || []}
+    >
 
       <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-white/50">
 
