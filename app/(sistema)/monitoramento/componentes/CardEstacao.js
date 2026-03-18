@@ -1,47 +1,14 @@
 /* app/(sistema)/monitoramento/componentes/CardEstacao.js */
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
 import { useMonitoramento } from "../MonitoramentoContext"
-import { calcularSituacao } from "../utils/calcularSituacao"
 import { Waves, Clock, Database, Activity, ShieldCheck } from "lucide-react"
 
 export default function CardEstacao() {
-  const { estacaoSelecionada } = useMonitoramento()
-  const [medicao, setMedicao] = useState(null)
+  // Puxamos a estacaoAtual que já contém medicao, situacao e percentual processados
+  const { estacaoAtual } = useMonitoramento()
 
-  useEffect(() => {
-    if (!estacaoSelecionada) return
-    async function carregar() {
-      const res = await fetch(`/api/historico-estacao?id=${estacaoSelecionada.id}&limit=1`)
-      const dados = await res.json()
-      setMedicao(dados?.[0] || null)
-    }
-    carregar()
-  }, [estacaoSelecionada])
-
-  const { situacao, percentual, corHex } = useMemo(() => {
-    if (!estacaoSelecionada) return { situacao: { texto: "—", cor: "bg-slate-200" }, percentual: 0, corHex: "#e2e8f0" }
-    
-    const sit = calcularSituacao(estacaoSelecionada, medicao)
-    const cota = estacaoSelecionada.nivel_transbordo
-    const perc = (medicao && !medicao.abaixo_regua && cota) ? (medicao.nivel / cota) * 100 : 0
-    
-    const cores = {
-      "Normal": "#10b981",
-      "Alerta": "#facc15",
-      "Transbordo": "#ef4444",
-      "Extremo": "#9333ea"
-    }
-
-    return { 
-      situacao: sit, 
-      percentual: perc, 
-      corHex: cores[sit.texto] || "#3b82f6" 
-    }
-  }, [estacaoSelecionada, medicao])
-
-  if (!estacaoSelecionada) {
+  if (!estacaoAtual) {
     return (
       <div className="bg-white border border-slate-200 rounded-[2.5rem] p-12 text-center text-slate-400">
         Selecione uma estação para monitorar.
@@ -49,8 +16,23 @@ export default function CardEstacao() {
     )
   }
 
-  const strokeDash = 364
-  const offset = strokeDash - (Math.min(percentual, 120) / 120 * strokeDash)
+  const { situacao, percentual, medicao } = estacaoAtual
+
+  // Mapeamento de cores para o Gauge e efeitos visuais
+  const coresHex = {
+    "Normal": "#10b981",
+    "Alerta": "#facc15",
+    "Transbordo": "#ef4444",
+    "Extremo": "#9333ea",
+    "Abaixo da régua": "#64748b",
+    "Sem cota de transbordo": "#94a3b8"
+  }
+
+  const corHex = coresHex[situacao.texto] || "#3b82f6"
+  
+  // Cálculo do Gauge (Raio 75 = 471 de circunferência)
+  const circunferencia = 471
+  const offset = circunferencia - (Math.min(percentual, 120) / 120 * circunferencia)
 
   return (
     <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-2xl shadow-slate-200/40 p-6 md:p-10">
@@ -63,10 +45,10 @@ export default function CardEstacao() {
             Dados em Tempo Real
           </div>
           <h3 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
-            {estacaoSelecionada.municipio}
+            {estacaoAtual.municipio}
           </h3>
           <p className="text-xl text-slate-400 font-medium italic uppercase tracking-wide">
-            {estacaoSelecionada.nome_rio || "—"}
+            {estacaoAtual.rios?.nome || "—"}
           </p>
         </div>
 
@@ -78,7 +60,7 @@ export default function CardEstacao() {
 
       <div className="flex flex-col lg:flex-row gap-12 items-center">
         
-        {/* GAUGE CIRCULAR - TEXTO SEPARADO DO SVG PARA NÃO SOBREPOR */}
+        {/* GAUGE CIRCULAR */}
         <div className="relative flex items-center justify-center w-44 h-44">
           <div 
             className="absolute inset-0 rounded-full blur-3xl opacity-10"
@@ -92,8 +74,8 @@ export default function CardEstacao() {
               stroke={corHex}
               strokeWidth="12"
               fill="transparent"
-              strokeDasharray={471} // Ajustado para o novo raio de 75
-              strokeDashoffset={471 - (Math.min(percentual, 120) / 120 * 471)}
+              strokeDasharray={circunferencia}
+              strokeDashoffset={offset}
               strokeLinecap="round"
               className="transition-all duration-1000 ease-in-out"
             />
@@ -101,7 +83,9 @@ export default function CardEstacao() {
           
           <div className="relative z-10 flex flex-col items-center justify-center">
             <div className="flex items-baseline">
-              <span className="text-4xl font-black text-slate-900 leading-none">{percentual.toFixed(0)}</span>
+              <span className="text-4xl font-black text-slate-900 leading-none">
+                {percentual > 0 ? percentual.toFixed(0) : "0"}
+              </span>
               <span className="text-lg font-bold text-slate-400 ml-0.5">%</span>
             </div>
             <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mt-1">
@@ -110,7 +94,7 @@ export default function CardEstacao() {
           </div>
         </div>
 
-        {/* MÉTRICAS - FONTE DINÂMICA INTEGRADA */}
+        {/* MÉTRICAS */}
         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <MetricCard 
             label="Nível Atual" 
@@ -120,7 +104,7 @@ export default function CardEstacao() {
           />
           <MetricCard 
             label="Cota Transbordo" 
-            value={`${estacaoSelecionada.nivel_transbordo || "—"}m`} 
+            value={`${estacaoAtual.nivel_transbordo || "—"}m`} 
             icon={<Database className="text-slate-400" size={16} />}
           />
           <MetricCard 
@@ -130,7 +114,7 @@ export default function CardEstacao() {
           />
           <MetricCard 
             label="Fonte da Estação" 
-            value={estacaoSelecionada.fonte || "INEA"} 
+            value={estacaoAtual.fonte || "—"} 
             icon={<ShieldCheck className="text-green-500" size={16} />}
           />
         </div>
