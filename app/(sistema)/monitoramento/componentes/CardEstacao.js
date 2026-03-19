@@ -5,7 +5,6 @@ import { useMonitoramento } from "../MonitoramentoContext"
 import { Waves, Clock, Database, Activity, ShieldCheck } from "lucide-react"
 
 export default function CardEstacao() {
-  // Puxamos a estacaoAtual que já contém medicao, situacao e percentual processados
   const { estacaoAtual } = useMonitoramento()
 
   if (!estacaoAtual) {
@@ -18,7 +17,6 @@ export default function CardEstacao() {
 
   const { situacao, percentual, medicao } = estacaoAtual
 
-  // Mapeamento de cores para o Gauge e efeitos visuais
   const coresHex = {
     "Normal": "#10b981",
     "Alerta": "#facc15",
@@ -29,10 +27,20 @@ export default function CardEstacao() {
   }
 
   const corHex = coresHex[situacao.texto] || "#3b82f6"
-  
-  // Cálculo do Gauge (Raio 75 = 471 de circunferência)
   const circunferencia = 471
   const offset = circunferencia - (Math.min(percentual, 120) / 120 * circunferencia)
+
+  // Formatação da Data e Hora separadamente
+  const formatarDataHora = (isoString) => {
+    if (!isoString) return { data: "--/--", hora: "--:--" }
+    const d = new Date(isoString)
+    return {
+      data: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    }
+  }
+
+  const leitura = formatarDataHora(medicao?.data_hora)
 
   return (
     <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-2xl shadow-slate-200/40 p-6 md:p-10">
@@ -62,35 +70,24 @@ export default function CardEstacao() {
         
         {/* GAUGE CIRCULAR */}
         <div className="relative flex items-center justify-center w-44 h-44">
-          <div 
-            className="absolute inset-0 rounded-full blur-3xl opacity-10"
-            style={{ backgroundColor: corHex }}
-          />
-          
+          <div className="absolute inset-0 rounded-full blur-3xl opacity-10" style={{ backgroundColor: corHex }} />
           <svg className="absolute inset-0 w-full h-full transform -rotate-90">
             <circle cx="88" cy="88" r="75" stroke="#f8fafc" strokeWidth="12" fill="transparent" />
             <circle
               cx="88" cy="88" r="75"
-              stroke={corHex}
-              strokeWidth="12"
-              fill="transparent"
+              stroke={corHex} strokeWidth="12" fill="transparent"
               strokeDasharray={circunferencia}
               strokeDashoffset={offset}
               strokeLinecap="round"
               className="transition-all duration-1000 ease-in-out"
             />
           </svg>
-          
           <div className="relative z-10 flex flex-col items-center justify-center">
             <div className="flex items-baseline">
-              <span className="text-4xl font-black text-slate-900 leading-none">
-                {percentual > 0 ? percentual.toFixed(0) : "0"}
-              </span>
+              <span className="text-4xl font-black text-slate-900 leading-none">{percentual > 0 ? percentual.toFixed(0) : "0"}</span>
               <span className="text-lg font-bold text-slate-400 ml-0.5">%</span>
             </div>
-            <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mt-1">
-              Capacidade
-            </span>
+            <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mt-1">Capacidade</span>
           </div>
         </div>
 
@@ -107,11 +104,19 @@ export default function CardEstacao() {
             value={`${estacaoAtual.nivel_transbordo || "—"}m`} 
             icon={<Database className="text-slate-400" size={16} />}
           />
+          
+          {/* ÚLTIMA LEITURA COM DATA E HORA SEPARADOS */}
           <MetricCard 
             label="Última Leitura" 
-            value={medicao?.data_hora ? new Date(medicao.data_hora).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} 
+            value={
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-slate-900">{leitura.hora}</span>
+                <span className="text-sm font-bold text-slate-400">{leitura.data}</span>
+              </div>
+            } 
             icon={<Clock className="text-slate-400" size={16} />}
           />
+
           <MetricCard 
             label="Fonte da Estação" 
             value={estacaoAtual.fonte || "—"} 
@@ -130,7 +135,9 @@ function MetricCard({ label, value, icon, isMain = false }) {
         {icon}
         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
       </div>
-      <p className="text-2xl font-black text-slate-900 tracking-tight">{value}</p>
+      <div className="text-2xl font-black text-slate-900 tracking-tight">
+        {value}
+      </div>
     </div>
   )
 }
