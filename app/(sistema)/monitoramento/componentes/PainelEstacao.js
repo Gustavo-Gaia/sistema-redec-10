@@ -11,137 +11,115 @@ import TabelaHistorico from "./TabelaHistorico"
 
 export default function PainelEstacao() {
 
-  const {
-    estacaoSelecionada,
-    selecionarEstacao
-  } = useMonitoramento()
+  const {
+    estacaoSelecionada,
+    selecionarEstacao
+  } = useMonitoramento()
 
-  const [aba, setAba] = useState("visao")
+  const [aba, setAba] = useState("visao")
 
-  const aberto = !!estacaoSelecionada
+  const aberto = !!estacaoSelecionada
 
-  function fechar() {
-    selecionarEstacao(null)
-  }
+  function fechar() {
+    selecionarEstacao(null)
+  }
 
-  // 🔥 SEMPRE VOLTAR PRA VISÃO GERAL AO TROCAR ESTAÇÃO
-  useEffect(() => {
-    if (estacaoSelecionada) {
-      setAba("visao")
-    }
-  }, [estacaoSelecionada])
+  // 🔥 Sempre volta pra visão geral ao trocar estação
+  useEffect(() => {
+    if (estacaoSelecionada) {
+      setAba("visao")
+    }
+  }, [estacaoSelecionada])
 
-  return (
-    <>
-      {/* BACKDROP */}
-      <div
-        onClick={fechar}
-        className={`
-          fixed inset-0 bg-black/50 backdrop-blur-sm z-[999]
-          transition-opacity duration-300
-          ${aberto ? "opacity-100 visible" : "opacity-0 invisible"}
-        `}
-      />
+  return (
+    <>
+      {/* BACKDROP */}
+      <div
+        onClick={fechar}
+        className={`
+          fixed inset-0 bg-black/50 backdrop-blur-sm z-[999]
+          transition-opacity duration-300
+          ${aberto ? "opacity-100 visible" : "opacity-0 invisible"}
+        `}
+      />
 
-      {/* PAINEL */}
-      <div
-        className={`
-          fixed z-[1000] bg-white shadow-2xl flex flex-col
-          transition-all duration-300
+      {/* PAINEL */}
+      <div
+        className={`
+          fixed z-[1000] bg-white shadow-2xl flex flex-col
+          transition-all duration-300
 
-          /* MOBILE */
-          bottom-0 left-0 w-full h-[90%] rounded-t-2xl
+          /* MOBILE */
+          bottom-0 left-0 w-full h-[90%] rounded-t-2xl
 
-          /* DESKTOP */
-          md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2
-          md:w-[900px] md:h-[85vh] md:rounded-2xl
+          /* DESKTOP */
+          md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2
+          md:w-[900px] md:h-[85vh] md:rounded-2xl
 
-          ${aberto
-            ? "translate-y-0 opacity-100"
-            : "translate-y-full md:translate-y-[-40%] opacity-0 pointer-events-none"}
-        `}
-      >
+          ${aberto
+            ? "translate-y-0 opacity-100"
+            : "translate-y-full md:translate-y-[-40%] opacity-0 pointer-events-none"}
+        `}
+      >
 
-        {estacaoSelecionada && (
-          <>
-            {/* HEADER */}
-            <div className="flex items-center justify-between p-4 border-b">
+        {estacaoSelecionada && (
+          <>
+            {/* HEADER LIMPO */}
+            <div className="flex items-center justify-end p-4 border-b">
+              <button
+                onClick={fechar}
+                className="text-slate-400 hover:text-slate-900 text-xl transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
 
-              <h2 className="font-bold text-slate-800">
-                {estacaoSelecionada.nome || "Estação"}
-              </h2>
+            {/* TABS */}
+            <div className="flex border-b">
+              <button
+                onClick={() => setAba("visao")}
+                className={`
+                  flex-1 p-3 text-sm font-medium transition
+                  ${aba === "visao"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-slate-500 hover:text-slate-700"}
+                `}
+              >
+                Visão geral
+              </button>
 
-              <div className="flex gap-2">
+              <button
+                onClick={() => setAba("historico")}
+                className={`
+                  flex-1 p-3 text-sm font-medium transition
+                  ${aba === "historico"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-slate-500 hover:text-slate-700"}
+                `}
+              >
+                Histórico
+              </button>
+            </div>
 
-                {/* VER NO MAPA */}
-                <button
-                  onClick={fechar}
-                  className="text-sm px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200"
-                >
-                  Ver no mapa
-                </button>
+            {/* CONTEÚDO */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
 
-                {/* FECHAR */}
-                <button
-                  onClick={fechar}
-                  className="text-slate-500 hover:text-slate-800 text-lg"
-                >
-                  ✕
-                </button>
+              {aba === "visao" && (
+                <>
+                  <CardEstacao />
+                  <GraficoEstacao estacao={estacaoSelecionada} />
+                </>
+              )}
 
-              </div>
+              {aba === "historico" && (
+                <TabelaHistorico estacao={estacaoSelecionada} />
+              )}
 
-            </div>
+            </div>
+          </>
+        )}
 
-            {/* TABS */}
-            <div className="flex border-b">
-
-              <button
-                onClick={() => setAba("visao")}
-                className={`
-                  flex-1 p-3 text-sm font-medium transition
-                  ${aba === "visao"
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-slate-500 hover:text-slate-700"}
-                `}
-              >
-                Visão geral
-              </button>
-
-              <button
-                onClick={() => setAba("historico")}
-                className={`
-                  flex-1 p-3 text-sm font-medium transition
-                  ${aba === "historico"
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-slate-500 hover:text-slate-700"}
-                `}
-              >
-                Histórico
-              </button>
-
-            </div>
-
-            {/* CONTEÚDO */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-
-              {aba === "visao" && (
-                <>
-                  <CardEstacao />
-                  <GraficoEstacao estacao={estacaoSelecionada} />
-                </>
-              )}
-
-              {aba === "historico" && (
-                <TabelaHistorico estacao={estacaoSelecionada} />
-              )}
-
-            </div>
-
-          </>
-        )}
-
-      </div>
-    </>
-  )
+      </div>
+    </>
+  )
 }
