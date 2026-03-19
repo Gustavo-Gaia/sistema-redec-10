@@ -26,12 +26,12 @@ function FlyToEstacao({ estacao }) {
 // ========================================
 // 🎯 ÍCONE CUSTOMIZADO (COM PULSO + HOVER)
 // ========================================
-const criarIconeCustomizado = (cor, situacaoTexto, selecionada) => {
+const criarIconeCustomizado = (cor, status, selecionada) => {
 
   const tamanho = selecionada ? 45 : 35
 
-  // 🔥 DEFINE SE É CRÍTICO
-  const critico = ["Alerta", "Transbordo", "Extremo"].includes(situacaoTexto)
+  // 🔥 AGORA BASEADO EM STATUS (CORRETO)
+  const critico = ["alerta", "transbordo", "extremo"].includes(status)
 
   return L.divIcon({
     className: `custom-pin ${critico ? "marker-critical-pulse" : ""}`,
@@ -49,7 +49,7 @@ const criarIconeCustomizado = (cor, situacaoTexto, selecionada) => {
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          style="filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.3));"
+          style="filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.3)); transition: all 0.2s ease;"
         >
           <path 
             d="M12 21C16 17.5 19 14.402 19 11.2C19 7.22355 15.866 4 12 4C8.13401 4 5 7.22355 5 11.2C5 14.402 8 17.5 12 21Z" 
@@ -75,13 +75,15 @@ export default function MapaMonitoramento() {
 
   const { estacoes, estacaoSelecionada, selecionarEstacao } = useMonitoramento()
 
+  // 🔥 AGORA BASEADO EM STATUS (PADRÃO PROFISSIONAL)
   const coresHex = {
-    "Normal": "#10b981",
-    "Alerta": "#facc15",
-    "Transbordo": "#ef4444",
-    "Extremo": "#9333ea",
-    "Abaixo da régua": "#64748b",
-    "Sem dados": "#94a3b8"
+    normal: "#10b981",
+    alerta: "#facc15",
+    transbordo: "#ef4444",
+    extremo: "#9333ea",
+    abaixo_regua: "#64748b",
+    sem_dado: "#94a3b8",
+    sem_cota: "#94a3b8"
   }
 
   return (
@@ -104,15 +106,15 @@ export default function MapaMonitoramento() {
 
           if (!e.latitude || !e.longitude) return null
 
-          const situacaoTexto = e.situacao?.texto || "Sem dados"
-          const cor = coresHex[situacaoTexto] || "#3b82f6"
+          const status = e.situacao?.status || "sem_dado"
+          const cor = coresHex[status] || "#3b82f6"
           const selecionada = estacaoSelecionada?.id === e.id
 
           return (
             <Marker
               key={`${e.id}-${e.medicao?.data_hora}`}
               position={[e.latitude, e.longitude]}
-              icon={criarIconeCustomizado(cor, situacaoTexto, selecionada)}
+              icon={criarIconeCustomizado(cor, status, selecionada)}
               eventHandlers={{
                 click: () => selecionarEstacao(e)
               }}
@@ -139,9 +141,9 @@ export default function MapaMonitoramento() {
                       : `${e.medicao?.nivel?.toFixed(2) || "0.00"} m`}
                   </div>
 
-                  {/* STATUS */}
+                  {/* STATUS (aqui pode usar texto tranquilo) */}
                   <div className={`mt-1 text-[9px] font-black uppercase text-center px-2 py-0.5 rounded ${e.situacao.cor} text-white`}>
-                    {situacaoTexto}
+                    {e.situacao?.texto}
                   </div>
 
                 </div>
