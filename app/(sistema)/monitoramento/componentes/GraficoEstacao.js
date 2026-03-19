@@ -14,7 +14,6 @@ export default function GraficoEstacao({ estacao }) {
   const [periodo, setPeriodo] = useState("24h")
   const [loading, setLoading] = useState(false)
 
-  // 🔥 Agora baseado em PERÍODO (não mais limit)
   const filtros = {
     "24h": { label: "Últimas 24h" },
     "7d": { label: "Últimos 7 dias" },
@@ -44,7 +43,7 @@ export default function GraficoEstacao({ estacao }) {
                 ? dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
                 : dataObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
 
-            nivel: m.abaixo_regua ? null : Number(m.nivel),
+            nivel: Number(m.nivel), // 🔥 SEM depender de abaixo_regua
             fullDate: dataObj.toLocaleString("pt-BR")
           }
         })
@@ -62,14 +61,16 @@ export default function GraficoEstacao({ estacao }) {
 
   }, [estacao, periodo])
 
-  // 🔥 Tendência
+  // 🔥 Tendência segura (ignora null/undefined)
   const tendencia = useMemo(() => {
-    if (dados.length < 2) {
+    const validos = dados.filter(d => d.nivel !== null && d.nivel !== undefined)
+
+    if (validos.length < 2) {
       return { icon: <Minus size={16}/>, texto: "Estável", cor: "text-slate-400" }
     }
 
-    const ultimo = dados[dados.length - 1].nivel
-    const anterior = dados[dados.length - 2].nivel
+    const ultimo = validos[validos.length - 1].nivel
+    const anterior = validos[validos.length - 2].nivel
 
     if (ultimo > anterior) return { icon: <TrendingUp size={16}/>, texto: "Subindo", cor: "text-red-500" }
     if (ultimo < anterior) return { icon: <TrendingDown size={16}/>, texto: "Descendo", cor: "text-green-500" }
@@ -137,7 +138,7 @@ export default function GraficoEstacao({ estacao }) {
         </div>
       </div>
 
-      {/* LOADING OVERLAY */}
+      {/* LOADING */}
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-[2rem] z-10">
           <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -170,7 +171,10 @@ export default function GraficoEstacao({ estacao }) {
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
-              domain={[0, (dataMax) => Math.max(dataMax, cotaExtremo ? cotaExtremo * 1.1 : 5)]}
+              domain={[
+                0,
+                (dataMax) => Math.max(dataMax || 0, cotaExtremo ? cotaExtremo * 1.1 : 5)
+              ]}
             />
 
             <Tooltip content={<CustomTooltip />} />
@@ -195,6 +199,7 @@ export default function GraficoEstacao({ estacao }) {
               fillOpacity={1}
               fill="url(#colorNivelFix)"
               animationDuration={800}
+              connectNulls
             />
 
           </AreaChart>
