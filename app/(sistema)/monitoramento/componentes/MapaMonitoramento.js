@@ -80,19 +80,35 @@ export default function MapaMonitoramento() {
               }}
             >
               {/* Tooltip estilo SACE/CPRM (aparece no hover) */}
-              <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
-                <div className="flex flex-col p-1">
-                  <span className="text-[10px] font-black uppercase text-slate-400 leading-none">
-                    {e.municipio}
-                  </span>
-                  <span className="text-sm font-bold text-slate-800">
-                    {e.medicao?.abaixo_regua ? "Abaixo da Régua" : `${e.medicao?.nivel?.toFixed(2) || "0.00"} m`}
-                  </span>
-                  <span className={`text-[9px] font-black uppercase mt-1 px-1.5 py-0.5 rounded ${e.situacao.cor} text-white text-center`}>
-                    {e.situacao.texto}
-                  </span>
-                </div>
-              </Tooltip>
+              <Tooltip
+                direction="top"
+                offset={[0, -8]}
+                opacity={1}
+                sticky
+                className="!bg-transparent !border-none !shadow-none"
+              >
+                <div className="px-3 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg min-w-[120px]">
+              
+                  {/* NOME */}
+                  <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider text-center leading-none">
+                    {e.municipio}
+                  </div>
+              
+                  {/* VALOR */}
+                  <div className="text-sm font-black text-slate-900 text-center mt-1">
+                    {e.medicao?.abaixo_regua
+                      ? "A/R"
+                      : `${e.medicao?.nivel?.toFixed(2) || "0.00"} m`}
+                  </div>
+              
+                  {/* STATUS */}
+                  <div className={`mt-1 text-[9px] font-black uppercase text-center px-2 py-0.5 rounded ${e.situacao.cor} text-white`}>
+                    {e.situacao.texto}
+                  </div>
+              
+                </div>
+              </Tooltip>
+
             </Marker>
           )
         })}
