@@ -1,143 +1,116 @@
-/* app/(sistema)/monitoramento/componentes/CardEstacao.js */
+/* app/(sistema)/monitoramento/componentes/PainelEstacao.js */
+
 "use client"
 
+import { useState, useEffect } from "react"
 import { useMonitoramento } from "../MonitoramentoContext"
-import { Waves, Clock, Database, Activity, ShieldCheck } from "lucide-react"
+import { X } from "lucide-react"
 
-export default function CardEstacao() {
-  const { estacaoAtual } = useMonitoramento()
+import CardEstacao from "./CardEstacao"
+import GraficoEstacao from "./GraficoEstacao"
+import TabelaHistorico from "./TabelaHistorico"
 
-  if (!estacaoAtual) {
-    return (
-      <div className="bg-white border border-slate-200 rounded-[2.5rem] p-12 text-center text-slate-400">
-        Selecione uma estação para monitorar.
-      </div>
-    )
+export default function PainelEstacao() {
+  const { estacaoSelecionada, selecionarEstacao } = useMonitoramento()
+  const [aba, setAba] = useState("visao")
+
+  const aberto = !!estacaoSelecionada
+
+  function fechar() {
+    selecionarEstacao(null)
   }
 
-  const { situacao, percentual, medicao } = estacaoAtual
-
-  const coresHex = {
-    "Normal": "#10b981",
-    "Alerta": "#facc15",
-    "Transbordo": "#ef4444",
-    "Extremo": "#9333ea",
-    "Abaixo da régua": "#64748b",
-    "Sem cota de transbordo": "#94a3b8"
-  }
-
-  const corHex = coresHex[situacao.texto] || "#3b82f6"
-  const circunferencia = 471
-  const offset = circunferencia - (Math.min(percentual, 120) / 120 * circunferencia)
-
-  // Formatação da Data e Hora separadamente
-  const formatarDataHora = (isoString) => {
-    if (!isoString) return { data: "--/--", hora: "--:--" }
-    const d = new Date(isoString)
-    return {
-      data: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  useEffect(() => {
+    if (estacaoSelecionada) {
+      setAba("visao")
     }
-  }
-
-  const leitura = formatarDataHora(medicao?.data_hora)
+  }, [estacaoSelecionada])
 
   return (
-    <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-2xl shadow-slate-200/40 p-6 md:p-10">
-      
-      {/* CABEÇALHO */}
-      <div className="flex flex-col md:flex-row justify-between items-start mb-10 gap-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-[0.2em]">
-            <Activity size={14} className="animate-pulse" />
-            Dados em Tempo Real
-          </div>
-          <h3 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
-            {estacaoAtual.municipio}
-          </h3>
-          <p className="text-xl text-slate-400 font-medium italic uppercase tracking-wide">
-            {estacaoAtual.rios?.nome || "—"}
-          </p>
-        </div>
+    <>
+      {/* BACKDROP */}
+      <div
+        onClick={fechar}
+        className={`
+          fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[999]
+          transition-opacity duration-500
+          ${aberto ? "opacity-100 visible" : "opacity-0 invisible"}
+        `}
+      />
 
-        <div className={`flex items-center gap-3 px-6 py-3 rounded-2xl shadow-sm ${situacao.cor} text-white`}>
-          <div className="w-2 h-2 rounded-full bg-white animate-ping" />
-          <span className="font-black uppercase tracking-widest text-xs">{situacao.texto}</span>
-        </div>
-      </div>
+      {/* PAINEL */}
+      <div
+        className={`
+          fixed z-[1000] bg-white shadow-2xl flex flex-col overflow-hidden
+          transition-all duration-500 ease-in-out
 
-      <div className="flex flex-col lg:flex-row gap-12 items-center">
-        
-        {/* GAUGE CIRCULAR */}
-        <div className="relative flex items-center justify-center w-44 h-44">
-          <div className="absolute inset-0 rounded-full blur-3xl opacity-10" style={{ backgroundColor: corHex }} />
-          <svg className="absolute inset-0 w-full h-full transform -rotate-90">
-            <circle cx="88" cy="88" r="75" stroke="#f8fafc" strokeWidth="12" fill="transparent" />
-            <circle
-              cx="88" cy="88" r="75"
-              stroke={corHex} strokeWidth="12" fill="transparent"
-              strokeDasharray={circunferencia}
-              strokeDashoffset={offset}
-              strokeLinecap="round"
-              className="transition-all duration-1000 ease-in-out"
-            />
-          </svg>
-          <div className="relative z-10 flex flex-col items-center justify-center">
-            <div className="flex items-baseline">
-              <span className="text-4xl font-black text-slate-900 leading-none">{percentual > 0 ? percentual.toFixed(0) : "0"}</span>
-              <span className="text-lg font-bold text-slate-400 ml-0.5">%</span>
+          /* MOBILE */
+          bottom-0 left-0 w-full h-[92%] rounded-t-[2.5rem]
+
+          /* DESKTOP */
+          md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2
+          md:w-[950px] md:h-[85vh] md:rounded-[3rem]
+
+          ${aberto 
+            ? "translate-y-0 opacity-100" 
+            : "translate-y-full md:scale-95 md:opacity-0 pointer-events-none"}
+        `}
+      >
+        {estacaoSelecionada && (
+          <>
+            {/* HEADER SIMPLIFICADO */}
+            <div className="flex items-center justify-end px-8 py-4 border-b border-slate-100">
+              <button
+                onClick={fechar}
+                className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+              >
+                <X size={24} />
+              </button>
             </div>
-            <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mt-1">Capacidade</span>
-          </div>
-        </div>
 
-        {/* MÉTRICAS */}
-        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-          <MetricCard 
-            label="Nível Atual" 
-            value={medicao?.abaixo_regua ? "A/R" : medicao?.nivel ? `${medicao.nivel}m` : "—"} 
-            icon={<Waves className="text-blue-500" size={16} />}
-            isMain={true}
-          />
-          <MetricCard 
-            label="Cota Transbordo" 
-            value={`${estacaoAtual.nivel_transbordo || "—"}m`} 
-            icon={<Database className="text-slate-400" size={16} />}
-          />
-          
-          {/* ÚLTIMA LEITURA COM DATA E HORA SEPARADOS */}
-          <MetricCard 
-            label="Última Leitura" 
-            value={
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900">{leitura.hora}</span>
-                <span className="text-sm font-bold text-slate-400">{leitura.data}</span>
-              </div>
-            } 
-            icon={<Clock className="text-slate-400" size={16} />}
-          />
+            {/* TABS */}
+            <div className="flex bg-white px-8 border-b border-slate-100 gap-8">
+              <button
+                onClick={() => setAba("visao")}
+                className={`
+                  py-4 text-[11px] font-black uppercase tracking-widest transition-all relative
+                  ${aba === "visao" ? "text-blue-600" : "text-slate-400 hover:text-slate-600"}
+                `}
+              >
+                Visão Geral
+                {aba === "visao" && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-t-full" />}
+              </button>
 
-          <MetricCard 
-            label="Fonte da Estação" 
-            value={estacaoAtual.fonte || "—"} 
-            icon={<ShieldCheck className="text-green-500" size={16} />}
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
+              <button
+                onClick={() => setAba("historico")}
+                className={`
+                  py-4 text-[11px] font-black uppercase tracking-widest transition-all relative
+                  ${aba === "historico" ? "text-blue-600" : "text-slate-400 hover:text-slate-600"}
+                `}
+              >
+                Histórico
+                {aba === "historico" && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-t-full" />}
+              </button>
+            </div>
 
-function MetricCard({ label, value, icon, isMain = false }) {
-  return (
-    <div className={`p-6 rounded-[1.8rem] border transition-all duration-300 ${isMain ? 'bg-blue-50/40 border-blue-100 shadow-sm' : 'bg-slate-50/50 border-slate-100'}`}>
-      <div className="flex items-center gap-2 mb-2">
-        {icon}
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+            {/* CONTEÚDO SCROLLABLE */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 custom-scrollbar">
+              {aba === "visao" && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <CardEstacao />
+                  <GraficoEstacao estacao={estacaoSelecionada} />
+                </div>
+              )}
+
+              {aba === "historico" && (
+                <div className="animate-in fade-in duration-500">
+                  <TabelaHistorico estacao={estacaoSelecionada} />
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
-      <div className="text-2xl font-black text-slate-900 tracking-tight">
-        {value}
-      </div>
-    </div>
+    </>
   )
 }
