@@ -23,5 +23,54 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+/* ============================= */
+/* 🔥 PULSO CRÍTICO (HALO) */
+/* ============================= */
+
+@keyframes pulse-critical {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  70% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.marker-critical-pulse::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  z-index: -1;
+  animation: pulse-critical 2s infinite;
+}
+
+/* ============================= */
+/* 🔥 HOVER (PULO) */
+/* ============================= */
+
+@keyframes marker-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.custom-pin:hover svg {
+  animation: marker-bounce 0.35s ease-out;
+}
+
+/* ============================= */
+/* 🔥 SUAVIZAÇÃO */
+/* ============================= */
+
+.custom-pin svg {
+  transition: transform 0.2s ease;
+}
 
 
