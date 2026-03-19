@@ -80,7 +80,7 @@ export default function MapaMonitoramento() {
     normal: "#10b981",
     alerta: "#facc15",
     transbordo: "#ef4444",
-    extremo: "#9333ea",
+    extremo: "#a21caf",
     abaixo_regua: "#64748b",
     sem_dado: "#94a3b8",
     sem_cota: "#94a3b8"
