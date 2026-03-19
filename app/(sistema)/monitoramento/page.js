@@ -3,60 +3,47 @@
 import { createClient } from "@supabase/supabase-js"
 import { MonitoramentoProvider } from "./MonitoramentoContext"
 import TabsMonitoramento from "./TabsMonitoramento"
+import { unstable_noStore as noStore } from "next/cache"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-export const dynamic = "force-dynamic"
 export default async function Monitoramento() {
 
-  /* ============================= */
-  /* BUSCAR RIOS ATIVOS */
-  /* ============================= */
+  // 🔥 REMOVE QUALQUER CACHE
+  noStore()
 
-  const { data: rios, error: erroRios } = await supabase
+  /* ============================= */
+  /* RIOS */
+  /* ============================= */
+  const { data: rios } = await supabase
     .from("rios")
     .select("*")
     .eq("ativo", true)
     .order("nome")
 
-  if (erroRios) {
-    console.error("Erro ao buscar rios:", erroRios)
-  }
-
   /* ============================= */
-  /* BUSCAR ESTAÇÕES ATIVAS */
+  /* ESTAÇÕES */
   /* ============================= */
-
-  const { data: estacoes, error: erroEstacoes } = await supabase
+  const { data: estacoes } = await supabase
     .from("estacoes")
     .select("*")
     .eq("ativo", true)
 
-  if (erroEstacoes) {
-    console.error("Erro ao buscar estações:", erroEstacoes)
-  }
-
   /* ============================= */
-  /* BUSCAR ÚLTIMAS MEDIÇÕES */
+  /* ÚLTIMAS MEDIÇÕES */
   /* ============================= */
-
-  const { data: ultimasMedicoes, error: erroMedicoes } = await supabase
+  const { data: ultimasMedicoes } = await supabase
     .rpc("ultimas_medicoes")
 
-  if (erroMedicoes) {
-    console.error("Erro ao buscar últimas medições:", erroMedicoes)
-  }
-
-  /* ============================= */
-  /* RENDER */
-  /* ============================= */
+  // 🔥 FORÇA RE-RENDER SE DADO MUDAR
+  const lastUpdate = ultimasMedicoes?.[0]?.data_hora || Date.now()
 
   return (
-
     <MonitoramentoProvider
+      key={lastUpdate}
       estacoes={estacoes || []}
       ultimasMedicoes={ultimasMedicoes || []}
     >
@@ -74,12 +61,10 @@ export default async function Monitoramento() {
         <TabsMonitoramento
           rios={rios || []}
           estacoes={estacoes || []}
-          ultimasMedicoes={ultimasMedicoes || []}
         />
 
       </div>
 
     </MonitoramentoProvider>
-
   )
 }
