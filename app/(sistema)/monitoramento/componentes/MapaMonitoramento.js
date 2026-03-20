@@ -2,8 +2,8 @@
 
 "use client"
 
-import { MapContainer, TileLayer, Marker, Tooltip, useMap } from "react-leaflet"
-import { useEffect } from "react"
+import { MapContainer, TileLayer, Marker, Tooltip, useMap, GeoJSON, LayersControl } from "react-leaflet"
+import { useEffect, useState } from "react"
 import { useMonitoramento } from "../MonitoramentoContext"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
@@ -27,10 +27,7 @@ function FlyToEstacao({ estacao }) {
 // 🎯 ÍCONE CUSTOMIZADO (COM PULSO + HOVER)
 // ========================================
 const criarIconeCustomizado = (cor, status, selecionada) => {
-
   const tamanho = selecionada ? 45 : 35
-
-  // 🔥 AGORA BASEADO EM STATUS (CORRETO)
   const critico = ["alerta", "transbordo", "extremo"].includes(status)
 
   return L.divIcon({
@@ -42,7 +39,6 @@ const criarIconeCustomizado = (cor, status, selecionada) => {
         height: ${tamanho}px;
         color: ${cor};
       ">
-
         <svg
           width="${tamanho}"
           height="${tamanho}"
@@ -59,7 +55,6 @@ const criarIconeCustomizado = (cor, status, selecionada) => {
           />
           <circle cx="12" cy="11" r="3" fill="white" fill-opacity="0.9"/>
         </svg>
-
       </div>
     `,
     iconSize: [tamanho, tamanho],
@@ -72,10 +67,39 @@ const criarIconeCustomizado = (cor, status, selecionada) => {
 // 🌍 MAPA
 // ========================================
 export default function MapaMonitoramento() {
-
   const { estacoes, estacaoSelecionada, selecionarEstacao } = useMonitoramento()
+  
+  // Estados para as camadas geográficas
+  const [geoRios, setGeoRios] = useState(null)
+  const [geoLagoas, setGeoLagoas] = useState(null)
 
-  // 🔥 AGORA BASEADO EM STATUS (PADRÃO PROFISSIONAL)
+  // 🔥 CARREGAMENTO DOS ARQUIVOS GEOJSON
+  useEffect(() => {
+    fetch("/geo/rios_monitorados.geojson")
+      .then(res => res.json())
+      .then(data => setGeoRios(data))
+      .catch(err => console.error("Erro ao carregar rios:", err))
+
+    fetch("/geo/lagoas_monitoradas.geojson")
+      .then(res => res.json())
+      .then(data => setGeoLagoas(data))
+      .catch(err => console.error("Erro ao carregar lagoas:", err))
+  }, [])
+
+  // 🎨 ESTILOS DAS CAMADAS
+  const estiloRios = {
+    color: "#2c7fb8",
+    weight: 3,
+    opacity: 0.8
+  }
+
+  const estiloLagoas = {
+    fillColor: "#74add1",
+    color: "#2c7fb8",
+    weight: 2,
+    fillOpacity: 0.5
+  }
+
   const coresHex = {
     normal: "#10b981",
     alerta: "#facc15",
@@ -88,13 +112,11 @@ export default function MapaMonitoramento() {
 
   return (
     <div className="w-full h-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
-
       <MapContainer
         center={[-21.75, -41.32]}
         zoom={9}
         className="w-full h-full z-0"
       >
-
         <TileLayer
           attribution='&copy; OpenStreetMap'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -102,8 +124,43 @@ export default function MapaMonitoramento() {
 
         <FlyToEstacao estacao={estacaoSelecionada} />
 
-        {estacoes.map((e) => {
+        {/* 🛠️ CONTROLE DE CAMADAS (SELETOR DISCRETO) */}
+        <LayersControl position="topright" collapsed={true}>
+          
+          {/* CAMADA DE LAGOAS */}
+          {geoLagoas && (
+            <LayersControl.Overlay checked name="🟦 Lagoas Monitoradas">
+              <GeoJSON 
+                data={geoLagoas} 
+                style={estiloLagoas}
+                onEachFeature={(feature, layer) => {
+                  if (feature.properties?.name) {
+                    layer.bindTooltip(`<b>Lagoa:</b> ${feature.properties.name}`, { sticky: true })
+                  }
+                }}
+              />
+            </LayersControl.Overlay>
+          )}
 
+          {/* CAMADA DE RIOS */}
+          {geoRios && (
+            <LayersControl.Overlay checked name="🌊 Rios Monitorados">
+              <GeoJSON 
+                data={geoRios} 
+                style={estiloRios}
+                onEachFeature={(feature, layer) => {
+                  if (feature.properties?.name) {
+                    layer.bindTooltip(`<b>Rio:</b> ${feature.properties.name}`, { sticky: true })
+                  }
+                }}
+              />
+            </LayersControl.Overlay>
+          )}
+
+        </LayersControl>
+
+        {/* 📍 MARCADORES DAS ESTAÇÕES */}
+        {estacoes.map((e) => {
           if (!e.latitude || !e.longitude) return null
 
           const status = e.situacao?.status || "sem_dado"
@@ -119,7 +176,6 @@ export default function MapaMonitoramento() {
                 click: () => selecionarEstacao(e)
               }}
             >
-
               <Tooltip
                 direction="top"
                 offset={[0, -8]}
@@ -128,31 +184,22 @@ export default function MapaMonitoramento() {
                 className="!bg-transparent !border-none !shadow-none"
               >
                 <div className="px-3 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg min-w-[120px]">
-
-                  {/* NOME */}
                   <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider text-center leading-none">
                     {e.municipio}
                   </div>
-
-                  {/* VALOR */}
                   <div className="text-sm font-black text-slate-900 text-center mt-1">
                     {e.medicao?.abaixo_regua
                       ? "A/R"
                       : `${e.medicao?.nivel?.toFixed(2) || "0.00"} m`}
                   </div>
-
-                  {/* STATUS (aqui pode usar texto tranquilo) */}
-                  <div className={`mt-1 text-[9px] font-black uppercase text-center px-2 py-0.5 rounded ${e.situacao.cor} text-white`}>
+                  <div className={`mt-1 text-[9px] font-black uppercase text-center px-2 py-0.5 rounded ${e.situacao?.cor || 'bg-slate-500'} text-white`}>
                     {e.situacao?.texto}
                   </div>
-
                 </div>
               </Tooltip>
-
             </Marker>
           )
         })}
-
       </MapContainer>
     </div>
   )
