@@ -139,11 +139,11 @@ export default function MapaMonitoramento() {
   }
 
   const estiloArea = {
-    color: "#64748b",      // Cinza Neutro (Slate-500)
+    color: "#475569",      // Cinza chumbo para a borda (Slate-600)
     weight: 2,
-    fillColor: "#94a3b8",
-    fillOpacity: 0.02,     // Quase invisível
-    dashArray: "8, 8",     // Tracejado de fronteira
+    fillColor: "#64748b",  // Um tom de azul acinzentado (Slate-500)
+    fillOpacity: 0.15,     // Aumentamos de 0.02 para 0.15 para ficar visível
+    dashArray: "8, 8",     // Mantém o tracejado profissional
     interactive: true
   }
 
