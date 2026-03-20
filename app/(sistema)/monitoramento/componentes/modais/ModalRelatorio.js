@@ -59,7 +59,7 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
     try {
       const dataUrl = await toPng(reportRef.current, { 
         cacheBust: true,
-        backgroundColor: '#f1f5f9', // Fundo levemente cinza atrás da margem
+        backgroundColor: '#ffffff',
         pixelRatio: 2,
         style: { borderRadius: '0' }
       });
@@ -102,29 +102,25 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
         <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-black text-[12px] uppercase shadow-xl">Fechar</button>
       </div>
 
-      {/* ÁREA DE CAPTURA COM MARGEM (Ref para PNG) */}
-      <div ref={reportRef} className="p-10 bg-slate-100 flex flex-col items-center">
+      <div ref={reportRef} className="p-6 bg-white flex flex-col items-center">
         
-        {/* CORPO DO RELATÓRIO - Largura Automática */}
-        <div className="bg-white border-[4px] border-black flex flex-col shadow-xl">
+        <div className="bg-white border-[4px] border-black flex flex-col w-fit min-w-[1000px]">
           
-          <div className="bg-[#ffc000] border-b-[4px] border-black p-3 text-center">
+          <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
             <h1 className="text-2xl font-black uppercase italic leading-none tracking-tighter text-black">MONITORAMENTO DOS RIOS - REDEC 10 - NORTE / REDEC 11 - NOROESTE</h1>
           </div>
 
-          <table className="border-collapse table-auto">
+          <table className="border-collapse table-auto w-full">
             <thead>
-              {/* Centralizados, Maiores e Negrito */}
               <tr className="bg-[#8db4e2] text-[15px] uppercase font-black text-black text-center">
-                <th className="border-2 border-black p-3.5 w-auto">RIOS / LAGOAS</th>
-                {/* Autoajusta ao maior nome */}
-                <th className="border-2 border-black p-3.5 w-px whitespace-nowrap">MUNICÍPIOS / ESTAÇÃO</th>
-                <th className="border-2 border-black p-3.5 w-24 text-red-700 bg-[#ffffcc]">TRANSB.</th>
-                <th className="border-2 border-black p-3.5 w-28">24H ANTES</th>
-                <th className="border-2 border-black p-3.5 w-28 text-red-600">ANTEPENÚLT.</th>
-                <th className="border-2 border-black p-3.5 w-28 text-red-600">PENÚLTIMA</th>
-                <th className="border-2 border-black p-3.5 w-28 bg-[#ffff00]">ÚLTIMA</th>
-                <th className="border-2 border-black p-3.5 w-24">FONTE</th>
+                <th className="border-2 border-black p-2 w-[160px]">RIOS / LAGOAS</th>
+                <th className="border-2 border-black p-2 w-px whitespace-nowrap text-center">MUNICÍPIOS / ESTAÇÃO</th>
+                <th className="border-2 border-black p-2 w-24 text-red-700 bg-[#ffffcc]">TRANSB.</th>
+                <th className="border-2 border-black p-2 w-28">24H ANTES</th>
+                <th className="border-2 border-black p-2 w-28 text-red-600">ANTEPENÚLT.</th>
+                <th className="border-2 border-black p-2 w-28 text-red-600">PENÚLTIMA</th>
+                <th className="border-2 border-black p-2 w-28 bg-[#ffff00]">ÚLTIMA</th>
+                <th className="border-2 border-black p-2 w-24">FONTE</th>
               </tr>
             </thead>
             <tbody>
@@ -135,33 +131,32 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
                   const limite = estacao.nivel_transbordo
 
                   return (
-                    <tr key={estacao.id} className="text-center font-bold text-[13px] leading-tight text-black">
+                    <tr key={estacao.id} className="text-center font-black text-[14px] leading-none text-black">
                       {idx === 0 && (
-                        <td rowSpan={lista.length} className="border-2 border-black bg-[#d9e1f2] align-middle p-2 uppercase font-black text-[15px]">
+                        <td rowSpan={lista.length} className="border-2 border-black bg-[#d9e1f2] align-middle p-1 uppercase font-black text-[15px]">
                           {rio}
                         </td>
                       )}
-                      {/*whitespace-nowrap impede a quebra de linha e p-3.5 dá o respiro lateral */}
-                      <td className="border-2 border-black p-3.5 text-left uppercase text-[14px] font-black leading-none whitespace-nowrap">
+                      <td className="border-2 border-black p-1 px-3 text-left uppercase text-[14px] font-black leading-none whitespace-nowrap">
                         {estacao.municipio}
                       </td>
-                      <td className="border-2 border-black p-1.5 text-red-600 font-black bg-[#ffffcc] text-[16px]">
+                      <td className="border-2 border-black p-1 text-red-600 font-black bg-[#ffffcc] text-[16px]">
                         {limite ? parseFloat(limite).toFixed(2).replace('.',',') : "—"}
                       </td>
                       
-                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
+                      <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
                           {hist.vinteQuatroHoras !== "N/INF" ? parseFloat(hist.vinteQuatroHoras).toFixed(2).replace('.',',') : "N/INF"}
                       </td>
-                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.antepenultima, limite)}`}>
+                      <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.antepenultima, limite)}`}>
                           {hist.antepenultima !== "N/INF" ? parseFloat(hist.antepenultima).toFixed(2).replace('.',',') : "N/INF"}
                       </td>
-                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.penultima, limite)}`}>
+                      <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.penultima, limite)}`}>
                           {hist.penultima !== "N/INF" ? parseFloat(hist.penultima).toFixed(2).replace('.',',') : "N/INF"}
                       </td>
-                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(atual, limite)}`}>
+                      <td className={`border-2 border-black p-1 font-black ${obterCorNivel(atual, limite)}`}>
                           {atual !== "N/INF" ? parseFloat(atual).toFixed(2).replace('.',',') : "N/INF"}
                       </td>
-                      <td className="border-2 border-black p-1.5 text-[11px] uppercase font-black">{estacao.fonte}</td>
+                      <td className="border-2 border-black p-1 text-[11px] uppercase font-black">{estacao.fonte}</td>
                     </tr>
                   )
                 })
@@ -169,22 +164,21 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
             </tbody>
           </table>
 
-          {/* Legendas ajustadas para caber na nova largura automática */}
-          <div className="p-4 bg-white border-t-[3px] border-black mt-auto">
-            <div className="flex gap-12 mb-4 items-center justify-center">
+          <div className="p-3 bg-white border-t-[3px] border-black mt-auto">
+            <div className="flex gap-10 mb-2 items-center justify-center">
               <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ffc000] border-2 border-black"></div> <span className="text-[12px] font-black uppercase">ALERTA</span></div>
               <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff0000] border-2 border-black"></div> <span className="text-[12px] font-black uppercase">TRANSBORDO</span></div>
               <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff00ff] border-2 border-black"></div> <span className="text-[12px] font-black uppercase">20% ACIMA</span></div>
             </div>
 
             <div className="border-[2px] border-black rounded-xl p-3 bg-slate-50">
-              <p className="text-[11px] font-bold leading-tight text-black italic mb-2">
+              <p className="text-[10px] font-bold leading-tight text-black italic mb-1 text-center">
                 * Última Medição Válida / N/INF - Não Informado / A/R - Abaixo da régua / INOP - Inoperante / DBM - Destacamento de Bombeiro Militar. 
                 COMDEC - Coordenadoria Municipal de Defesa Civil / CPRM - Serviço Geológico do Brasil / 
                 HidroWeb - Rede Hidrometeorológica Nacional / INEA - Instituto Estadual do Ambiente (Sistema Alerta de Cheias)
               </p>
               <div className="h-[2px] bg-black my-2 w-full"></div>
-              <p className="text-[11px] font-black leading-tight text-black italic">
+              <p className="text-[10px] font-black leading-tight text-black italic text-center">
                 Obs.: A dinâmica dos níveis dos rios é calculada com os dados disponíveis no momento, tendo como base as duas últimas cotas, 
                 podendo sofrer influência da dificuldade de comunicação entre os colaboradores ou demora na atualização dos aparelhos automáticos.
               </p>
