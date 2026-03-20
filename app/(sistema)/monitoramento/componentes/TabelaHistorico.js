@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react"
 import { calcularSituacao } from "../utils/calcularSituacao"
-import { Clock, Calendar, Download } from "lucide-react"
+import { Clock } from "lucide-react"
 
 export default function TabelaHistorico({ estacao }) {
   const [dados, setDados] = useState([])
@@ -52,7 +52,6 @@ export default function TabelaHistorico({ estacao }) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* SELETOR DE PERÍODO COMPACTO */}
           <div className="flex bg-slate-100 p-1 rounded-xl">
             {Object.keys(filtros).map((f) => (
               <button
@@ -69,7 +68,7 @@ export default function TabelaHistorico({ estacao }) {
         </div>
       </div>
 
-      {/* CONTAINER DA TABELA COM SCROLL SUAVE */}
+      {/* CONTAINER DA TABELA */}
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/30">
         <div className="max-h-[450px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
           <table className="w-full text-left border-collapse">
@@ -98,13 +97,13 @@ export default function TabelaHistorico({ estacao }) {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <span className={`text-xs font-black ${situacao?.cor?.replace('bg-', 'text-') || 'text-slate-600'}`}>
-                          {nivel.toFixed(2)} m
-                        </span>
-                        {/* INDICADOR VISUAL DISCRETO */}
-                        <div className={`w-2 h-2 rounded-full ${situacao?.cor || 'bg-slate-300'} shadow-sm animate-pulse`} />
-                      </div>
+                      {/* NÍVEL DENTRO DA COR DO STATUS */}
+                      <span className={`
+                        inline-block px-4 py-1.5 rounded-lg text-white text-[11px] font-black shadow-sm
+                        ${situacao?.cor || 'bg-slate-400'}
+                      `}>
+                        {nivel.toFixed(2)} m
+                      </span>
                     </td>
                   </tr>
                 );
@@ -118,12 +117,6 @@ export default function TabelaHistorico({ estacao }) {
       {loading && (
         <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex items-center justify-center z-20 rounded-2xl">
           <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-      
-      {dados.length === 0 && !loading && (
-        <div className="py-20 text-center">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhuma medição encontrada</p>
         </div>
       )}
     </div>
