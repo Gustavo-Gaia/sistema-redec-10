@@ -243,19 +243,19 @@ export default function InserirMedicoes() {
 
       {/* TABELA */}
 
-      <div className="overflow-auto">
+      <div className="overflow-auto border rounded-lg">
 
         <table className="w-full text-sm">
 
-          <thead className="bg-slate-100">
+          <thead className="bg-slate-100 border-b">
 
             <tr>
               <th className="p-2 text-left">Rio</th>
               <th className="p-2 text-left">Município</th>
-              <th className="p-2">Data</th>
-              <th className="p-2">Hora</th>
-              <th className="p-2">A/R</th>
-              <th className="p-2">Nível (m)</th>
+              <th className="p-2 text-center">Data</th>
+              <th className="p-2 text-center">Hora</th>
+              <th className="p-2 text-center">A/R</th>
+              <th className="p-2 text-center">Nível (m)</th>
             </tr>
 
           </thead>
@@ -265,19 +265,34 @@ export default function InserirMedicoes() {
             {estacoes.map((estacao) => {
 
               const registro = dados[estacao.id] || {}
+              
+              // 🔥 LOGICA DE REALCE COMDEC
+              const ehComdec = estacao.fonte === "COMDEC"
 
               return (
 
-                <tr key={estacao.id} className="border-b">
+                <tr 
+                  key={estacao.id} 
+                  className={`border-b transition-colors ${ehComdec ? 'bg-blue-50/70 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                >
 
-                  <td className="p-2">{estacao.rios?.nome}</td>
+                  <td className="p-2 font-medium">
+                    <div className="flex items-center gap-2">
+                      {estacao.rios?.nome}
+                      {ehComdec && (
+                        <span className="text-[10px] bg-blue-600 text-white px-1 py-0.5 rounded font-bold">
+                          COMDEC
+                        </span>
+                      )}
+                    </div>
+                  </td>
 
                   <td className="p-2">{estacao.municipio}</td>
 
-                  <td className="p-2">
+                  <td className="p-2 text-center">
                     <input
                       type="date"
-                      className="border rounded p-1"
+                      className={`border rounded p-1 ${ehComdec ? 'border-blue-400' : ''}`}
                       value={registro.data || ""}
                       onChange={(e) =>
                         atualizarCampo(estacao.id, "data", e.target.value)
@@ -285,10 +300,10 @@ export default function InserirMedicoes() {
                     />
                   </td>
 
-                  <td className="p-2">
+                  <td className="p-2 text-center">
                     <input
                       type="time"
-                      className="border rounded p-1"
+                      className={`border rounded p-1 ${ehComdec ? 'border-blue-400' : ''}`}
                       value={registro.hora || ""}
                       onChange={(e) =>
                         atualizarCampo(estacao.id, "hora", e.target.value)
@@ -300,6 +315,7 @@ export default function InserirMedicoes() {
 
                     <input
                       type="checkbox"
+                      className="w-4 h-4 cursor-pointer"
                       checked={registro.abaixo_regua || false}
                       onChange={(e) =>
                         atualizarCampo(
@@ -312,12 +328,12 @@ export default function InserirMedicoes() {
 
                   </td>
 
-                  <td className="p-2">
+                  <td className="p-2 text-center">
 
                     <input
                       type="number"
                       step="0.01"
-                      className="border rounded p-1 w-24"
+                      className={`border rounded p-1 w-24 text-center font-bold ${ehComdec ? 'border-blue-500 ring-1 ring-blue-200' : ''}`}
                       value={registro.nivel || ""}
                       disabled={registro.abaixo_regua}
                       onChange={(e) =>
