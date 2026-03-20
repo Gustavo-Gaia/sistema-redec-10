@@ -62,7 +62,7 @@ export default function PainelEstacao() {
                   Detalhes da Estação
                 </h2>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {estacaoSelecionada.municipio} • REDEC 10
+                  {estacaoSelecionada.municipio} 
                 </p>
               </div>
               <button
