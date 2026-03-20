@@ -106,7 +106,6 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
         
         <div className="bg-white w-[1150px] border-[4px] border-black flex flex-col shadow-none">
           
-          {/* Título mais espremido */}
           <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
             <h1 className="text-2xl font-black uppercase italic leading-tight tracking-tighter text-black">MONITORAMENTO DOS RIOS - REDEC 10 - NORTE / REDEC 11 - NOROESTE</h1>
           </div>
@@ -115,7 +114,8 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
             <thead>
               <tr className="bg-[#8db4e2] text-[13px] uppercase font-black text-black">
                 <th className="border-[3px] border-black p-2 w-[180px]">RIOS / LAGOAS</th>
-                <th className="border-[3px] border-black p-2">MUNICÍPIOS / ESTAÇÃO</th>
+                {/* LARGURA REDUZIDA AQUI */}
+                <th className="border-[3px] border-black p-2 w-[350px]">MUNICÍPIOS / ESTAÇÃO</th>
                 <th className="border-[3px] border-black p-2 w-[90px] text-red-700 bg-[#ffffcc]">TRANSB.</th>
                 <th className="border-[3px] border-black p-2 w-[110px]">24H ANTES</th>
                 <th className="border-[3px] border-black p-2 w-[110px] text-red-600">ANTEPENÚLT.</th>
@@ -138,7 +138,6 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
                           {rio}
                         </td>
                       )}
-                      {/* Célula do Município com fonte maior e negrito pesado */}
                       <td className="border-[3px] border-black p-1.5 text-left uppercase text-[14px] font-black leading-none">
                         {estacao.municipio}
                       </td>
@@ -166,7 +165,6 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
             </tbody>
           </table>
 
-          {/* Legendas mais compactas */}
           <div className="p-3 bg-white border-t-[4px] border-black mt-auto">
             <div className="flex gap-10 mb-2 items-center justify-center">
               <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ffc000] border-[2px] border-black"></div> <span className="text-[12px] font-black uppercase">ALERTA</span></div>
