@@ -4,8 +4,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
-// Importaremos o componente de modal que criaremos a seguir
-// import ModalRelatorio from "./ModalRelatorio" 
+import ModalRelatorio from "../componentes/modais/ModalRelatorio"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -221,14 +220,14 @@ export default function InserirMedicoes() {
         </table>
       </div>
 
-      {/* RENDERIZAÇÃO DO MODAL (Implementaremos a seguir) */}
-      {/* mostrarRelatorio && (
+      {/* RENDERIZAÇÃO DO MODAL */}
+      {mostrarRelatorio && (
         <ModalRelatorio 
           dadosDaTela={dados} 
           estacoes={estacoes} 
           onClose={() => setMostrarRelatorio(false)} 
         />
-      ) */}
+      )}
     </div>
   )
 }
