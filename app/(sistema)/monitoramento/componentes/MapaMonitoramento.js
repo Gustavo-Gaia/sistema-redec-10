@@ -8,6 +8,7 @@ import { useMonitoramento } from "../MonitoramentoContext"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { Maximize } from "lucide-react"
+import LegendaStatus from "./LegendaStatus"
 
 // ========================================
 // 🚀 COMPONENTE PARA RESETAR VISUALIZAÇÃO
@@ -96,17 +97,15 @@ const criarIconeCustomizado = (cor, status, selecionada) => {
 }
 
 // ========================================
-// 🌍 MAPA
+// 🌍 MAPA PRINCIPAL
 // ========================================
 export default function MapaMonitoramento() {
   const { estacoes, estacaoSelecionada, selecionarEstacao } = useMonitoramento()
   
-  // Estados para as camadas geográficas
   const [geoRios, setGeoRios] = useState(null)
   const [geoLagoas, setGeoLagoas] = useState(null)
   const [geoArea, setGeoArea] = useState(null)
 
-  // 🔥 CARREGAMENTO DOS ARQUIVOS GEOJSON
   useEffect(() => {
     fetch("/geo/rios_monitorados.geojson")
       .then(res => res.json())
@@ -124,26 +123,14 @@ export default function MapaMonitoramento() {
       .catch(err => console.error("Erro ao carregar área REDEC:", err))
   }, [])
 
-  // 🎨 ESTILOS DAS CAMADAS
-  const estiloRios = {
-    color: "#2c7fb8",
-    weight: 3,
-    opacity: 0.8
-  }
-
-  const estiloLagoas = {
-    fillColor: "#74add1",
-    color: "#2c7fb8",
-    weight: 2,
-    fillOpacity: 0.5
-  }
-
+  const estiloRios = { color: "#2c7fb8", weight: 3, opacity: 0.8 }
+  const estiloLagoas = { fillColor: "#74add1", color: "#2c7fb8", weight: 2, fillOpacity: 0.5 }
   const estiloArea = {
-    color: "#475569",      // Cinza chumbo para a borda (Slate-600)
+    color: "#475569",
     weight: 2,
-    fillColor: "#64748b",  // Um tom de azul acinzentado (Slate-500)
-    fillOpacity: 0.15,     // Aumentamos de 0.02 para 0.15 para ficar visível
-    dashArray: "8, 8",     // Mantém o tracejado profissional
+    fillColor: "#64748b",
+    fillOpacity: 0.15,
+    dashArray: "8, 8",
     interactive: true
   }
 
@@ -158,11 +145,12 @@ export default function MapaMonitoramento() {
   }
 
   return (
-    <div className="w-full h-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner relative">
+    <div className="w-full h-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner relative group">
       <MapContainer
         center={[-21.75, -41.32]}
         zoom={9}
         className="w-full h-full z-0"
+        zoomControl={true}
       >
         <TileLayer
           attribution='&copy; OpenStreetMap'
@@ -172,10 +160,7 @@ export default function MapaMonitoramento() {
         <FlyToEstacao estacao={estacaoSelecionada} />
         <BotaoReset geoArea={geoArea} />
 
-        {/* 🛠️ CONTROLE DE CAMADAS */}
         <LayersControl position="topright" collapsed={true}>
-          
-          {/* CAMADA ÁREA REDEC NORTE */}
           {geoArea && (
             <LayersControl.Overlay checked name="📍 Área REDEC Norte">
               <GeoJSON 
@@ -190,54 +175,30 @@ export default function MapaMonitoramento() {
             </LayersControl.Overlay>
           )}
 
-          {/* CAMADA DE LAGOAS */}
           {geoLagoas && (
             <LayersControl.Overlay checked name="🟦 Lagoas Monitoradas">
-              <GeoJSON 
-                data={geoLagoas} 
-                style={estiloLagoas}
-                onEachFeature={(feature, layer) => {
-                  if (feature.properties?.name) {
-                    layer.bindTooltip(`<b>Lagoa:</b> ${feature.properties.name}`, { sticky: true })
-                  }
-                }}
-              />
+              <GeoJSON data={geoLagoas} style={estiloLagoas} />
             </LayersControl.Overlay>
           )}
 
-          {/* CAMADA DE RIOS */}
           {geoRios && (
             <LayersControl.Overlay checked name="🌊 Rios Monitorados">
-              <GeoJSON 
-                data={geoRios} 
-                style={estiloRios}
-                onEachFeature={(feature, layer) => {
-                  if (feature.properties?.name) {
-                    layer.bindTooltip(`<b>Rio:</b> ${feature.properties.name}`, { sticky: true })
-                  }
-                }}
-              />
+              <GeoJSON data={geoRios} style={estiloRios} />
             </LayersControl.Overlay>
           )}
-
         </LayersControl>
 
-        {/* 📍 MARCADORES DAS ESTAÇÕES */}
         {estacoes.map((e) => {
           if (!e.latitude || !e.longitude) return null
-
           const status = e.situacao?.status || "sem_dado"
-          const cor = coresHex[status] || "#3b82f6"
           const selecionada = estacaoSelecionada?.id === e.id
 
           return (
             <Marker
               key={`${e.id}-${e.medicao?.data_hora}`}
               position={[e.latitude, e.longitude]}
-              icon={criarIconeCustomizado(cor, status, selecionada)}
-              eventHandlers={{
-                click: () => selecionarEstacao(e)
-              }}
+              icon={criarIconeCustomizado(coresHex[status], status, selecionada)}
+              eventHandlers={{ click: () => selecionarEstacao(e) }}
             >
               <Tooltip
                 direction="top"
@@ -251,9 +212,7 @@ export default function MapaMonitoramento() {
                     {e.municipio}
                   </div>
                   <div className="text-sm font-black text-slate-900 text-center mt-1">
-                    {e.medicao?.abaixo_regua
-                      ? "A/R"
-                      : `${e.medicao?.nivel?.toFixed(2) || "0.00"} m`}
+                    {e.medicao?.abaixo_regua ? "A/R" : `${e.medicao?.nivel?.toFixed(2) || "0.00"} m`}
                   </div>
                   <div className={`mt-1 text-[9px] font-black uppercase text-center px-2 py-0.5 rounded ${e.situacao?.cor || 'bg-slate-500'} text-white`}>
                     {e.situacao?.texto}
@@ -264,6 +223,11 @@ export default function MapaMonitoramento() {
           )
         })}
       </MapContainer>
+
+      {/* 🧭 LEGENDA FLUTUANTE (WIDGET COMPACTO) */}
+      <div className="absolute bottom-6 left-6 z-[1000] transition-opacity duration-300 group-hover:opacity-100 opacity-90">
+        <LegendaStatus />
+      </div>
     </div>
   )
 }
