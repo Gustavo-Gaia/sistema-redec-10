@@ -24,13 +24,12 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
     setLoading(true)
     const novoHistorico = {}
     try {
-      // Busca as últimas medições usando a coluna correta do seu banco (data_hora)
       const { data: todasMedicoes, error } = await supabase
         .from("medicoes")
         .select("estacao_id, nivel, data_hora")
         .in("estacao_id", estacoes.map(e => e.id))
         .order("data_hora", { ascending: false })
-        .limit(600) // Limite maior para garantir que encontre registros de 24h atrás
+        .limit(600)
 
       if (error) throw error
 
@@ -39,16 +38,11 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
 
       estacoes.forEach(estacao => {
         const medSessao = todasMedicoes?.filter(m => Number(m.estacao_id) === Number(estacao.id)) || []
-        
-        // Busca o registro mais próximo de 24h atrás
-        // Como está ordenado DESC, o primeiro que for <= 24h atrás é o mais próximo
         const m24h = medSessao.find(m => new Date(m.data_hora) <= vinteQuatroHorasAtras)
 
         novoHistorico[estacao.id] = {
           vinteQuatroHoras: m24h?.nivel || "N/INF",
-          // Penúltima é o registro mais recente no banco (visto que a 'Última' está na tela/ainda não salva)
           penultima: medSessao[0]?.nivel || "N/INF",
-          // Antepenúltima é o segundo mais recente no banco
           antepenultima: medSessao[1]?.nivel || "N/INF",
         }
       })
@@ -65,7 +59,7 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
     try {
       const dataUrl = await toPng(reportRef.current, { 
         cacheBust: true,
-        backgroundColor: '#fff',
+        backgroundColor: '#f8fafc', // Fundo levemente cinza atrás da margem
         style: { borderRadius: '0' }
       });
       const link = document.createElement('a');
@@ -108,77 +102,93 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
         <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase shadow-xl">Fechar</button>
       </div>
 
-      <div ref={reportRef} className="bg-white w-[1000px] border-[3px] border-black flex flex-col shadow-2xl">
+      {/* ÁREA DE CAPTURA COM MARGEM (Ref para PNG) */}
+      <div ref={reportRef} className="p-6 bg-slate-50 flex flex-col items-center">
         
-        <div className="bg-[#ffc000] border-b-[3px] border-black p-3 text-center">
-          <h1 className="text-xl font-black uppercase italic leading-none tracking-tighter">MONITORAMENTO DOS RIOS - REDEC 10 - NORTE / REDEC 11 - NOROESTE</h1>
-        </div>
-
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-[#8db4e2] text-[10px] uppercase font-black">
-              <th className="border-2 border-black p-2 w-[180px]">RIOS / LAGOAS</th>
-              <th className="border-2 border-black p-2 w-[220px]">MUNICÍPIOS / ESTAÇÃO</th>
-              <th className="border-2 border-black p-2 w-[70px] text-red-700 bg-[#ffffcc]">TRANSB.</th>
-              <th className="border-2 border-black p-2 w-[85px]">24H ANTES</th>
-              <th className="border-2 border-black p-2 w-[85px] text-red-600">ANTEPENÚLT.</th>
-              <th className="border-2 border-black p-2 w-[85px] text-red-600">PENÚLTIMA</th>
-              <th className="border-2 border-black p-2 w-[85px] bg-[#ffff00]">ÚLTIMA</th>
-              <th className="border-2 border-black p-2 w-16 font-black">FONTE</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(estacoesAgrupadas).map(([rio, lista]) => (
-              lista.map((estacao, idx) => {
-                const hist = historico[estacao.id] || {}
-                const atual = dadosDaTela[estacao.id]?.nivel || "N/INF"
-                const limite = estacao.nivel_transbordo
-
-                return (
-                  <tr key={estacao.id} className="text-center font-bold text-[11px] leading-tight">
-                    {idx === 0 && (
-                      <td rowSpan={lista.length} className="border-2 border-black bg-[#d9e1f2] align-middle p-2 uppercase font-black">
-                        {rio}
-                      </td>
-                    )}
-                    {/* Largura ajustada para não amassar as colunas de dados */}
-                    <td className="border-2 border-black p-1.5 text-left uppercase text-[10px]">
-                      {estacao.municipio}
-                    </td>
-                    {/* Fundo amarelo clarinho no Transbordo conforme solicitado */}
-                    <td className="border-2 border-black p-1.5 text-red-600 font-black bg-[#ffffcc]">
-                      {limite ? parseFloat(limite).toFixed(2).replace('.',',') : "—"}
-                    </td>
-                    
-                    <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
-                        {hist.vinteQuatroHoras !== "N/INF" ? parseFloat(hist.vinteQuatroHoras).toFixed(2).replace('.',',') : "N/INF"}
-                    </td>
-                    <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.antepenultima, limite)}`}>
-                        {hist.antepenultima !== "N/INF" ? parseFloat(hist.antepenultima).toFixed(2).replace('.',',') : "N/INF"}
-                    </td>
-                    <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.penultima, limite)}`}>
-                        {hist.penultima !== "N/INF" ? parseFloat(hist.penultima).toFixed(2).replace('.',',') : "N/INF"}
-                    </td>
-                    <td className={`border-2 border-black p-1.5 ${obterCorNivel(atual, limite)}`}>
-                        {atual !== "N/INF" ? parseFloat(atual).toFixed(2).replace('.',',') : "N/INF"}
-                    </td>
-                    <td className="border-2 border-black p-1.5 text-[9px] uppercase font-black">{estacao.fonte}</td>
-                  </tr>
-                )
-              })
-            ))}
-          </tbody>
-        </table>
-
-        <div className="p-4 bg-white border-t-[3px] border-black mt-auto">
-          <div className="flex gap-10 mb-3 items-center">
-            <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ffc000] border-2 border-black"></div> <span className="text-[10px] font-black uppercase tracking-tighter">ALERTA (15% PARA TRANSB.)</span></div>
-            <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff0000] border-2 border-black"></div> <span className="text-[10px] font-black uppercase tracking-tighter">TRANSBORDO</span></div>
-            <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff00ff] border-2 border-black"></div> <span className="text-[10px] font-black uppercase tracking-tighter">20% ACIMA DO TRANSB.</span></div>
+        {/* CORPO DO RELATÓRIO */}
+        <div className="bg-white w-[1000px] border-[3px] border-black flex flex-col shadow-sm">
+          
+          <div className="bg-[#ffc000] border-b-[3px] border-black p-3 text-center">
+            <h1 className="text-xl font-black uppercase italic leading-none tracking-tighter">MONITORAMENTO DOS RIOS - REDEC 10 - NORTE / REDEC 11 - NOROESTE</h1>
           </div>
-          <p className="text-[9px] font-bold uppercase leading-tight text-slate-600 italic">
-            * Informativo gerado automaticamente pelo Sistema Integrado REDEC 10 - Norte. Dados sujeitos a revisão.
-          </p>
+
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-[#8db4e2] text-[10px] uppercase font-black">
+                <th className="border-2 border-black p-2 w-[160px]">RIOS / LAGOAS</th>
+                <th className="border-2 border-black p-2 w-[240px]">MUNICÍPIOS / ESTAÇÃO</th>
+                <th className="border-2 border-black p-2 w-[70px] text-red-700 bg-[#ffffcc]">TRANSB.</th>
+                <th className="border-2 border-black p-2 w-[85px]">24H ANTES</th>
+                <th className="border-2 border-black p-2 w-[85px] text-red-600">ANTEPENÚLT.</th>
+                <th className="border-2 border-black p-2 w-[85px] text-red-600">PENÚLTIMA</th>
+                <th className="border-2 border-black p-2 w-[85px] bg-[#ffff00]">ÚLTIMA</th>
+                <th className="border-2 border-black p-2 w-16 font-black">FONTE</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(estacoesAgrupadas).map(([rio, lista]) => (
+                lista.map((estacao, idx) => {
+                  const hist = historico[estacao.id] || {}
+                  const atual = dadosDaTela[estacao.id]?.nivel || "N/INF"
+                  const limite = estacao.nivel_transbordo
+
+                  return (
+                    <tr key={estacao.id} className="text-center font-bold text-[11px] leading-tight">
+                      {idx === 0 && (
+                        <td rowSpan={lista.length} className="border-2 border-black bg-[#d9e1f2] align-middle p-2 uppercase font-black">
+                          {rio}
+                        </td>
+                      )}
+                      <td className="border-2 border-black p-1.5 text-left uppercase text-[10px]">
+                        {estacao.municipio}
+                      </td>
+                      <td className="border-2 border-black p-1.5 text-red-600 font-black bg-[#ffffcc]">
+                        {limite ? parseFloat(limite).toFixed(2).replace('.',',') : "—"}
+                      </td>
+                      
+                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
+                          {hist.vinteQuatroHoras !== "N/INF" ? parseFloat(hist.vinteQuatroHoras).toFixed(2).replace('.',',') : "N/INF"}
+                      </td>
+                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.antepenultima, limite)}`}>
+                          {hist.antepenultima !== "N/INF" ? parseFloat(hist.antepenultima).toFixed(2).replace('.',',') : "N/INF"}
+                      </td>
+                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.penultima, limite)}`}>
+                          {hist.penultima !== "N/INF" ? parseFloat(hist.penultima).toFixed(2).replace('.',',') : "N/INF"}
+                      </td>
+                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(atual, limite)}`}>
+                          {atual !== "N/INF" ? parseFloat(atual).toFixed(2).replace('.',',') : "N/INF"}
+                      </td>
+                      <td className="border-2 border-black p-1.5 text-[9px] uppercase font-black">{estacao.fonte}</td>
+                    </tr>
+                  )
+                })
+              ))}
+            </tbody>
+          </table>
+
+          {/* LEGENDA E NOTAS */}
+          <div className="p-4 bg-white border-t-[3px] border-black mt-auto">
+            {/* Legenda de Cores */}
+            <div className="flex gap-10 mb-4 items-center">
+              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ffc000] border-2 border-black"></div> <span className="text-[10px] font-black uppercase tracking-tighter">ALERTA (15% PARA TRANSB.)</span></div>
+              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff0000] border-2 border-black"></div> <span className="text-[10px] font-black uppercase tracking-tighter">TRANSBORDO</span></div>
+              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff00ff] border-2 border-black"></div> <span className="text-[10px] font-black uppercase tracking-tighter">20% ACIMA DO TRANSB.</span></div>
+            </div>
+
+            {/* Caixa de Texto com Cantos Redondos */}
+            <div className="border border-slate-300 rounded-xl p-3 bg-slate-50">
+              <p className="text-[10px] font-medium leading-relaxed text-slate-700 italic mb-2">
+                * Última Medição Válida / N/INF - Não Informado / A/R - Abaixo da régua / INOP - Inoperante / DBM - Destacamento de Bombeiro Militar. 
+                COMDEC - Coordenadoria Municipal de Defesa Civil / CPRM - Serviço Geológico do Brasil / 
+                HidroWeb - Rede Hidrometeorológica Nacional / INEA - Instituto Estadual do Ambiente (Sistema Alerta de Cheias)
+              </p>
+              <div className="h-[1px] bg-slate-200 my-2 w-full"></div>
+              <p className="text-[10px] font-bold leading-relaxed text-slate-800 italic">
+                Obs.: A dinâmica dos níveis dos rios é calculada com os dados disponíveis no momento, tendo como base as duas últimas cotas, 
+                podendo sofrer influência da dificuldade de comunicação entre os colaboradores ou demora na atualização dos aparelhos automáticos.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
