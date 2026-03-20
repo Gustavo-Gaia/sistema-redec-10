@@ -59,7 +59,7 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
     try {
       const dataUrl = await toPng(reportRef.current, { 
         cacheBust: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#f1f5f9', // Fundo levemente cinza atrás da margem
         pixelRatio: 2,
         style: { borderRadius: '0' }
       });
@@ -98,30 +98,33 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
     <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[999] p-4 overflow-auto scrollbar-hide">
       
       <div className="fixed top-4 right-4 flex gap-2 no-print z-[1001]">
-        <button onClick={exportarImagem} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-black text-[12px] uppercase shadow-xl transition-all">📸 Salvar para Instagram</button>
+        <button onClick={exportarImagem} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-black text-[12px] uppercase shadow-xl transition-all">📸 Salvar Foto</button>
         <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-black text-[12px] uppercase shadow-xl">Fechar</button>
       </div>
 
-      <div ref={reportRef} className="p-4 bg-white flex flex-col items-center">
+      {/* ÁREA DE CAPTURA COM MARGEM (Ref para PNG) */}
+      <div ref={reportRef} className="p-10 bg-slate-100 flex flex-col items-center">
         
-        <div className="bg-white w-fit min-w-[1000px] max-w-[1200px] border-[4px] border-black flex flex-col shadow-none">
+        {/* CORPO DO RELATÓRIO - Largura Automática */}
+        <div className="bg-white border-[4px] border-black flex flex-col shadow-xl">
           
-          <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
-            <h1 className="text-2xl font-black uppercase italic leading-tight tracking-tighter text-black">MONITORAMENTO DOS RIOS - REDEC 10 - NORTE / REDEC 11 - NOROESTE</h1>
+          <div className="bg-[#ffc000] border-b-[4px] border-black p-3 text-center">
+            <h1 className="text-2xl font-black uppercase italic leading-none tracking-tighter text-black">MONITORAMENTO DOS RIOS - REDEC 10 - NORTE / REDEC 11 - NOROESTE</h1>
           </div>
 
-          <table className="w-full border-collapse">
+          <table className="border-collapse table-auto">
             <thead>
-              <tr className="bg-[#8db4e2] text-[13px] uppercase font-black text-black">
-                <th className="border-[3px] border-black p-2 w-[160px]">RIOS / LAGOAS</th>
-                {/* Coluna ajustável ao conteúdo */}
-                <th className="border-[3px] border-black p-2 text-left">MUNICÍPIOS / ESTAÇÃO</th>
-                <th className="border-[3px] border-black p-2 w-[90px] text-red-700 bg-[#ffffcc]">TRANSB.</th>
-                <th className="border-[3px] border-black p-2 w-[105px]">24H ANTES</th>
-                <th className="border-[3px] border-black p-2 w-[105px] text-red-600">ANTEPENÚLT.</th>
-                <th className="border-[3px] border-black p-2 w-[105px] text-red-600">PENÚLTIMA</th>
-                <th className="border-[3px] border-black p-2 w-[105px] bg-[#ffff00]">ÚLTIMA</th>
-                <th className="border-[3px] border-black p-2 w-24 font-black">FONTE</th>
+              {/* Centralizados, Maiores e Negrito */}
+              <tr className="bg-[#8db4e2] text-[15px] uppercase font-black text-black text-center">
+                <th className="border-2 border-black p-3.5 w-auto">RIOS / LAGOAS</th>
+                {/* Autoajusta ao maior nome */}
+                <th className="border-2 border-black p-3.5 w-px whitespace-nowrap">MUNICÍPIOS / ESTAÇÃO</th>
+                <th className="border-2 border-black p-3.5 w-24 text-red-700 bg-[#ffffcc]">TRANSB.</th>
+                <th className="border-2 border-black p-3.5 w-28">24H ANTES</th>
+                <th className="border-2 border-black p-3.5 w-28 text-red-600">ANTEPENÚLT.</th>
+                <th className="border-2 border-black p-3.5 w-28 text-red-600">PENÚLTIMA</th>
+                <th className="border-2 border-black p-3.5 w-28 bg-[#ffff00]">ÚLTIMA</th>
+                <th className="border-2 border-black p-3.5 w-24">FONTE</th>
               </tr>
             </thead>
             <tbody>
@@ -132,33 +135,33 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
                   const limite = estacao.nivel_transbordo
 
                   return (
-                    <tr key={estacao.id} className="text-center font-black text-[14px] leading-none text-black">
+                    <tr key={estacao.id} className="text-center font-bold text-[13px] leading-tight text-black">
                       {idx === 0 && (
-                        <td rowSpan={lista.length} className="border-[3px] border-black bg-[#d9e1f2] align-middle p-2 uppercase font-black text-[15px]">
+                        <td rowSpan={lista.length} className="border-2 border-black bg-[#d9e1f2] align-middle p-2 uppercase font-black text-[15px]">
                           {rio}
                         </td>
                       )}
-                      {/* whitespace-nowrap impede a quebra de linha e p-3 dá o respiro lateral */}
-                      <td className="border-[3px] border-black p-3 text-left uppercase text-[14px] font-black leading-none whitespace-nowrap">
+                      {/*whitespace-nowrap impede a quebra de linha e p-3.5 dá o respiro lateral */}
+                      <td className="border-2 border-black p-3.5 text-left uppercase text-[14px] font-black leading-none whitespace-nowrap">
                         {estacao.municipio}
                       </td>
-                      <td className="border-[3px] border-black p-1.5 text-red-600 font-black bg-[#ffffcc] text-[16px]">
+                      <td className="border-2 border-black p-1.5 text-red-600 font-black bg-[#ffffcc] text-[16px]">
                         {limite ? parseFloat(limite).toFixed(2).replace('.',',') : "—"}
                       </td>
                       
-                      <td className={`border-[3px] border-black p-1.5 ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
+                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
                           {hist.vinteQuatroHoras !== "N/INF" ? parseFloat(hist.vinteQuatroHoras).toFixed(2).replace('.',',') : "N/INF"}
                       </td>
-                      <td className={`border-[3px] border-black p-1.5 ${obterCorNivel(hist.antepenultima, limite)}`}>
+                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.antepenultima, limite)}`}>
                           {hist.antepenultima !== "N/INF" ? parseFloat(hist.antepenultima).toFixed(2).replace('.',',') : "N/INF"}
                       </td>
-                      <td className={`border-[3px] border-black p-1.5 ${obterCorNivel(hist.penultima, limite)}`}>
+                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(hist.penultima, limite)}`}>
                           {hist.penultima !== "N/INF" ? parseFloat(hist.penultima).toFixed(2).replace('.',',') : "N/INF"}
                       </td>
-                      <td className={`border-[3px] border-black p-1.5 ${obterCorNivel(atual, limite)}`}>
+                      <td className={`border-2 border-black p-1.5 ${obterCorNivel(atual, limite)}`}>
                           {atual !== "N/INF" ? parseFloat(atual).toFixed(2).replace('.',',') : "N/INF"}
                       </td>
-                      <td className="border-[3px] border-black p-1.5 text-[12px] uppercase font-black">{estacao.fonte}</td>
+                      <td className="border-2 border-black p-1.5 text-[11px] uppercase font-black">{estacao.fonte}</td>
                     </tr>
                   )
                 })
@@ -166,11 +169,12 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
             </tbody>
           </table>
 
-          <div className="p-3 bg-white border-t-[4px] border-black mt-auto">
-            <div className="flex gap-10 mb-2 items-center justify-center">
-              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ffc000] border-[2px] border-black"></div> <span className="text-[12px] font-black uppercase">ALERTA</span></div>
-              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff0000] border-[2px] border-black"></div> <span className="text-[12px] font-black uppercase">TRANSBORDO</span></div>
-              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff00ff] border-[2px] border-black"></div> <span className="text-[12px] font-black uppercase">20% ACIMA</span></div>
+          {/* Legendas ajustadas para caber na nova largura automática */}
+          <div className="p-4 bg-white border-t-[3px] border-black mt-auto">
+            <div className="flex gap-12 mb-4 items-center justify-center">
+              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ffc000] border-2 border-black"></div> <span className="text-[12px] font-black uppercase">ALERTA</span></div>
+              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff0000] border-2 border-black"></div> <span className="text-[12px] font-black uppercase">TRANSBORDO</span></div>
+              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff00ff] border-2 border-black"></div> <span className="text-[12px] font-black uppercase">20% ACIMA</span></div>
             </div>
 
             <div className="border-[2px] border-black rounded-xl p-3 bg-slate-50">
