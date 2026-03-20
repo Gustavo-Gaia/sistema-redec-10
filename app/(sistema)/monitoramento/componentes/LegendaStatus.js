@@ -11,24 +11,21 @@ export default function LegendaStatus() {
   ];
 
   return (
-    <div className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg p-4 antialiased transition-all hover:shadow-xl">
-      <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4 px-1 opacity-70">
-        Status Hidrológico
+    <div className="bg-white/70 backdrop-blur-md border border-white/40 rounded-2xl shadow-lg p-3 w-fit antialiased">
+      <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1 opacity-80">
+        Status
       </h3>
 
-      <div className="grid grid-cols-2 md:flex md:flex-row gap-x-6 gap-y-3 md:gap-8">
+      {/* Grid de 2 colunas para reduzir a largura total */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
         {itens.map((item, i) => (
-          <div key={i} className="flex items-center gap-2.5 group cursor-default">
-            {/* Indicador com pulso sutil no hover */}
-            <div className="relative">
-              <div className={`w-2.5 h-2.5 rounded-full ${item.cor} border border-white shadow-sm flex-shrink-0 transition-transform group-hover:scale-125`} />
-            </div>
-            
-            <div className="flex flex-col leading-tight">
-              <span className="text-[11px] font-bold text-slate-700 whitespace-nowrap tracking-tight group-hover:text-slate-900 transition-colors">
+          <div key={i} className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${item.cor} shadow-sm flex-shrink-0`} />
+            <div className="flex flex-col leading-none">
+              <span className="text-[10px] font-bold text-slate-700 whitespace-nowrap">
                 {item.titulo}
               </span>
-              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+              <span className="text-[7px] font-bold text-slate-400 uppercase">
                 {item.desc}
               </span>
             </div>
