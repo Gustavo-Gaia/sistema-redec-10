@@ -7,6 +7,38 @@ import { useEffect, useState } from "react"
 import { useMonitoramento } from "../MonitoramentoContext"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
+import { Maximize } from "lucide-react"
+
+// ========================================
+// 🚀 COMPONENTE PARA RESETAR VISUALIZAÇÃO
+// ========================================
+function BotaoReset({ geoArea }) {
+  const map = useMap()
+
+  const handleReset = () => {
+    if (geoArea) {
+      const layer = L.geoJSON(geoArea)
+      map.fitBounds(layer.getBounds(), { padding: [40, 40], duration: 1.5 })
+    } else {
+      map.flyTo([-21.75, -41.32], 9, { duration: 1.5 })
+    }
+  }
+
+  return (
+    <div className="leaflet-top leaflet-left" style={{ marginTop: "80px", marginLeft: "10px" }}>
+      <div className="leaflet-control leaflet-bar border-none shadow-md">
+        <button
+          onClick={handleReset}
+          className="bg-white hover:bg-slate-50 text-slate-700 w-9 h-9 flex items-center justify-center transition-colors rounded-md"
+          title="Resetar para visão geral da REDEC"
+          style={{ border: 'none', cursor: 'pointer' }}
+        >
+          <Maximize size={18} />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ========================================
 // 🚀 FLY TO ESTAÇÃO
@@ -72,6 +104,7 @@ export default function MapaMonitoramento() {
   // Estados para as camadas geográficas
   const [geoRios, setGeoRios] = useState(null)
   const [geoLagoas, setGeoLagoas] = useState(null)
+  const [geoArea, setGeoArea] = useState(null)
 
   // 🔥 CARREGAMENTO DOS ARQUIVOS GEOJSON
   useEffect(() => {
@@ -84,6 +117,11 @@ export default function MapaMonitoramento() {
       .then(res => res.json())
       .then(data => setGeoLagoas(data))
       .catch(err => console.error("Erro ao carregar lagoas:", err))
+
+    fetch("/geo/area_redec_norte.geojson")
+      .then(res => res.json())
+      .then(data => setGeoArea(data))
+      .catch(err => console.error("Erro ao carregar área REDEC:", err))
   }, [])
 
   // 🎨 ESTILOS DAS CAMADAS
@@ -100,6 +138,15 @@ export default function MapaMonitoramento() {
     fillOpacity: 0.5
   }
 
+  const estiloArea = {
+    color: "#64748b",      // Cinza Neutro (Slate-500)
+    weight: 2,
+    fillColor: "#94a3b8",
+    fillOpacity: 0.02,     // Quase invisível
+    dashArray: "8, 8",     // Tracejado de fronteira
+    interactive: true
+  }
+
   const coresHex = {
     normal: "#10b981",
     alerta: "#facc15",
@@ -111,7 +158,7 @@ export default function MapaMonitoramento() {
   }
 
   return (
-    <div className="w-full h-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
+    <div className="w-full h-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner relative">
       <MapContainer
         center={[-21.75, -41.32]}
         zoom={9}
@@ -123,10 +170,26 @@ export default function MapaMonitoramento() {
         />
 
         <FlyToEstacao estacao={estacaoSelecionada} />
+        <BotaoReset geoArea={geoArea} />
 
-        {/* 🛠️ CONTROLE DE CAMADAS (SELETOR DISCRETO) */}
+        {/* 🛠️ CONTROLE DE CAMADAS */}
         <LayersControl position="topright" collapsed={true}>
           
+          {/* CAMADA ÁREA REDEC NORTE */}
+          {geoArea && (
+            <LayersControl.Overlay checked name="📍 Área REDEC Norte">
+              <GeoJSON 
+                data={geoArea} 
+                style={estiloArea}
+                onEachFeature={(feature, layer) => {
+                  if (feature.properties?.name) {
+                    layer.bindTooltip(`<b>Município:</b> ${feature.properties.name}`, { sticky: true })
+                  }
+                }}
+              />
+            </LayersControl.Overlay>
+          )}
+
           {/* CAMADA DE LAGOAS */}
           {geoLagoas && (
             <LayersControl.Overlay checked name="🟦 Lagoas Monitoradas">
