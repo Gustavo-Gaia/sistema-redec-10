@@ -34,7 +34,11 @@ export default function GraficoEstacao({ estacao }) {
 
         const json = await res.json()
 
-        const formatado = json.map((m) => {
+        // 🔥 CORREÇÃO: Inverte o JSON aqui para que o gráfico flua da esquerda para a direita
+        // Usamos [...json] para não mutar o original se necessário
+        const dadosInvertidos = [...json].reverse()
+
+        const formatado = dadosInvertidos.map((m) => {
           const dataObj = new Date(m.data_hora)
 
           return {
@@ -69,6 +73,8 @@ export default function GraficoEstacao({ estacao }) {
       return { icon: <Minus size={16}/>, texto: "Estável", cor: "text-slate-400" }
     }
 
+    // Agora que os dados estão em ordem cronológica (reverse feito acima),
+    // o último item do array É o dado mais recente.
     const ultimo = validos[validos.length - 1].nivel
     const anterior = validos[validos.length - 2].nivel
 
