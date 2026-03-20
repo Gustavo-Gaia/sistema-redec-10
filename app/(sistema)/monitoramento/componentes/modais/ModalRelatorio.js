@@ -104,7 +104,7 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
 
       <div ref={reportRef} className="p-4 bg-white flex flex-col items-center">
         
-        <div className="bg-white w-[1150px] border-[4px] border-black flex flex-col shadow-none">
+        <div className="bg-white w-fit min-w-[1000px] max-w-[1200px] border-[4px] border-black flex flex-col shadow-none">
           
           <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
             <h1 className="text-2xl font-black uppercase italic leading-tight tracking-tighter text-black">MONITORAMENTO DOS RIOS - REDEC 10 - NORTE / REDEC 11 - NOROESTE</h1>
@@ -113,14 +113,14 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-[#8db4e2] text-[13px] uppercase font-black text-black">
-                <th className="border-[3px] border-black p-2 w-[180px]">RIOS / LAGOAS</th>
-                {/* LARGURA REDUZIDA AQUI */}
-                <th className="border-[3px] border-black p-2 w-[350px]">MUNICÍPIOS / ESTAÇÃO</th>
+                <th className="border-[3px] border-black p-2 w-[160px]">RIOS / LAGOAS</th>
+                {/* Coluna ajustável ao conteúdo */}
+                <th className="border-[3px] border-black p-2 text-left">MUNICÍPIOS / ESTAÇÃO</th>
                 <th className="border-[3px] border-black p-2 w-[90px] text-red-700 bg-[#ffffcc]">TRANSB.</th>
-                <th className="border-[3px] border-black p-2 w-[110px]">24H ANTES</th>
-                <th className="border-[3px] border-black p-2 w-[110px] text-red-600">ANTEPENÚLT.</th>
-                <th className="border-[3px] border-black p-2 w-[110px] text-red-600">PENÚLTIMA</th>
-                <th className="border-[3px] border-black p-2 w-[110px] bg-[#ffff00]">ÚLTIMA</th>
+                <th className="border-[3px] border-black p-2 w-[105px]">24H ANTES</th>
+                <th className="border-[3px] border-black p-2 w-[105px] text-red-600">ANTEPENÚLT.</th>
+                <th className="border-[3px] border-black p-2 w-[105px] text-red-600">PENÚLTIMA</th>
+                <th className="border-[3px] border-black p-2 w-[105px] bg-[#ffff00]">ÚLTIMA</th>
                 <th className="border-[3px] border-black p-2 w-24 font-black">FONTE</th>
               </tr>
             </thead>
@@ -138,7 +138,8 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
                           {rio}
                         </td>
                       )}
-                      <td className="border-[3px] border-black p-1.5 text-left uppercase text-[14px] font-black leading-none">
+                      {/* whitespace-nowrap impede a quebra de linha e p-3 dá o respiro lateral */}
+                      <td className="border-[3px] border-black p-3 text-left uppercase text-[14px] font-black leading-none whitespace-nowrap">
                         {estacao.municipio}
                       </td>
                       <td className="border-[3px] border-black p-1.5 text-red-600 font-black bg-[#ffffcc] text-[16px]">
