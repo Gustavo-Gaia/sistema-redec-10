@@ -175,7 +175,7 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
               <p className="text-[10px] font-bold leading-tight text-black italic mb-1 text-center">
                 * Última Medição Válida / N/INF - Não Informado / A/R - Abaixo da régua / INOP - Inoperante / DBM - Destacamento de Bombeiro Militar. 
                 COMDEC - Coordenadoria Municipal de Defesa Civil / CPRM - Serviço Geológico do Brasil / 
-                HidroWeb - Rede Hidrometeorológica Nacional / INEA - Instituto Estadual do Ambiente (Sistema Alerta de Cheias)
+                ANA - Agência Nacional de Águas / INEA - Instituto Estadual do Ambiente (Sistema Alerta de Cheias)
               </p>
               <div className="h-[2px] bg-black my-2 w-full"></div>
               <p className="text-[10px] font-black leading-tight text-black italic text-center">
