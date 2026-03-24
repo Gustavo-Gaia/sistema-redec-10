@@ -100,7 +100,7 @@ export default function MapaMonitoramento() {
 
   const estiloRios = { 
     color: "#2c7fb8", 
-    weight: 4, 
+    weight: 3, 
     opacity: 0.9,
     pane: "overlayPane" // Fica acima do mapPane (evita ser bloqueado pela área)
   }
