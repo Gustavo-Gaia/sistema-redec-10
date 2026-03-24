@@ -37,21 +37,18 @@ export function MonitoramentoProvider({
         const { data: dataEstacoes } = await supabase
           .from("estacoes")
           .select("*")
-          .eq("ativo", true)
-          // 🚀 CORREÇÃO CRITICAL: Ordena por ID para manter a sequência geográfica
-          // Isso garante que Italva (11) fique sempre no lugar certo.
-          .order('id', { ascending: true })
+          .order('id', { ascending: true }) // ALTERADO: Ordenando por ID para manter a sequência geográfica
 
         if (dataEstacoes) setEstacoesBase(dataEstacoes)
 
-        // 2. Busca a última medição de cada estação
+        // 2. Busca a última medição de cada estação (usando uma query otimizada)
         const { data: dataMedicoes } = await supabase
           .from("medicoes")
           .select("*")
           .order('data_hora', { ascending: false })
 
         if (dataMedicoes) {
-          // Mantém apenas a medição mais recente de cada estação
+          // Remove duplicados para manter apenas a última de cada estação no estado
           const unicas = Object.values(
             dataMedicoes.reduce((acc, m) => {
               if (!acc[m.estacao_id]) acc[m.estacao_id] = m
@@ -84,6 +81,7 @@ export function MonitoramentoProvider({
           if (!novaMedicao?.estacao_id) return
 
           setMedicoes((prev) => {
+            // Remove a medição antiga daquela estação e adiciona a nova
             const filtradas = prev.filter(m => m.estacao_id !== novaMedicao.estacao_id)
             return [novaMedicao, ...filtradas]
           })
@@ -98,13 +96,14 @@ export function MonitoramentoProvider({
   /* 🔥 PROCESSAMENTO DOS DADOS (Memoized) */
   /* ======================================== */
   
+  // Mapeia medições por ID para acesso rápido
   const medicoesPorEstacao = useMemo(() => {
     const map = {}
     medicoes.forEach(m => { map[m.estacao_id] = m })
     return map
   }, [medicoes])
 
-  // Une Estação + Medição e mantém a ordem do array estacoesBase (que já vem ordenado por ID)
+  // Une Estação + Medição + Cálculo de Situação (Alerta/Crítico)
   const estacoesComDados = useMemo(() => {
     return estacoesBase.map((estacao) => {
       const medicao = medicoesPorEstacao[estacao.id]
