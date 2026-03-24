@@ -117,9 +117,12 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
                 <th className="border-2 border-black p-2 w-px whitespace-nowrap text-center">MUNICÍPIOS / ESTAÇÃO</th>
                 <th className="border-2 border-black p-2 w-24 text-red-700 bg-[#ffffcc]">TRANSB.</th>
                 <th className="border-2 border-black p-2 w-28">24H ANTES</th>
-                <th className="border-2 border-black p-2 w-28 text-red-600">ANTEPENÚLT.</th>
-                <th className="border-2 border-black p-2 w-28 text-red-600">PENÚLTIMA</th>
-                <th className="border-2 border-black p-2 w-28 bg-[#ffff00]">ÚLTIMA</th>
+                {/* Corrigido para preto */}
+                <th className="border-2 border-black p-2 w-28 text-black">ANTEPENÚLT.</th>
+                {/* Corrigido para preto */}
+                <th className="border-2 border-black p-2 w-28 text-black">PENÚLTIMA</th>
+                {/* Corrigido fundo para azul (removido bg-[#ffff00]) */}
+                <th className="border-2 border-black p-2 w-28">ÚLTIMA</th>
                 <th className="border-2 border-black p-2 w-24">FONTE</th>
               </tr>
             </thead>
