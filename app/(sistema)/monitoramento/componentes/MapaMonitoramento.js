@@ -41,24 +41,16 @@ function BotaoReset({ geoArea }) {
   )
 }
 
-// ========================================
-// 🚀 FLY TO ESTAÇÃO
-// ========================================
 function FlyToEstacao({ estacao }) {
   const map = useMap()
-
   useEffect(() => {
     if (estacao?.latitude && estacao?.longitude) {
       map.flyTo([estacao.latitude, estacao.longitude], 13, { duration: 1.5 })
     }
   }, [estacao, map])
-
   return null
 }
 
-// ========================================
-// 🎯 ÍCONE CUSTOMIZADO (COM PULSO + HOVER)
-// ========================================
 const criarIconeCustomizado = (cor, status, selecionada) => {
   const tamanho = selecionada ? 45 : 35
   const critico = ["alerta", "transbordo", "extremo"].includes(status)
@@ -66,26 +58,9 @@ const criarIconeCustomizado = (cor, status, selecionada) => {
   return L.divIcon({
     className: `custom-pin ${critico ? "marker-critical-pulse" : ""}`,
     html: `
-      <div style="
-        position: relative;
-        width: ${tamanho}px;
-        height: ${tamanho}px;
-        color: ${cor};
-      ">
-        <svg
-          width="${tamanho}"
-          height="${tamanho}"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          style="filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.3)); transition: all 0.2s ease;"
-        >
-          <path 
-            d="M12 21C16 17.5 19 14.402 19 11.2C19 7.22355 15.866 4 12 4C8.13401 4 5 7.22355 5 11.2C5 14.402 8 17.5 12 21Z" 
-            fill="${cor}" 
-            stroke="white" 
-            stroke-width="1.5"
-          />
+      <div style="position: relative; width: ${tamanho}px; height: ${tamanho}px; color: ${cor};">
+        <svg width="${tamanho}" height="${tamanho}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.3)); transition: all 0.2s ease;">
+          <path d="M12 21C16 17.5 19 14.402 19 11.2C19 7.22355 15.866 4 12 4C8.13401 4 5 7.22355 5 11.2C5 14.402 8 17.5 12 21Z" fill="${cor}" stroke="white" stroke-width="1.5"/>
           <circle cx="12" cy="11" r="3" fill="white" fill-opacity="0.9"/>
         </svg>
       </div>
@@ -107,31 +82,35 @@ export default function MapaMonitoramento() {
   const [geoArea, setGeoArea] = useState(null)
 
   useEffect(() => {
-    fetch("/geo/rios_monitorados.geojson")
-      .then(res => res.json())
-      .then(data => setGeoRios(data))
-      .catch(err => console.error("Erro ao carregar rios:", err))
-
-    fetch("/geo/lagoas_monitoradas.geojson")
-      .then(res => res.json())
-      .then(data => setGeoLagoas(data))
-      .catch(err => console.error("Erro ao carregar lagoas:", err))
-
-    fetch("/geo/area_redec_norte.geojson")
-      .then(res => res.json())
-      .then(data => setGeoArea(data))
-      .catch(err => console.error("Erro ao carregar área REDEC:", err))
+    fetch("/geo/rios_monitorados.geojson").then(res => res.json()).then(data => setGeoRios(data))
+    fetch("/geo/lagoas_monitoradas.geojson").then(res => res.json()).then(data => setGeoLagoas(data))
+    fetch("/geo/area_redec_norte.geojson").then(res => res.json()).then(data => setGeoArea(data))
   }, [])
 
-  const estiloRios = { color: "#2c7fb8", weight: 3, opacity: 0.8 }
-  const estiloLagoas = { fillColor: "#74add1", color: "#2c7fb8", weight: 2, fillOpacity: 0.5 }
+  // Definição de estilos com Panes para controle de sobreposição
   const estiloArea = {
     color: "#475569",
     weight: 2,
     fillColor: "#64748b",
     fillOpacity: 0.15,
     dashArray: "8, 8",
-    interactive: true
+    interactive: true,
+    pane: "mapPane" // Fica no fundo
+  }
+
+  const estiloRios = { 
+    color: "#2c7fb8", 
+    weight: 4, 
+    opacity: 0.9,
+    pane: "overlayPane" // Fica acima do mapPane (evita ser bloqueado pela área)
+  }
+
+  const estiloLagoas = { 
+    fillColor: "#74add1", 
+    color: "#2c7fb8", 
+    weight: 2, 
+    fillOpacity: 0.6,
+    pane: "overlayPane" 
   }
 
   const coresHex = {
@@ -161,33 +140,58 @@ export default function MapaMonitoramento() {
         <BotaoReset geoArea={geoArea} />
 
         <LayersControl position="topright" collapsed={true}>
+          {/* CAMADA DA ÁREA REDEC */}
           {geoArea && (
             <LayersControl.Overlay checked name="📍 Área REDEC Norte">
               <GeoJSON 
                 data={geoArea} 
                 style={estiloArea}
                 onEachFeature={(feature, layer) => {
-                  if (feature.properties?.name) {
-                    layer.bindTooltip(`<b>Município:</b> ${feature.properties.name}`, { sticky: true })
+                  if (feature.properties?.name || feature.properties?.nome) {
+                    layer.bindTooltip(`<b>Município:</b> ${feature.properties.name || feature.properties.nome}`, { sticky: true })
                   }
                 }}
               />
             </LayersControl.Overlay>
           )}
 
+          {/* CAMADA DE LAGOAS */}
           {geoLagoas && (
             <LayersControl.Overlay checked name="🟦 Lagoas Monitoradas">
-              <GeoJSON data={geoLagoas} style={estiloLagoas} />
+              <GeoJSON 
+                data={geoLagoas} 
+                style={estiloLagoas}
+                onEachFeature={(feature, layer) => {
+                  const nome = feature.properties?.name || feature.properties?.nome || feature.properties?.NOME;
+                  if (nome) {
+                    layer.bindTooltip(`<b>Lagoa:</b> ${nome}`, { sticky: true });
+                  }
+                }}
+              />
             </LayersControl.Overlay>
           )}
 
+          {/* CAMADA DE RIOS (Com traga para frente) */}
           {geoRios && (
             <LayersControl.Overlay checked name="🌊 Rios Monitorados">
-              <GeoJSON data={geoRios} style={estiloRios} />
+              <GeoJSON 
+                data={geoRios} 
+                style={estiloRios} 
+                onEachFeature={(feature, layer) => {
+                  const nome = feature.properties?.name || feature.properties?.nome || feature.properties?.RIO;
+                  if (nome) {
+                    layer.bindTooltip(`<b>Rio:</b> ${nome}`, { 
+                      sticky: true,
+                      className: "!bg-blue-600 !text-white !border-none shadow-md" 
+                    });
+                  }
+                }}
+              />
             </LayersControl.Overlay>
           )}
         </LayersControl>
 
+        {/* MARKERS DAS ESTAÇÕES */}
         {estacoes.map((e) => {
           if (!e.latitude || !e.longitude) return null
           const status = e.situacao?.status || "sem_dado"
@@ -224,7 +228,6 @@ export default function MapaMonitoramento() {
         })}
       </MapContainer>
 
-      {/* 🧭 LEGENDA FLUTUANTE (WIDGET COMPACTO) */}
       <div className="absolute bottom-6 left-6 z-[1000] transition-opacity duration-300 group-hover:opacity-100 opacity-90">
         <LegendaStatus />
       </div>
