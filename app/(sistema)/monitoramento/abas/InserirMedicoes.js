@@ -14,12 +14,19 @@ const supabase = createClient(
 export default function InserirMedicoes() {
   const [estacoes, setEstacoes] = useState([])
   const [dados, setDados] = useState({})
-  const [idsSelecionados, setIdsSelecionados] = useState([]) // ESTADO PARA SELEÇÃO
+  const [idsSelecionados, setIdsSelecionados] = useState([])
   const [loading, setLoading] = useState(false)
   const [loadingAna, setLoadingAna] = useState(false)
   const [loadingInea, setLoadingInea] = useState(false)
   
   const [mostrarRelatorio, setMostrarRelatorio] = useState(false)
+
+  // NOVO ESTADO: Controle de visibilidade das colunas no relatório
+  const [colunasVisiveis, setColunasVisiveis] = useState({
+    v24h: true,
+    antepenultima: true,
+    penultima: true
+  })
 
   useEffect(() => {
     carregarEstacoes()
@@ -37,21 +44,18 @@ export default function InserirMedicoes() {
         rios(nome)
       `)
       .eq("ativo", true)
-      .order('id', { ascending: true }) // ALTERADO: Ordenando por ID para manter a sequência geográfica
+      .order('id', { ascending: true })
 
     setEstacoes(data || [])
-    // Por padrão, seleciona todas ao carregar
     setIdsSelecionados(data?.map(e => e.id) || [])
   }
 
-  // Função para alternar seleção individual
   function toggleSelecao(id) {
     setIdsSelecionados(prev => 
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     )
   }
 
-  // Função para selecionar/desmarcar tudo
   function toggleTodos() {
     if (idsSelecionados.length === estacoes.length) {
       setIdsSelecionados([])
@@ -157,7 +161,26 @@ export default function InserirMedicoes() {
       <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-100">
         <div>
           <h3 className="text-xl font-bold text-slate-800">Monitoramento em Tempo Real</h3>
-          <p className="text-sm text-slate-500">Marque as estações que deseja incluir no relatório visual.</p>
+          <div className="flex flex-col gap-2 mt-1">
+            <p className="text-sm text-slate-500">Marque as estações e colunas que deseja no relatório.</p>
+            
+            {/* SELETOR DE COLUNAS */}
+            <div className="flex gap-4 p-2 bg-slate-50 rounded-lg border border-dashed border-slate-200 w-fit">
+              <span className="text-[10px] font-black text-slate-400 uppercase flex items-center">Colunas:</span>
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer hover:text-blue-600 transition-colors">
+                <input type="checkbox" className="accent-blue-600" checked={colunasVisiveis.v24h} onChange={() => setColunasVisiveis(p => ({...p, v24h: !p.v24h}))} />
+                24h
+              </label>
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer hover:text-blue-600 transition-colors">
+                <input type="checkbox" className="accent-blue-600" checked={colunasVisiveis.antepenultima} onChange={() => setColunasVisiveis(p => ({...p, antepenultima: !p.antepenultima}))} />
+                Antepenúlt.
+              </label>
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer hover:text-blue-600 transition-colors">
+                <input type="checkbox" className="accent-blue-600" checked={colunasVisiveis.penultima} onChange={() => setColunasVisiveis(p => ({...p, penultima: !p.penultima}))} />
+                Penúltima
+              </label>
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-2">
@@ -188,7 +211,6 @@ export default function InserirMedicoes() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b text-slate-600 uppercase text-[11px] font-bold">
             <tr>
-              {/* Checkbox de Selecionar Todos */}
               <th className="p-3 text-center w-10">
                 <input 
                   type="checkbox" 
@@ -214,7 +236,6 @@ export default function InserirMedicoes() {
 
               return (
                 <tr key={estacao.id} className={`border-b transition-colors ${estaSelecionada ? 'bg-orange-50/30' : ''} ${ehComdec ? 'hover:bg-blue-50' : 'hover:bg-slate-50'}`}>
-                  {/* Checkbox Individual */}
                   <td className="p-3 text-center">
                     <input 
                       type="checkbox" 
@@ -257,11 +278,11 @@ export default function InserirMedicoes() {
         </table>
       </div>
 
-      {/* RENDERIZAÇÃO DO MODAL - FILTRANDO AS ESTAÇÕES */}
       {mostrarRelatorio && (
         <ModalRelatorio 
           dadosDaTela={dados} 
           estacoes={estacoes.filter(e => idsSelecionados.includes(e.id))} 
+          colunasVisiveis={colunasVisiveis} // NOVA PROP
           onClose={() => setMostrarRelatorio(false)} 
         />
       )}
