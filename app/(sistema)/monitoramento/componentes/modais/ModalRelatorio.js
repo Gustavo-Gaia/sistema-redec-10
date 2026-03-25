@@ -25,43 +25,41 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis,
     const novoHistorico = {};
     try {
       const agora = new Date();
-      const vinteQuatroHorasAtras = new Date(agora.getTime() - (24 * 60 * 60 * 1000));
-
-      // Disparamos uma consulta individual para cada estação simultaneamente
+      // Definimos a janela de 24h (com margem de 30 min para garantir que ache o registro mais próximo)
+      const vinteQuatroHorasAtras = new Date(agora.getTime() - (24 * 60 * 60 * 1000)).toISOString();
+  
       await Promise.all(
         estacoes.map(async (estacao) => {
-          const { data: meds, error } = await supabase
+          // BUSCA 1: As 3 últimas medições (para Penúltima e Antepenúltima)
+          const { data: ultimas } = await supabase
             .from("medicoes")
-            .select("nivel, data_hora")
+            .select("nivel")
             .eq("estacao_id", estacao.id)
             .order("data_hora", { ascending: false })
-            .limit(5); // Pegamos 5 para ter margem de manobra
-
-          if (!error && meds && meds.length > 0) {
-            // 24H ANTES: O primeiro registro que encontrar com 24h ou mais de idade
-            const m24h = meds.find(m => new Date(m.data_hora) <= vinteQuatroHorasAtras);
-
-            novoHistorico[estacao.id] = {
-              vinteQuatroHoras: m24h?.nivel || "N/INF",
-              // meds[1] é o 2º mais recente do banco (Penúltima)
-              penultima: meds[1]?.nivel || "N/INF",
-              // meds[2] é o 3º mais recente do banco (Antepenúltima)
-              antepenultima: meds[2]?.nivel || "N/INF",
-            };
-          } else {
-            // Caso a estação não tenha NENHUM dado no banco
-            novoHistorico[estacao.id] = {
-              vinteQuatroHoras: "N/INF",
-              penultima: "N/INF",
-              antepenultima: "N/INF",
-            };
-          }
+            .limit(3);
+  
+          // BUSCA 2: A medição mais próxima de 24h atrás
+          const { data: m24hData } = await supabase
+            .from("medicoes")
+            .select("nivel")
+            .eq("estacao_id", estacao.id)
+            .lte("data_hora", vinteQuatroHorasAtras)
+            .order("data_hora", { ascending: false })
+            .limit(1);
+  
+          novoHistorico[estacao.id] = {
+            vinteQuatroHoras: m24hData?.[0]?.nivel || "N/INF",
+            // ultimas[1] é a Penúltima (já que a [0] é a 'Última' da tela)
+            penultima: ultimas?.[1]?.nivel || "N/INF",
+            // ultimas[2] é a Antepenúltima
+            antepenultima: ultimas?.[2]?.nivel || "N/INF",
+          };
         })
       );
-
+  
       setHistorico(novoHistorico);
     } catch (err) {
-      console.error("Erro ao carregar histórico detalhado:", err);
+      console.error("Erro ao carregar histórico:", err);
     } finally {
       setLoading(false);
     }
