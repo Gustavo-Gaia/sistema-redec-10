@@ -21,44 +21,49 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis,
   }, [])
 
   async function buscarHistoricoCompleto() {
-    setLoading(true)
-    const novoHistorico = {}
+    setLoading(true);
+    const novoHistorico = {};
     try {
-      // Aumentamos o limite para garantir que pegamos histórico de várias estações
-      const { data: todasMedicoes, error } = await supabase
-        .from("medicoes")
-        .select("estacao_id, nivel, data_hora")
-        .in("estacao_id", estacoes.map(e => e.id))
-        .order("data_hora", { ascending: false })
-        .limit(2000) // Aumentado para cobrir mais estações
+      const agora = new Date();
+      const vinteQuatroHorasAtras = new Date(agora.getTime() - (24 * 60 * 60 * 1000));
 
-      if (error) throw error
+      // Disparamos uma consulta individual para cada estação simultaneamente
+      await Promise.all(
+        estacoes.map(async (estacao) => {
+          const { data: meds, error } = await supabase
+            .from("medicoes")
+            .select("nivel, data_hora")
+            .eq("estacao_id", estacao.id)
+            .order("data_hora", { ascending: false })
+            .limit(5); // Pegamos 5 para ter margem de manobra
 
-      const agora = new Date()
-      const vinteQuatroHorasAtras = new Date(agora.getTime() - (24 * 60 * 60 * 1000))
+          if (!error && meds && meds.length > 0) {
+            // 24H ANTES: O primeiro registro que encontrar com 24h ou mais de idade
+            const m24h = meds.find(m => new Date(m.data_hora) <= vinteQuatroHorasAtras);
 
-      estacoes.forEach(estacao => {
-        // Filtragem rigorosa por ID
-        const medSessao = todasMedicoes?.filter(m => String(m.estacao_id) === String(estacao.id)) || []
-        
-        const m24h = medSessao.find(m => new Date(m.data_hora) <= vinteQuatroHorasAtras)
+            novoHistorico[estacao.id] = {
+              vinteQuatroHoras: m24h?.nivel || "N/INF",
+              // meds[1] é o 2º mais recente do banco (Penúltima)
+              penultima: meds[1]?.nivel || "N/INF",
+              // meds[2] é o 3º mais recente do banco (Antepenúltima)
+              antepenultima: meds[2]?.nivel || "N/INF",
+            };
+          } else {
+            // Caso a estação não tenha NENHUM dado no banco
+            novoHistorico[estacao.id] = {
+              vinteQuatroHoras: "N/INF",
+              penultima: "N/INF",
+              antepenultima: "N/INF",
+            };
+          }
+        })
+      );
 
-        // Lógica Inteligente: 
-        // Se a estação tem poucos dados (COMDEC), tentamos pegar o que estiver disponível.
-        // Se medSessao[1] não existir, ele mantém N/INF.
-        
-        novoHistorico[estacao.id] = {
-          vinteQuatroHoras: m24h?.nivel || "N/INF",
-          // Se medSessao[1] for nulo, significa que só há 1 registro no banco.
-          penultima: medSessao[1] ? medSessao[1].nivel : "N/INF",
-          antepenultima: medSessao[2] ? medSessao[2].nivel : "N/INF",
-        }
-      })
-      setHistorico(novoHistorico)
+      setHistorico(novoHistorico);
     } catch (err) {
-      console.error("Erro ao carregar histórico:", err)
+      console.error("Erro ao carregar histórico detalhado:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
