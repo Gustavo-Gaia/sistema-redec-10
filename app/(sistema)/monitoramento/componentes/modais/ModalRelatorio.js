@@ -24,14 +24,13 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis,
     setLoading(true)
     const novoHistorico = {}
     try {
-      // Buscamos um volume maior de dados para garantir que estações manuais 
-      // encontrem registros de dias anteriores
+      // Aumentamos o limite para garantir que pegamos histórico de várias estações
       const { data: todasMedicoes, error } = await supabase
         .from("medicoes")
         .select("estacao_id, nivel, data_hora")
         .in("estacao_id", estacoes.map(e => e.id))
         .order("data_hora", { ascending: false })
-        .limit(1000)
+        .limit(2000) // Aumentado para cobrir mais estações
 
       if (error) throw error
 
@@ -39,21 +38,20 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis,
       const vinteQuatroHorasAtras = new Date(agora.getTime() - (24 * 60 * 60 * 1000))
 
       estacoes.forEach(estacao => {
-        const medSessao = todasMedicoes?.filter(m => Number(m.estacao_id) === Number(estacao.id)) || []
+        // Filtragem rigorosa por ID
+        const medSessao = todasMedicoes?.filter(m => String(m.estacao_id) === String(estacao.id)) || []
         
-        // 24H ANTES: Busca o primeiro registro que tenha data menor ou igual a 24h atrás
         const m24h = medSessao.find(m => new Date(m.data_hora) <= vinteQuatroHorasAtras)
 
-        /* 
-          LÓGICA DE ÍNDICES:
-          medSessao[0] = É a medição mais recente (que já aparece na coluna 'Última')
-          medSessao[1] = É a Penúltima real
-          medSessao[2] = É a Antepenúltima real
-        */
+        // Lógica Inteligente: 
+        // Se a estação tem poucos dados (COMDEC), tentamos pegar o que estiver disponível.
+        // Se medSessao[1] não existir, ele mantém N/INF.
+        
         novoHistorico[estacao.id] = {
           vinteQuatroHoras: m24h?.nivel || "N/INF",
-          penultima: medSessao[1]?.nivel || "N/INF",
-          antepenultima: medSessao[2]?.nivel || "N/INF",
+          // Se medSessao[1] for nulo, significa que só há 1 registro no banco.
+          penultima: medSessao[1] ? medSessao[1].nivel : "N/INF",
+          antepenultima: medSessao[2] ? medSessao[2].nivel : "N/INF",
         }
       })
       setHistorico(novoHistorico)
