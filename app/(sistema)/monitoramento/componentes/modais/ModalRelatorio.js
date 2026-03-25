@@ -11,7 +11,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-// ADICIONADO: colunasVisiveis na desestruturação das props
 export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis, onClose }) {
   const [historico, setHistorico] = useState({})
   const [loading, setLoading] = useState(true)
@@ -25,12 +24,14 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis,
     setLoading(true)
     const novoHistorico = {}
     try {
+      // Buscamos um volume maior de dados para garantir que estações manuais 
+      // encontrem registros de dias anteriores
       const { data: todasMedicoes, error } = await supabase
         .from("medicoes")
         .select("estacao_id, nivel, data_hora")
         .in("estacao_id", estacoes.map(e => e.id))
         .order("data_hora", { ascending: false })
-        .limit(800)
+        .limit(1000)
 
       if (error) throw error
 
@@ -39,12 +40,20 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis,
 
       estacoes.forEach(estacao => {
         const medSessao = todasMedicoes?.filter(m => Number(m.estacao_id) === Number(estacao.id)) || []
+        
+        // 24H ANTES: Busca o primeiro registro que tenha data menor ou igual a 24h atrás
         const m24h = medSessao.find(m => new Date(m.data_hora) <= vinteQuatroHorasAtras)
 
+        /* 
+          LÓGICA DE ÍNDICES:
+          medSessao[0] = É a medição mais recente (que já aparece na coluna 'Última')
+          medSessao[1] = É a Penúltima real
+          medSessao[2] = É a Antepenúltima real
+        */
         novoHistorico[estacao.id] = {
           vinteQuatroHoras: m24h?.nivel || "N/INF",
-          penultima: medSessao[0]?.nivel || "N/INF",
-          antepenultima: medSessao[1]?.nivel || "N/INF",
+          penultima: medSessao[1]?.nivel || "N/INF",
+          antepenultima: medSessao[2]?.nivel || "N/INF",
         }
       })
       setHistorico(novoHistorico)
@@ -122,7 +131,6 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis,
                 <th className="border-2 border-black p-2 w-px whitespace-nowrap text-center">MUNICÍPIOS / ESTAÇÃO</th>
                 <th className="border-2 border-black p-2 w-24 text-red-700 bg-[#ffffcc]">TRANSB.</th>
                 
-                {/* ALTERADO: Headers condicionais */}
                 {colunasVisiveis.v24h && <th className="border-2 border-black p-2 w-28">24H ANTES</th>}
                 {colunasVisiveis.antepenultima && <th className="border-2 border-black p-2 w-28 text-black">ANTEPENÚLT.</th>}
                 {colunasVisiveis.penultima && <th className="border-2 border-black p-2 w-28 text-black">PENÚLTIMA</th>}
@@ -153,7 +161,6 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis,
                         {limite ? parseFloat(limite).toFixed(2).replace('.',',') : "—"}
                       </td>
                       
-                      {/* ALTERADO: Células condicionais */}
                       {colunasVisiveis.v24h && (
                         <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
                           {hist.vinteQuatroHoras !== "N/INF" ? parseFloat(hist.vinteQuatroHoras).toFixed(2).replace('.',',') : "N/INF"}
