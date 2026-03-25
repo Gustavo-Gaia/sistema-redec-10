@@ -11,7 +11,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
+// ADICIONADO: colunasVisiveis na desestruturação das props
+export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis, onClose }) {
   const [historico, setHistorico] = useState({})
   const [loading, setLoading] = useState(true)
   const reportRef = useRef(null)
@@ -81,7 +82,6 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
     return ""
   }
 
-  // LÓGICA ALTERADA APENAS PARA MANTER A ORDEM ORIGINAL DOS IDS
   const nomesRiosOrdenados = []
   const estacoesAgrupadas = estacoes.reduce((acc, est) => {
     const rio = est.rios?.nome || "OUTROS"
@@ -121,9 +121,12 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
                 <th className="border-2 border-black p-2 w-[160px]">RIOS / LAGOAS</th>
                 <th className="border-2 border-black p-2 w-px whitespace-nowrap text-center">MUNICÍPIOS / ESTAÇÃO</th>
                 <th className="border-2 border-black p-2 w-24 text-red-700 bg-[#ffffcc]">TRANSB.</th>
-                <th className="border-2 border-black p-2 w-28">24H ANTES</th>
-                <th className="border-2 border-black p-2 w-28 text-black">ANTEPENÚLT.</th>
-                <th className="border-2 border-black p-2 w-28 text-black">PENÚLTIMA</th>
+                
+                {/* ALTERADO: Headers condicionais */}
+                {colunasVisiveis.v24h && <th className="border-2 border-black p-2 w-28">24H ANTES</th>}
+                {colunasVisiveis.antepenultima && <th className="border-2 border-black p-2 w-28 text-black">ANTEPENÚLT.</th>}
+                {colunasVisiveis.penultima && <th className="border-2 border-black p-2 w-28 text-black">PENÚLTIMA</th>}
+                
                 <th className="border-2 border-black p-2 w-28">ÚLTIMA</th>
                 <th className="border-2 border-black p-2 w-24">FONTE</th>
               </tr>
@@ -150,15 +153,23 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, onClose }) {
                         {limite ? parseFloat(limite).toFixed(2).replace('.',',') : "—"}
                       </td>
                       
-                      <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
+                      {/* ALTERADO: Células condicionais */}
+                      {colunasVisiveis.v24h && (
+                        <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
                           {hist.vinteQuatroHoras !== "N/INF" ? parseFloat(hist.vinteQuatroHoras).toFixed(2).replace('.',',') : "N/INF"}
-                      </td>
-                      <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.antepenultima, limite)}`}>
+                        </td>
+                      )}
+                      {colunasVisiveis.antepenultima && (
+                        <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.antepenultima, limite)}`}>
                           {hist.antepenultima !== "N/INF" ? parseFloat(hist.antepenultima).toFixed(2).replace('.',',') : "N/INF"}
-                      </td>
-                      <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.penultima, limite)}`}>
+                        </td>
+                      )}
+                      {colunasVisiveis.penultima && (
+                        <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.penultima, limite)}`}>
                           {hist.penultima !== "N/INF" ? parseFloat(hist.penultima).toFixed(2).replace('.',',') : "N/INF"}
-                      </td>
+                        </td>
+                      )}
+
                       <td className={`border-2 border-black p-1 font-black ${obterCorNivel(atual, limite)}`}>
                           {atual !== "N/INF" ? parseFloat(atual).toFixed(2).replace('.',',') : "N/INF"}
                       </td>
