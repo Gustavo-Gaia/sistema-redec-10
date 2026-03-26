@@ -31,6 +31,7 @@ export default function BancoDados() {
     const { data, error: rpcError } = await supabase.rpc("get_database_stats")
 
     if (rpcError) {
+      console.error(rpcError)
       setError("Não foi possível carregar as estatísticas do banco.")
     } else {
       setDadosBanco(data[0])
@@ -71,10 +72,10 @@ export default function BancoDados() {
       a.download = `backup_${periodo}.csv`
       a.click()
 
-      // ✅ Marca que backup foi feito
       setBackupRealizado(true)
 
     } catch (err) {
+      console.error(err)
       alert("Erro ao exportar dados")
     } finally {
       setExportando(false)
@@ -92,7 +93,7 @@ export default function BancoDados() {
     }
 
     if (confirmacao !== "DELETAR") {
-      alert("Digite DELETAR para confirmar.")
+      alert('Digite "DELETAR" para confirmar.')
       return
     }
 
@@ -104,7 +105,10 @@ export default function BancoDados() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ periodo })
+        body: JSON.stringify({
+          periodo,
+          confirmacao
+        })
       })
 
       const result = await res.json()
@@ -114,15 +118,17 @@ export default function BancoDados() {
         return
       }
 
-      alert(`✅ ${result.deletados} registros removidos com sucesso`)
+      alert(`✅ ${result.removidos} registros removidos com sucesso`)
 
-      // reset
+      // Reset estado
       setConfirmacao("")
       setBackupRealizado(false)
 
+      // Atualiza dados do painel
       carregarDados()
 
     } catch (err) {
+      console.error(err)
       alert("Erro ao limpar dados")
     } finally {
       setLimpando(false)
@@ -146,7 +152,9 @@ export default function BancoDados() {
   return (
     <div className="space-y-6">
 
+      {/* ========================= */}
       {/* HEADER */}
+      {/* ========================= */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black text-slate-800">
@@ -165,10 +173,13 @@ export default function BancoDados() {
         </button>
       </div>
 
+      {/* ========================= */}
+      {/* GRID */}
+      {/* ========================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* ========================= */}
-        {/* USO */}
+        {/* 📊 USO */}
         {/* ========================= */}
         <div className="bg-white p-6 rounded-2xl border">
 
@@ -181,22 +192,22 @@ export default function BancoDados() {
           ) : (
             <>
               <div className="mb-3 flex justify-between text-sm">
-                <span>Capacidade</span>
+                <span>Capacidade (500MB)</span>
                 <span>{percentualUso}%</span>
               </div>
 
-              <div className="w-full bg-slate-200 h-4 rounded-full">
+              <div className="w-full bg-slate-200 h-4 rounded-full overflow-hidden">
                 <div
-                  className={`${corBarra} h-4 rounded-full`}
+                  className={`${corBarra} h-4 rounded-full transition-all duration-700`}
                   style={{ width: `${percentualUso}%` }}
                 />
               </div>
 
               <div className="mt-4 text-sm space-y-2">
-                <p>Total: {dadosBanco.total_banco_mb} MB</p>
-                <p>Medições: {dadosBanco.medicoes_mb} MB</p>
+                <p><strong>Total:</strong> {dadosBanco.total_banco_mb} MB</p>
+                <p><strong>Medições:</strong> {dadosBanco.medicoes_mb} MB</p>
                 <p>
-                  Registros:{" "}
+                  <strong>Registros:</strong>{" "}
                   {dadosBanco.total_medicoes.toLocaleString("pt-BR")}
                 </p>
               </div>
@@ -205,7 +216,7 @@ export default function BancoDados() {
         </div>
 
         {/* ========================= */}
-        {/* MANUTENÇÃO */}
+        {/* 🛡️ MANUTENÇÃO */}
         {/* ========================= */}
         <div className="bg-white p-6 rounded-2xl border space-y-4">
 
@@ -217,6 +228,7 @@ export default function BancoDados() {
             onChange={(e) => {
               setPeriodo(e.target.value)
               setBackupRealizado(false)
+              setConfirmacao("")
             }}
             className="w-full border rounded-lg p-2"
           >
@@ -230,13 +242,13 @@ export default function BancoDados() {
           <button
             onClick={exportarBackup}
             disabled={exportando}
-            className={`w-full py-3 rounded-lg font-semibold
+            className={`w-full py-3 rounded-lg font-semibold transition
               ${exportando
-                ? "bg-slate-400 text-white"
+                ? "bg-slate-400 text-white cursor-not-allowed"
                 : "bg-emerald-600 text-white hover:bg-emerald-700"
               }`}
           >
-            {exportando ? "Exportando..." : "📥 Exportar Backup"}
+            {exportando ? "⏳ Exportando..." : "📥 Exportar Backup"}
           </button>
 
           {/* CONFIRMAÇÃO */}
@@ -251,14 +263,14 @@ export default function BancoDados() {
           {/* LIMPAR */}
           <button
             onClick={limparDados}
-            disabled={limpando}
-            className={`w-full py-3 rounded-lg font-semibold
+            disabled={limpando || !backupRealizado}
+            className={`w-full py-3 rounded-lg font-semibold transition
               ${limpando
-                ? "bg-slate-400 text-white"
+                ? "bg-slate-400 text-white cursor-not-allowed"
                 : "bg-red-600 text-white hover:bg-red-700"
               }`}
           >
-            {limpando ? "Limpando..." : "🗑️ Limpar Dados"}
+            {limpando ? "⏳ Limpando..." : "🗑️ Limpar Dados"}
           </button>
 
         </div>
