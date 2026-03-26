@@ -1,54 +1,46 @@
 /* app/(sistema)/configuracoes/layout.js */
 
-/* app/(sistema)/configuracoes/layout.js */
+"use client"
 
-import { cookies } from "next/headers"
-import { createServerClient } from "@supabase/ssr"
-import { redirect } from "next/navigation"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 
-export default async function ConfiguracoesLayout({ children }) {
+export default function ConfiguracoesLayout({ children }) {
 
-  const cookieStore = cookies()
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        get(name) {
-          return cookieStore.get(name)?.value
-        }
+  useEffect(() => {
+    async function verificar() {
+
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        router.push("/login")
+        return
       }
+
+      const { data } = await supabase
+        .from("usuarios")
+        .select("nivel")
+        .eq("user_id", user.id)
+        .single()
+
+      if (!data || data.nivel !== "admin") {
+        router.push("/dashboard")
+        return
+      }
+
+      setLoading(false)
     }
-  )
 
-  // =========================
-  // 🔐 VERIFICA USUÁRIO
-  // =========================
-  const { data: { user } } = await supabase.auth.getUser()
+    verificar()
+  }, [])
 
-  if (!user) {
-    return redirect("/login")
+  if (loading) {
+    return <p className="p-6">Verificando acesso...</p>
   }
 
-  // =========================
-  // 🔐 BUSCA NÍVEL
-  // =========================
-  const { data } = await supabase
-    .from("usuarios")
-    .select("nivel")
-    .eq("user_id", user.id)
-    .single()
-
-  // =========================
-  // 🚫 BLOQUEIO
-  // =========================
-  if (!data || data.nivel !== "admin") {
-    return redirect("/dashboard") // ou página que quiser
-  }
-
-  // =========================
-  // ✅ LIBERADO
-  // =========================
   return children
 }
