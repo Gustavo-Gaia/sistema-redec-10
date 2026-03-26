@@ -10,9 +10,10 @@ export default function BancoDados() {
   const [dadosBanco, setDadosBanco] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [exportando, setExportando] = useState(false)
 
-  // Limite do plano gratuito
+  const [exportando, setExportando] = useState(false)
+  const [periodo, setPeriodo] = useState("30")
+
   const LIMITE_MB = 500
 
   // =========================
@@ -45,7 +46,7 @@ export default function BancoDados() {
     try {
       setExportando(true)
 
-      const res = await fetch("/api/exportar-medicoes")
+      const res = await fetch(`/api/exportar-medicoes?periodo=${periodo}`)
 
       if (!res.ok) {
         alert("Erro ao gerar backup")
@@ -53,11 +54,18 @@ export default function BancoDados() {
       }
 
       const blob = await res.blob()
+
+      // ⚠️ proteção contra CSV vazio
+      if (blob.size === 0) {
+        alert("Nenhum dado encontrado para esse período")
+        return
+      }
+
       const url = window.URL.createObjectURL(blob)
 
       const a = document.createElement("a")
       a.href = url
-      a.download = "backup_medicoes.csv"
+      a.download = `backup_${periodo}.csv`
       a.click()
 
     } catch (err) {
@@ -195,9 +203,20 @@ export default function BancoDados() {
               🛡️ Manutenção
             </h3>
 
+            {/* SELECT DE PERÍODO */}
+            <select
+              value={periodo}
+              onChange={(e) => setPeriodo(e.target.value)}
+              className="w-full border rounded-lg p-2 mb-4"
+            >
+              <option value="7">Últimos 7 dias</option>
+              <option value="30">Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+              <option value="all">Todo período</option>
+            </select>
+
             <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-              Exporte os dados antigos antes de realizar qualquer limpeza.
-              Isso garante segurança e preservação do histórico.
+              Exporte os dados antes de realizar qualquer limpeza.
             </p>
           </div>
 
@@ -213,7 +232,7 @@ export default function BancoDados() {
                   : "bg-emerald-600 hover:bg-emerald-700 text-white"
                 }`}
             >
-              {exportando ? "⏳ Exportando..." : "📥 Exportar Backup (CSV)"}
+              {exportando ? "⏳ Exportando..." : "📥 Exportar Backup"}
             </button>
 
             {/* LIMPAR (próximo passo) */}
