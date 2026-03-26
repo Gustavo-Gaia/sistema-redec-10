@@ -8,7 +8,6 @@ import { supabase } from "@/lib/supabase"
 export default function ModalUsuario({ usuario, onClose, onAtualizado }) {
 
   const [form, setForm] = useState({
-    email: usuario.email || "",
     rg: usuario.rg || "",
     orgao: usuario.orgao || "",
     nivel: usuario.nivel || "usuario",
@@ -17,11 +16,20 @@ export default function ModalUsuario({ usuario, onClose, onAtualizado }) {
 
   const [salvando, setSalvando] = useState(false)
 
+  function somenteNumero(v) {
+    return v.replace(/\D/g, "")
+  }
+
   function handleChange(e) {
     const { name, value, type, checked } = e.target
+
     setForm({
       ...form,
-      [name]: type === "checkbox" ? checked : value
+      [name]: type === "checkbox"
+        ? checked
+        : name === "rg"
+        ? somenteNumero(value)
+        : value
     })
   }
 
@@ -29,9 +37,32 @@ export default function ModalUsuario({ usuario, onClose, onAtualizado }) {
     try {
       setSalvando(true)
 
+      // =========================
+      // 🔒 VALIDAR RG DUPLICADO
+      // =========================
+      const { data: existe } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("rg", form.rg)
+        .neq("id", usuario.id)
+        .maybeSingle()
+
+      if (existe) {
+        alert("RG já está em uso por outro usuário")
+        return
+      }
+
+      // =========================
+      // 💾 ATUALIZA SOMENTE CAMPOS SEGUROS
+      // =========================
       const { error } = await supabase
         .from("usuarios")
-        .update(form)
+        .update({
+          rg: form.rg,
+          orgao: form.orgao,
+          nivel: form.nivel,
+          ativo: form.ativo
+        })
         .eq("id", usuario.id)
 
       if (error) {
@@ -39,7 +70,7 @@ export default function ModalUsuario({ usuario, onClose, onAtualizado }) {
         return
       }
 
-      alert("Usuário atualizado com sucesso")
+      alert("✅ Usuário atualizado com sucesso")
 
       onAtualizado()
       onClose()
@@ -60,43 +91,55 @@ export default function ModalUsuario({ usuario, onClose, onAtualizado }) {
           Editar Usuário
         </h3>
 
-        {/* EMAIL */}
-        <input
-          name="email"
-          value={form.email}
-          onChange={handleChange}
-          className="w-full border rounded-lg p-2"
-          placeholder="Email"
-        />
+        {/* EMAIL (SOMENTE VISUALIZAÇÃO) */}
+        <div>
+          <label className="text-xs text-slate-500">Email (login)</label>
+          <input
+            value={usuario.email || ""}
+            disabled
+            className="w-full border rounded-lg p-2 bg-slate-100 text-slate-500 cursor-not-allowed"
+          />
+          <p className="text-[11px] text-slate-400 mt-1">
+            O email é usado no login e não pode ser alterado aqui
+          </p>
+        </div>
 
         {/* RG */}
-        <input
-          name="rg"
-          value={form.rg}
-          onChange={handleChange}
-          className="w-full border rounded-lg p-2"
-          placeholder="RG"
-        />
+        <div>
+          <label className="text-xs text-slate-500">RG</label>
+          <input
+            name="rg"
+            value={form.rg}
+            onChange={handleChange}
+            className="w-full border rounded-lg p-2"
+            placeholder="Somente números"
+          />
+        </div>
 
         {/* ORGÃO */}
-        <input
-          name="orgao"
-          value={form.orgao}
-          onChange={handleChange}
-          className="w-full border rounded-lg p-2"
-          placeholder="Órgão"
-        />
+        <div>
+          <label className="text-xs text-slate-500">Órgão</label>
+          <input
+            name="orgao"
+            value={form.orgao}
+            onChange={handleChange}
+            className="w-full border rounded-lg p-2"
+          />
+        </div>
 
         {/* NÍVEL */}
-        <select
-          name="nivel"
-          value={form.nivel}
-          onChange={handleChange}
-          className="w-full border rounded-lg p-2"
-        >
-          <option value="usuario">Usuário</option>
-          <option value="admin">Admin</option>
-        </select>
+        <div>
+          <label className="text-xs text-slate-500">Nível de acesso</label>
+          <select
+            name="nivel"
+            value={form.nivel}
+            onChange={handleChange}
+            className="w-full border rounded-lg p-2"
+          >
+            <option value="usuario">Usuário</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
 
         {/* ATIVO */}
         <label className="flex items-center gap-2 text-sm">
@@ -108,6 +151,11 @@ export default function ModalUsuario({ usuario, onClose, onAtualizado }) {
           />
           Usuário ativo
         </label>
+
+        {/* ALERTA */}
+        <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs p-3 rounded-lg">
+          Alterações de RG impactam o login do usuário.
+        </div>
 
         {/* BOTÕES */}
         <div className="flex justify-end gap-2 pt-4">
