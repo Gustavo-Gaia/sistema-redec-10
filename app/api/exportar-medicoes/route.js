@@ -1,33 +1,52 @@
-/* app/api/exportar-medicoes/route.js */
+/* app/api/exportar-medicoes/route.js */ /* exporta nas configurações para fazer backup */
 
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-// Cliente admin (usa service role)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-export async function GET() {
+export async function GET(req) {
   try {
 
-    // 🔹 Define corte (90 dias)
-    const dataLimite = new Date()
-    dataLimite.setDate(dataLimite.getDate() - 90)
+    const { searchParams } = new URL(req.url)
+    const periodo = searchParams.get("periodo") || "30"
 
-    // 🔹 Busca dados antigos
-    const { data, error } = await supabase
-      .from("medicoes")
-      .select("*")
-      .lt("data_hora", dataLimite.toISOString())
+    let query = supabase.from("medicoes").select("*")
+
+    // =========================
+    // 📅 FILTRO POR PERÍODO
+    // =========================
+    if (periodo !== "all") {
+      const dias = parseInt(periodo)
+      const dataLimite = new Date()
+      dataLimite.setDate(dataLimite.getDate() - dias)
+
+      query = query.gte("data_hora", dataLimite.toISOString())
+    }
+
+    const { data, error } = await query.order("data_hora", { ascending: true })
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // 🔹 Converter para CSV
-    const header = Object.keys(data[0] || {}).join(",")
+    // =========================
+    // 📭 SEM DADOS
+    // =========================
+    if (!data || data.length === 0) {
+      return new NextResponse("Sem dados para exportar", {
+        status: 200,
+        headers: { "Content-Type": "text/plain" }
+      })
+    }
+
+    // =========================
+    // 📄 CSV
+    // =========================
+    const header = Object.keys(data[0]).join(",")
 
     const rows = data.map(obj =>
       Object.values(obj)
@@ -40,7 +59,7 @@ export async function GET() {
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv",
-        "Content-Disposition": "attachment; filename=backup_medicoes.csv"
+        "Content-Disposition": `attachment; filename=backup_${periodo}.csv`
       }
     })
 
