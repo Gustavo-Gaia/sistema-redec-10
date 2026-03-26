@@ -1,5 +1,8 @@
 /* app/api/exportar-medicoes/route.js */ /* exporta nas configurações para fazer backup */
 
+/* app/api/exportar-medicoes/route.js */
+/* exportação com paginação completa (sem limite de 1000) */
+
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
@@ -14,29 +17,61 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url)
     const periodo = searchParams.get("periodo") || "30"
 
-    let query = supabase.from("medicoes").select("*")
+    const PAGE_SIZE = 1000
+    let allData = []
+    let from = 0
+    let to = PAGE_SIZE - 1
+    let hasMore = true
 
     // =========================
-    // 📅 FILTRO POR PERÍODO
+    // 📅 DATA LIMITE
     // =========================
+    let dataLimite = null
+
     if (periodo !== "all") {
       const dias = parseInt(periodo)
-      const dataLimite = new Date()
+      dataLimite = new Date()
       dataLimite.setDate(dataLimite.getDate() - dias)
-
-      query = query.gte("data_hora", dataLimite.toISOString())
     }
 
-    const { data, error } = await query.order("data_hora", { ascending: true })
+    // =========================
+    // 🔁 LOOP DE PAGINAÇÃO
+    // =========================
+    while (hasMore) {
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      let query = supabase
+        .from("medicoes")
+        .select("*")
+        .order("data_hora", { ascending: true })
+        .range(from, to)
+
+      if (dataLimite) {
+        query = query.gte("data_hora", dataLimite.toISOString())
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      if (data && data.length > 0) {
+        allData = allData.concat(data)
+      }
+
+      // Se veio menos que 1000, acabou
+      if (!data || data.length < PAGE_SIZE) {
+        hasMore = false
+      } else {
+        from += PAGE_SIZE
+        to += PAGE_SIZE
+      }
     }
 
     // =========================
     // 📭 SEM DADOS
     // =========================
-    if (!data || data.length === 0) {
+    if (allData.length === 0) {
       return new NextResponse("Sem dados para exportar", {
         status: 200,
         headers: { "Content-Type": "text/plain" }
@@ -46,9 +81,9 @@ export async function GET(req) {
     // =========================
     // 📄 CSV
     // =========================
-    const header = Object.keys(data[0]).join(",")
+    const header = Object.keys(allData[0]).join(",")
 
-    const rows = data.map(obj =>
+    const rows = allData.map(obj =>
       Object.values(obj)
         .map(v => `"${String(v ?? "").replace(/"/g, '""')}"`)
         .join(",")
@@ -64,6 +99,7 @@ export async function GET(req) {
     })
 
   } catch (err) {
+    console.error(err)
     return NextResponse.json({ error: "Erro interno" }, { status: 500 })
   }
 }
