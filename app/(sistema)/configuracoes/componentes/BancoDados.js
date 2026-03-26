@@ -15,7 +15,6 @@ export default function BancoDados() {
   const [limpando, setLimpando] = useState(false)
 
   const [periodo, setPeriodo] = useState("30")
-
   const [confirmacao, setConfirmacao] = useState("")
   const [backupRealizado, setBackupRealizado] = useState(false)
 
@@ -32,7 +31,7 @@ export default function BancoDados() {
 
     if (rpcError) {
       console.error(rpcError)
-      setError("Não foi possível carregar as estatísticas do banco.")
+      setError("Erro ao carregar dados do banco")
     } else {
       setDadosBanco(data[0])
     }
@@ -45,7 +44,7 @@ export default function BancoDados() {
   }, [])
 
   // =========================
-  // 📥 EXPORTAR BACKUP
+  // 📥 EXPORTAR
   // =========================
   async function exportarBackup() {
     try {
@@ -61,7 +60,7 @@ export default function BancoDados() {
       const blob = await res.blob()
 
       if (blob.size === 0) {
-        alert("Nenhum dado encontrado para esse período")
+        alert("Nenhum dado encontrado")
         return
       }
 
@@ -75,25 +74,24 @@ export default function BancoDados() {
       setBackupRealizado(true)
 
     } catch (err) {
-      console.error(err)
-      alert("Erro ao exportar dados")
+      alert("Erro ao exportar")
     } finally {
       setExportando(false)
     }
   }
 
   // =========================
-  // 🗑️ LIMPAR DADOS
+  // 🗑️ LIMPAR
   // =========================
   async function limparDados() {
 
     if (!backupRealizado) {
-      alert("⚠️ Faça o backup antes de limpar os dados.")
+      alert("Faça backup antes")
       return
     }
 
     if (confirmacao !== "DELETAR") {
-      alert('Digite "DELETAR" para confirmar.')
+      alert('Digite "DELETAR"')
       return
     }
 
@@ -105,31 +103,25 @@ export default function BancoDados() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          periodo,
-          confirmacao
-        })
+        body: JSON.stringify({ periodo })
       })
 
       const result = await res.json()
 
       if (!res.ok) {
-        alert(result.error || "Erro ao limpar dados")
+        alert(result.error)
         return
       }
 
-      alert(`✅ ${result.removidos} registros removidos com sucesso`)
+      alert(`✅ ${result.removidos} removidos`)
 
-      // Reset estado
       setConfirmacao("")
       setBackupRealizado(false)
 
-      // Atualiza dados do painel
       carregarDados()
 
-    } catch (err) {
-      console.error(err)
-      alert("Erro ao limpar dados")
+    } catch {
+      alert("Erro ao limpar")
     } finally {
       setLimpando(false)
     }
@@ -149,41 +141,49 @@ export default function BancoDados() {
       ? "bg-amber-500"
       : "bg-emerald-500"
 
-  return (
-    <div className="space-y-6">
+  const status =
+    percentualUso > 80
+      ? "Crítico"
+      : percentualUso > 50
+      ? "Atenção"
+      : "Saudável"
 
-      {/* ========================= */}
+  const diasRetencao = dadosBanco?.data_mais_antiga
+    ? Math.floor(
+        (new Date() - new Date(dadosBanco.data_mais_antiga)) /
+        (1000 * 60 * 60 * 24)
+      )
+    : 0
+
+  return (
+    <div className="space-y-8">
+
       {/* HEADER */}
-      {/* ========================= */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-black text-slate-800">
+          <h2 className="text-3xl font-black text-slate-800 tracking-tight">
             💾 Banco de Dados
           </h2>
-          <p className="text-slate-500 text-sm">
-            Gerenciamento de armazenamento
+          <p className="text-slate-500">
+            Monitoramento e gerenciamento de armazenamento
           </p>
         </div>
 
         <button
           onClick={carregarDados}
-          className="px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg"
+          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-semibold transition"
         >
           🔄 Atualizar
         </button>
       </div>
 
-      {/* ========================= */}
       {/* GRID */}
-      {/* ========================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* ========================= */}
-        {/* 📊 USO */}
+        {/* 📊 CARD USO PROFISSIONAL */}
         {/* ========================= */}
-        <div className="bg-white p-6 rounded-2xl border">
-
-          <h3 className="font-bold mb-4">📊 Uso</h3>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border space-y-6">
 
           {loading ? (
             <p>Carregando...</p>
@@ -191,25 +191,77 @@ export default function BancoDados() {
             <p className="text-red-500">{error}</p>
           ) : (
             <>
-              <div className="mb-3 flex justify-between text-sm">
-                <span>Capacidade (500MB)</span>
-                <span>{percentualUso}%</span>
+              {/* TOPO */}
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-slate-500 uppercase font-bold">
+                    Uso de armazenamento
+                  </p>
+
+                  <p className="text-4xl font-black text-slate-800">
+                    {percentualUso}%
+                  </p>
+                </div>
+
+                <span className={`
+                  px-3 py-1 text-xs rounded-full font-bold
+                  ${percentualUso > 80 && "bg-red-100 text-red-600"}
+                  ${percentualUso > 50 && percentualUso <= 80 && "bg-amber-100 text-amber-600"}
+                  ${percentualUso <= 50 && "bg-emerald-100 text-emerald-600"}
+                `}>
+                  {status}
+                </span>
               </div>
 
-              <div className="w-full bg-slate-200 h-4 rounded-full overflow-hidden">
+              {/* BARRA */}
+              <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
                 <div
-                  className={`${corBarra} h-4 rounded-full transition-all duration-700`}
+                  className={`${corBarra} h-3 rounded-full transition-all duration-1000`}
                   style={{ width: `${percentualUso}%` }}
                 />
               </div>
 
-              <div className="mt-4 text-sm space-y-2">
-                <p><strong>Total:</strong> {dadosBanco.total_banco_mb} MB</p>
-                <p><strong>Medições:</strong> {dadosBanco.medicoes_mb} MB</p>
-                <p>
-                  <strong>Registros:</strong>{" "}
-                  {dadosBanco.total_medicoes.toLocaleString("pt-BR")}
-                </p>
+              {/* INFO */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+
+                <div className="bg-slate-50 p-4 rounded-xl">
+                  <p className="text-slate-400 text-xs">Total Banco</p>
+                  <p className="font-bold text-lg">
+                    {dadosBanco.total_banco_mb} MB
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-xl">
+                  <p className="text-slate-400 text-xs">Medições</p>
+                  <p className="font-bold text-lg">
+                    {dadosBanco.medicoes_mb} MB
+                  </p>
+                </div>
+
+                <div className="col-span-2 bg-slate-900 text-white p-4 rounded-xl">
+                  <p className="text-xs text-slate-300">
+                    Total de registros
+                  </p>
+                  <p className="text-xl font-bold">
+                    {dadosBanco.total_medicoes.toLocaleString("pt-BR")}
+                  </p>
+                </div>
+
+                <div className="col-span-2 bg-blue-50 p-4 rounded-xl">
+                  <p className="text-xs text-blue-500">
+                    Data mais antiga
+                  </p>
+                  <p className="font-semibold">
+                    {dadosBanco.data_mais_antiga
+                      ? new Date(dadosBanco.data_mais_antiga).toLocaleString("pt-BR")
+                      : "—"}
+                  </p>
+
+                  <p className="text-xs text-slate-500 mt-1">
+                    Retenção: {diasRetencao} dias
+                  </p>
+                </div>
+
               </div>
             </>
           )}
@@ -218,11 +270,10 @@ export default function BancoDados() {
         {/* ========================= */}
         {/* 🛡️ MANUTENÇÃO */}
         {/* ========================= */}
-        <div className="bg-white p-6 rounded-2xl border space-y-4">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border space-y-4">
 
-          <h3 className="font-bold">🛡️ Manutenção</h3>
+          <h3 className="font-bold text-lg">🛡️ Manutenção</h3>
 
-          {/* PERÍODO */}
           <select
             value={periodo}
             onChange={(e) => {
@@ -230,7 +281,7 @@ export default function BancoDados() {
               setBackupRealizado(false)
               setConfirmacao("")
             }}
-            className="w-full border rounded-lg p-2"
+            className="w-full border rounded-xl p-2"
           >
             <option value="7">Últimos 7 dias</option>
             <option value="30">Últimos 30 dias</option>
@@ -238,39 +289,36 @@ export default function BancoDados() {
             <option value="all">Todo período</option>
           </select>
 
-          {/* EXPORTAR */}
           <button
             onClick={exportarBackup}
             disabled={exportando}
-            className={`w-full py-3 rounded-lg font-semibold transition
+            className={`w-full py-3 rounded-xl font-semibold transition
               ${exportando
-                ? "bg-slate-400 text-white cursor-not-allowed"
-                : "bg-emerald-600 text-white hover:bg-emerald-700"
+                ? "bg-slate-400 text-white"
+                : "bg-emerald-600 hover:bg-emerald-700 text-white"
               }`}
           >
-            {exportando ? "⏳ Exportando..." : "📥 Exportar Backup"}
+            {exportando ? "Exportando..." : "📥 Exportar Backup"}
           </button>
 
-          {/* CONFIRMAÇÃO */}
           <input
             type="text"
-            placeholder='Digite "DELETAR" para confirmar'
+            placeholder='Digite "DELETAR"'
             value={confirmacao}
             onChange={(e) => setConfirmacao(e.target.value)}
-            className="w-full border rounded-lg p-2"
+            className="w-full border rounded-xl p-2"
           />
 
-          {/* LIMPAR */}
           <button
             onClick={limparDados}
             disabled={limpando || !backupRealizado}
-            className={`w-full py-3 rounded-lg font-semibold transition
+            className={`w-full py-3 rounded-xl font-semibold transition
               ${limpando
-                ? "bg-slate-400 text-white cursor-not-allowed"
-                : "bg-red-600 text-white hover:bg-red-700"
+                ? "bg-slate-400 text-white"
+                : "bg-red-600 hover:bg-red-700 text-white"
               }`}
           >
-            {limpando ? "⏳ Limpando..." : "🗑️ Limpar Dados"}
+            {limpando ? "Limpando..." : "🗑️ Limpar Dados"}
           </button>
 
         </div>
