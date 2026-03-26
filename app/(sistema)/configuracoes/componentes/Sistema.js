@@ -1,4 +1,4 @@
-/* app/(sistema)/configuracoes/componentes/sistema.js */
+/* app/(sistema)/configuracoes/componentes/Sistema.js */
 
 "use client"
 
