@@ -1,4 +1,4 @@
-/* app/(sistema)/configuracoes/componentes/perfil */
+/* app/(sistema)/configuracoes/componentes/Perfil.js */
 
 "use client"
 
