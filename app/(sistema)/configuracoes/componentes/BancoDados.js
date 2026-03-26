@@ -10,10 +10,14 @@ export default function BancoDados() {
   const [dadosBanco, setDadosBanco] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [exportando, setExportando] = useState(false)
 
-  // Limite do plano gratuito (Supabase)
+  // Limite do plano gratuito
   const LIMITE_MB = 500
 
+  // =========================
+  // 📊 CARREGAR DADOS
+  // =========================
   async function carregarDados() {
     setLoading(true)
     setError(null)
@@ -33,6 +37,36 @@ export default function BancoDados() {
   useEffect(() => {
     carregarDados()
   }, [])
+
+  // =========================
+  // 📥 EXPORTAR BACKUP
+  // =========================
+  async function exportarBackup() {
+    try {
+      setExportando(true)
+
+      const res = await fetch("/api/exportar-medicoes")
+
+      if (!res.ok) {
+        alert("Erro ao gerar backup")
+        return
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "backup_medicoes.csv"
+      a.click()
+
+    } catch (err) {
+      console.error(err)
+      alert("Erro ao exportar dados")
+    } finally {
+      setExportando(false)
+    }
+  }
 
   // =========================
   // 📊 CÁLCULOS
@@ -58,7 +92,9 @@ export default function BancoDados() {
   return (
     <div className="space-y-6">
 
+      {/* ========================= */}
       {/* HEADER */}
+      {/* ========================= */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black text-slate-800">
@@ -77,7 +113,9 @@ export default function BancoDados() {
         </button>
       </div>
 
+      {/* ========================= */}
       {/* GRID */}
+      {/* ========================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* ========================= */}
@@ -103,9 +141,9 @@ export default function BancoDados() {
                   <span className="font-bold">{percentualUso}%</span>
                 </div>
 
-                <div className="w-full bg-slate-200 rounded-full h-4">
+                <div className="w-full bg-slate-200 rounded-full h-4 overflow-hidden">
                   <div
-                    className={`h-4 rounded-full ${corBarra} transition-all`}
+                    className={`h-4 rounded-full ${corBarra} transition-all duration-700`}
                     style={{ width: `${percentualUso}%` }}
                   />
                 </div>
@@ -157,19 +195,31 @@ export default function BancoDados() {
               🛡️ Manutenção
             </h3>
 
-            <p className="text-sm text-slate-600 mb-6">
-              Para manter o sistema rápido e dentro do limite,
-              recomenda-se exportar e limpar dados antigos.
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              Exporte os dados antigos antes de realizar qualquer limpeza.
+              Isso garante segurança e preservação do histórico.
             </p>
           </div>
 
           <div className="space-y-3">
 
-            <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-semibold">
-              📥 Exportar Backup (CSV)
+            {/* EXPORTAR */}
+            <button
+              onClick={exportarBackup}
+              disabled={exportando}
+              className={`w-full py-3 rounded-lg font-semibold transition
+                ${exportando
+                  ? "bg-slate-400 text-white cursor-not-allowed"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                }`}
+            >
+              {exportando ? "⏳ Exportando..." : "📥 Exportar Backup (CSV)"}
             </button>
 
-            <button className="w-full border border-red-200 text-red-600 hover:bg-red-50 py-3 rounded-lg font-semibold">
+            {/* LIMPAR (próximo passo) */}
+            <button
+              className="w-full border border-red-200 text-red-600 hover:bg-red-50 py-3 rounded-lg font-semibold transition"
+            >
               🗑️ Limpar Dados Antigos
             </button>
 
