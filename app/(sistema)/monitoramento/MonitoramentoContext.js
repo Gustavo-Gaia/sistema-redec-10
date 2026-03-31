@@ -3,15 +3,10 @@
 "use client"
 
 import { createContext, useContext, useMemo, useState, useEffect } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase"
 import { calcularSituacao } from "./utils/calcularSituacao"
 
 const MonitoramentoContext = createContext()
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
 
 export function MonitoramentoProvider({
   children,
