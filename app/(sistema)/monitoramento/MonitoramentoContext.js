@@ -3,7 +3,7 @@
 "use client"
 
 import { createContext, useContext, useMemo, useState, useEffect } from "react"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase" // ✅ USAR CLIENT ÚNICO
 import { calcularSituacao } from "./utils/calcularSituacao"
 
 const MonitoramentoContext = createContext()
@@ -28,22 +28,19 @@ export function MonitoramentoProvider({
       try {
         setLoading(true)
         
-        // 1. Busca todas as estações cadastradas
         const { data: dataEstacoes } = await supabase
           .from("estacoes")
           .select("*")
-          .order('id', { ascending: true }) // ALTERADO: Ordenando por ID para manter a sequência geográfica
+          .order('id', { ascending: true })
 
         if (dataEstacoes) setEstacoesBase(dataEstacoes)
 
-        // 2. Busca a última medição de cada estação (usando uma query otimizada)
         const { data: dataMedicoes } = await supabase
           .from("medicoes")
           .select("*")
           .order('data_hora', { ascending: false })
 
         if (dataMedicoes) {
-          // Remove duplicados para manter apenas a última de cada estação no estado
           const unicas = Object.values(
             dataMedicoes.reduce((acc, m) => {
               if (!acc[m.estacao_id]) acc[m.estacao_id] = m
@@ -52,6 +49,7 @@ export function MonitoramentoProvider({
           )
           setMedicoes(unicas)
         }
+
       } catch (error) {
         console.error("Erro ao carregar dados de monitoramento:", error)
       } finally {
@@ -66,39 +64,46 @@ export function MonitoramentoProvider({
   /* 📡 CANAL REALTIME (Atualização Viva) */
   /* ======================================== */
   useEffect(() => {
-    const channel = supabase
-      .channel('realtime-dashboard-redec')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'medicoes' },
-        (payload) => {
-          const novaMedicao = payload.new
-          if (!novaMedicao?.estacao_id) return
 
-          setMedicoes((prev) => {
-            // Remove a medição antiga daquela estação e adiciona a nova
-            const filtradas = prev.filter(m => m.estacao_id !== novaMedicao.estacao_id)
-            return [novaMedicao, ...filtradas]
-          })
-        }
-      )
-      .subscribe()
+    // ✅ canal único evita conflito
+    const channel = supabase.channel(`realtime-dashboard-redec-${Date.now()}`)
 
-    return () => { supabase.removeChannel(channel) }
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'medicoes' },
+      (payload) => {
+        const novaMedicao = payload.new
+        if (!novaMedicao?.estacao_id) return
+
+        setMedicoes((prev) => {
+          const filtradas = prev.filter(
+            m => m.estacao_id !== novaMedicao.estacao_id
+          )
+          return [novaMedicao, ...filtradas]
+        })
+      }
+    )
+
+    // ✅ subscribe separado (CORREÇÃO DO ERRO)
+    channel.subscribe()
+
+    // ✅ limpeza correta
+    return () => {
+      supabase.removeChannel(channel)
+    }
+
   }, [])
 
   /* ======================================== */
   /* 🔥 PROCESSAMENTO DOS DADOS (Memoized) */
   /* ======================================== */
   
-  // Mapeia medições por ID para acesso rápido
   const medicoesPorEstacao = useMemo(() => {
     const map = {}
     medicoes.forEach(m => { map[m.estacao_id] = m })
     return map
   }, [medicoes])
 
-  // Une Estação + Medição + Cálculo de Situação (Alerta/Crítico)
   const estacoesComDados = useMemo(() => {
     return estacoesBase.map((estacao) => {
       const medicao = medicoesPorEstacao[estacao.id]
