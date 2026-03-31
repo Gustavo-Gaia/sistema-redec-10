@@ -1,5 +1,3 @@
-/* app/(sistema)/monitoramento/componentes/modais/ModalRelatorio.js */
-
 "use client"
 
 import { useEffect, useState, useRef } from "react"
@@ -20,196 +18,209 @@ export default function ModalRelatorio({ dadosDaTela, estacoes, colunasVisiveis,
     buscarHistoricoCompleto()
   }, [])
 
+  // =========================
+  // 🔥 FUNÇÃO CENTRAL (AQUI ESTÁ O SEGREDO)
+  // =========================
+  function formatarNivel(medicao) {
+    if (!medicao) return "N/INF"
+
+    if (medicao.abaixo_regua) return "A/R"
+
+    if (medicao.nivel === null || medicao.nivel === undefined)
+      return "N/INF"
+
+    return parseFloat(medicao.nivel).toFixed(2).replace(".", ",")
+  }
+
+  // =========================
+  // 📡 BUSCAR HISTÓRICO
+  // =========================
   async function buscarHistoricoCompleto() {
-    setLoading(true);
-    const novoHistorico = {};
+    setLoading(true)
+
+    const novoHistorico = {}
+
     try {
-      const agora = new Date();
-      // Definimos a janela de 24h (com margem de 30 min para garantir que ache o registro mais próximo)
-      const vinteQuatroHorasAtras = new Date(agora.getTime() - (24 * 60 * 60 * 1000)).toISOString();
-  
+      const agora = new Date()
+      const vinteQuatroHorasAtras = new Date(
+        agora.getTime() - 24 * 60 * 60 * 1000
+      ).toISOString()
+
       await Promise.all(
         estacoes.map(async (estacao) => {
-          // BUSCA 1: As 3 últimas medições (para Penúltima e Antepenúltima)
+
           const { data: ultimas } = await supabase
             .from("medicoes")
-            .select("nivel")
+            .select("nivel, abaixo_regua")
             .eq("estacao_id", estacao.id)
             .order("data_hora", { ascending: false })
-            .limit(3);
-  
-          // BUSCA 2: A medição mais próxima de 24h atrás
+            .limit(3)
+
           const { data: m24hData } = await supabase
             .from("medicoes")
-            .select("nivel")
+            .select("nivel, abaixo_regua")
             .eq("estacao_id", estacao.id)
             .lte("data_hora", vinteQuatroHorasAtras)
             .order("data_hora", { ascending: false })
-            .limit(1);
-  
+            .limit(1)
+
           novoHistorico[estacao.id] = {
-            vinteQuatroHoras: m24hData?.[0]?.nivel || "N/INF",
-            // ultimas[1] é a Penúltima (já que a [0] é a 'Última' da tela)
-            penultima: ultimas?.[1]?.nivel || "N/INF",
-            // ultimas[2] é a Antepenúltima
-            antepenultima: ultimas?.[2]?.nivel || "N/INF",
-          };
+            vinteQuatroHoras: m24hData?.[0] || null,
+            penultima: ultimas?.[1] || null,
+            antepenultima: ultimas?.[2] || null,
+          }
         })
-      );
-  
-      setHistorico(novoHistorico);
+      )
+
+      setHistorico(novoHistorico)
     } catch (err) {
-      console.error("Erro ao carregar histórico:", err);
+      console.error("Erro ao carregar histórico:", err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
+  // =========================
+  // 📸 EXPORTAR IMAGEM
+  // =========================
   const exportarImagem = async () => {
-    if (!reportRef.current) return;
+    if (!reportRef.current) return
+
     try {
-      const dataUrl = await toPng(reportRef.current, { 
+      const dataUrl = await toPng(reportRef.current, {
         cacheBust: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: "#ffffff",
         pixelRatio: 2,
-        style: { borderRadius: '0' }
-      });
-      const link = document.createElement('a');
-      link.download = `informativo-redec10-${new Date().toLocaleDateString('pt-BR')}.png`;
-      link.href = dataUrl;
-      link.click();
+      })
+
+      const link = document.createElement("a")
+      link.download = `informativo-${new Date().toLocaleDateString("pt-BR")}.png`
+      link.href = dataUrl
+      link.click()
     } catch (error) {
-      console.error('Erro ao gerar imagem:', error);
+      console.error("Erro ao gerar imagem:", error)
     }
   }
 
-  const obterCorNivel = (nivel, limite) => {
-    if (!nivel || nivel === "N/INF" || !limite) return ""
-    const n = parseFloat(nivel); const l = parseFloat(limite)
-    if (n >= l * 1.2) return "bg-[#ff00ff] text-white" 
+  // =========================
+  // 🎨 COR
+  // =========================
+  const obterCorNivel = (medicao, limite) => {
+    if (!medicao || medicao.abaixo_regua || !limite) return ""
+
+    const n = parseFloat(medicao.nivel)
+    const l = parseFloat(limite)
+
+    if (n >= l * 1.2) return "bg-[#ff00ff] text-white"
     if (n >= l) return "bg-[#ff0000] text-white"
     if (n >= l * 0.85) return "bg-[#ffc000] text-black font-black"
+
     return ""
   }
 
   const nomesRiosOrdenados = []
   const estacoesAgrupadas = estacoes.reduce((acc, est) => {
     const rio = est.rios?.nome || "OUTROS"
+
     if (!acc[rio]) {
       acc[rio] = []
-      nomesRiosOrdenados.push(rio) 
+      nomesRiosOrdenados.push(rio)
     }
+
     acc[rio].push(est)
     return acc
   }, {})
 
-  if (loading) return (
-    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999] text-white font-bold italic">
-      SISTEMA REDEC 10 - PROCESSANDO DADOS...
-    </div>
-  )
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999] text-white font-bold italic">
+        PROCESSANDO DADOS...
+      </div>
+    )
+  }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[999] p-4 overflow-auto scrollbar-hide">
-      
-      <div className="fixed top-4 right-4 flex gap-2 no-print z-[1001]">
-        <button onClick={exportarImagem} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-black text-[12px] uppercase shadow-xl transition-all">📸 Salvar Foto</button>
-        <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-black text-[12px] uppercase shadow-xl">Fechar</button>
+    <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[999] p-4 overflow-auto">
+
+      <div className="fixed top-4 right-4 flex gap-2 z-[1001]">
+        <button onClick={exportarImagem} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-black text-xs">
+          📸 Salvar
+        </button>
+        <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-black text-xs">
+          Fechar
+        </button>
       </div>
 
-      <div ref={reportRef} className="p-6 bg-white flex flex-col items-center">
-        
-        <div className="bg-white border-[4px] border-black flex flex-col w-fit min-w-[1000px]">
-          
-          <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
-            <h1 className="text-2xl font-black uppercase italic leading-none tracking-tighter text-black">MONITORAMENTO DOS RIOS - REDEC 10 - NORTE / REDEC 11 - NOROESTE</h1>
-          </div>
+      <div ref={reportRef} className="p-6 bg-white">
 
-          <table className="border-collapse table-auto w-full">
-            <thead>
-              <tr className="bg-[#8db4e2] text-[15px] uppercase font-black text-black text-center">
-                <th className="border-2 border-black p-2 w-[160px]">RIOS / LAGOAS</th>
-                <th className="border-2 border-black p-2 w-px whitespace-nowrap text-center">MUNICÍPIOS / ESTAÇÃO</th>
-                <th className="border-2 border-black p-2 w-24 text-red-700 bg-[#ffffcc]">TRANSB.</th>
-                
-                {colunasVisiveis.v24h && <th className="border-2 border-black p-2 w-28">24H ANTES</th>}
-                {colunasVisiveis.antepenultima && <th className="border-2 border-black p-2 w-28 text-black">ANTEPENÚLT.</th>}
-                {colunasVisiveis.penultima && <th className="border-2 border-black p-2 w-28 text-black">PENÚLTIMA</th>}
-                
-                <th className="border-2 border-black p-2 w-28">ÚLTIMA</th>
-                <th className="border-2 border-black p-2 w-24">FONTE</th>
-              </tr>
-            </thead>
-            <tbody>
-              {nomesRiosOrdenados.map((rio) => {
-                const lista = estacoesAgrupadas[rio]
-                return lista.map((estacao, idx) => {
-                  const hist = historico[estacao.id] || {}
-                  const atual = dadosDaTela[estacao.id]?.nivel || "N/INF"
-                  const limite = estacao.nivel_transbordo
+        <table className="border-collapse w-full text-sm">
+          <thead>
+            <tr className="bg-[#8db4e2] font-black text-center">
+              <th>RIO</th>
+              <th>MUNICÍPIO</th>
+              <th>TRANSB.</th>
 
-                  return (
-                    <tr key={estacao.id} className="text-center font-black text-[14px] leading-none text-black">
-                      {idx === 0 && (
-                        <td rowSpan={lista.length} className="border-2 border-black bg-[#d9e1f2] align-middle p-1 uppercase font-black text-[15px]">
-                          {rio}
-                        </td>
-                      )}
-                      <td className="border-2 border-black p-1 px-3 text-left uppercase text-[14px] font-black leading-none whitespace-nowrap">
-                        {estacao.municipio}
+              {colunasVisiveis.v24h && <th>24H</th>}
+              {colunasVisiveis.antepenultima && <th>ANTEPEN.</th>}
+              {colunasVisiveis.penultima && <th>PENÚLT.</th>}
+
+              <th>ÚLTIMA</th>
+              <th>FONTE</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {nomesRiosOrdenados.map((rio) => {
+              const lista = estacoesAgrupadas[rio]
+
+              return lista.map((estacao, idx) => {
+                const hist = historico[estacao.id] || {}
+
+                const atual = dadosDaTela[estacao.id]
+
+                return (
+                  <tr key={estacao.id} className="text-center font-bold">
+
+                    {idx === 0 && (
+                      <td rowSpan={lista.length}>{rio}</td>
+                    )}
+
+                    <td>{estacao.municipio}</td>
+
+                    <td>
+                      {estacao.nivel_transbordo || "—"}
+                    </td>
+
+                    {colunasVisiveis.v24h && (
+                      <td className={obterCorNivel(hist.vinteQuatroHoras, estacao.nivel_transbordo)}>
+                        {formatarNivel(hist.vinteQuatroHoras)}
                       </td>
-                      <td className="border-2 border-black p-1 text-red-600 font-black bg-[#ffffcc] text-[16px]">
-                        {limite ? parseFloat(limite).toFixed(2).replace('.',',') : "—"}
+                    )}
+
+                    {colunasVisiveis.antepenultima && (
+                      <td className={obterCorNivel(hist.antepenultima, estacao.nivel_transbordo)}>
+                        {formatarNivel(hist.antepenultima)}
                       </td>
-                      
-                      {colunasVisiveis.v24h && (
-                        <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.vinteQuatroHoras, limite)}`}>
-                          {hist.vinteQuatroHoras !== "N/INF" ? parseFloat(hist.vinteQuatroHoras).toFixed(2).replace('.',',') : "N/INF"}
-                        </td>
-                      )}
-                      {colunasVisiveis.antepenultima && (
-                        <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.antepenultima, limite)}`}>
-                          {hist.antepenultima !== "N/INF" ? parseFloat(hist.antepenultima).toFixed(2).replace('.',',') : "N/INF"}
-                        </td>
-                      )}
-                      {colunasVisiveis.penultima && (
-                        <td className={`border-2 border-black p-1 font-black ${obterCorNivel(hist.penultima, limite)}`}>
-                          {hist.penultima !== "N/INF" ? parseFloat(hist.penultima).toFixed(2).replace('.',',') : "N/INF"}
-                        </td>
-                      )}
+                    )}
 
-                      <td className={`border-2 border-black p-1 font-black ${obterCorNivel(atual, limite)}`}>
-                          {atual !== "N/INF" ? parseFloat(atual).toFixed(2).replace('.',',') : "N/INF"}
+                    {colunasVisiveis.penultima && (
+                      <td className={obterCorNivel(hist.penultima, estacao.nivel_transbordo)}>
+                        {formatarNivel(hist.penultima)}
                       </td>
-                      <td className="border-2 border-black p-1 text-[11px] uppercase font-black">{estacao.fonte}</td>
-                    </tr>
-                  )
-                })
-              })}
-            </tbody>
-          </table>
+                    )}
 
-          <div className="p-3 bg-white border-t-[3px] border-black mt-auto">
-            <div className="flex gap-10 mb-2 items-center justify-center">
-              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ffc000] border-2 border-black"></div> <span className="text-[12px] font-black uppercase">ALERTA</span></div>
-              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff0000] border-2 border-black"></div> <span className="text-[12px] font-black uppercase">TRANSBORDO</span></div>
-              <div className="flex items-center gap-2"><div className="w-6 h-6 bg-[#ff00ff] border-2 border-black"></div> <span className="text-[12px] font-black uppercase">20% ACIMA</span></div>
-            </div>
+                    <td className={obterCorNivel(atual, estacao.nivel_transbordo)}>
+                      {formatarNivel(atual)}
+                    </td>
 
-            <div className="border-[2px] border-black rounded-xl p-3 bg-slate-50">
-              <p className="text-[10px] font-bold leading-tight text-black italic mb-1 text-center">
-                * Última Medição Válida / N/INF - Não Informado / A/R - Abaixo da régua / INOP - Inoperante / DBM - Destacamento de Bombeiro Militar. 
-                COMDEC - Coordenadoria Municipal de Defesa Civil / CPRM - Serviço Geológico do Brasil / 
-                ANA - Agência Nacional de Águas / INEA - Instituto Estadual do Ambiente (Sistema Alerta de Cheias)
-              </p>
-              <div className="h-[2px] bg-black my-2 w-full"></div>
-              <p className="text-[10px] font-black leading-tight text-black italic text-center">
-                Obs.: A dinâmica dos níveis dos rios é calculada com os dados disponíveis no momento, tendo como base as duas últimas cotas, 
-                podendo sofrer influência da dificuldade de comunicação entre os colaboradores ou demora na atualização dos aparelhos automáticos.
-              </p>
-            </div>
-          </div>
-        </div>
+                    <td>{estacao.fonte}</td>
+
+                  </tr>
+                )
+              })
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   )
