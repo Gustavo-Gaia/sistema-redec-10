@@ -1,5 +1,3 @@
-/* app/api/exportar-medicoes-gerencial/route.js */
-
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
@@ -14,46 +12,67 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url)
     const periodo = searchParams.get("periodo") || "30"
 
-    // =========================
-    // 📥 BUSCAR MEDIÇÕES
-    // =========================
-    let query = supabase
-      .from("medicoes")
-      .select("estacao_id, data_hora, nivel, fonte, abaixo_regua")
+    const PAGE_SIZE = 1000
+    let from = 0
+    let todasMedicoes = []
+    let continuar = true
 
-    if (periodo !== "all") {
-      const dias = parseInt(periodo)
-      const dataLimite = new Date()
-      dataLimite.setDate(dataLimite.getDate() - dias)
+    // =========================
+    // 🔁 LOOP PAGINAÇÃO
+    // =========================
+    while (continuar) {
 
-      query = query.gte("data_hora", dataLimite.toISOString())
+      let query = supabase
+        .from("medicoes")
+        .select("estacao_id, data_hora, nivel, fonte, abaixo_regua")
+        .order("data_hora", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1)
+
+      if (periodo !== "all") {
+        const dias = parseInt(periodo)
+        const dataLimite = new Date()
+        dataLimite.setDate(dataLimite.getDate() - dias)
+
+        query = query.gte("data_hora", dataLimite.toISOString())
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      if (data.length === 0) {
+        continuar = false
+      } else {
+        todasMedicoes = [...todasMedicoes, ...data]
+
+        if (data.length < PAGE_SIZE) {
+          continuar = false
+        } else {
+          from += PAGE_SIZE
+        }
+      }
     }
 
-    const { data: medicoes, error } = await query.order("data_hora", { ascending: true })
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    if (!medicoes || medicoes.length === 0) {
+    if (todasMedicoes.length === 0) {
       return new NextResponse("Sem dados", { status: 200 })
     }
 
     // =========================
-    // 📍 BUSCAR ESTAÇÕES
+    // 📍 ESTAÇÕES
     // =========================
     const { data: estacoes } = await supabase
       .from("estacoes")
       .select("id, municipio")
 
-    const mapaEstacoes = {}
-
+    const mapa = {}
     estacoes.forEach(e => {
-      mapaEstacoes[e.id] = e.municipio
+      mapa[e.id] = e.municipio
     })
 
     // =========================
-    // 📄 FORMATAR CSV
+    // 📄 CSV FORMATADO
     // =========================
     const header = [
       "Estação",
@@ -64,17 +83,14 @@ export async function GET(req) {
       "Observação"
     ]
 
-    const rows = medicoes.map(m => {
+    const rows = todasMedicoes.map(m => {
 
-      const dataObj = new Date(m.data_hora)
-
-      const data = dataObj.toLocaleDateString("pt-BR")
-      const hora = dataObj.toLocaleTimeString("pt-BR")
+      const d = new Date(m.data_hora)
 
       return [
-        mapaEstacoes[m.estacao_id] || m.estacao_id,
-        data,
-        hora,
+        mapa[m.estacao_id] || m.estacao_id,
+        d.toLocaleDateString("pt-BR"),
+        d.toLocaleTimeString("pt-BR"),
         m.nivel,
         m.fonte,
         m.abaixo_regua ? "A/R" : ""
