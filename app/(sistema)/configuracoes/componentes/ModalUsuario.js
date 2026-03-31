@@ -137,6 +137,7 @@ export default function ModalUsuario({ usuario, onClose, onAtualizado }) {
             className="w-full border rounded-lg p-2"
           >
             <option value="usuario">Usuário</option>
+            <option value="operador">Operador</option>
             <option value="admin">Admin</option>
           </select>
         </div>
