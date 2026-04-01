@@ -45,7 +45,8 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, horaRef, token) {
-  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_7`;
+  // Voltamos para DIAS_3 para ser mais rápido, já que você confirmou que tem dado hoje
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetrica/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_3`;
 
   try {
     const resp = await fetch(url, {
@@ -61,13 +62,22 @@ async function processarEstacao(codigo, horaRef, token) {
     const json = await resp.json();
     const items = json?.items || [];
     
-    const medicoes = items.map(m => ({
-      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
-      nivel: parseFloat(m.Cota_Adotada || m.Cota) / 100
-    })).filter(m => !isNaN(m.nivel));
+    if (items.length === 0) return null;
+
+    // 🔥 MAPEAMENTO REFORÇADO: Tenta pegar o nível de qualquer campo possível
+    const medicoes = items.map(m => {
+      // Tenta Cota (Bruta), se não tiver tenta Cota_Adotada, se não tiver tenta Media
+      const valorBruto = m.Cota ?? m.Cota_Adotada ?? m.Media ?? m.Valor;
+      
+      return {
+        datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+        nivel: parseFloat(valorBruto) / 100 
+      };
+    }).filter(m => !isNaN(m.nivel));
 
     if (medicoes.length === 0) return null;
 
+    // Gerar alvos baseado na horaRef (ex: 08:00 de hoje)
     const base = new Date();
     base.setHours(parseInt(horaRef), 0, 0, 0);
 
@@ -77,13 +87,22 @@ async function processarEstacao(codigo, horaRef, token) {
     [0, 4, 8, 12].forEach((sub, i) => {
       const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
-      const m = medicoes.filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 180 * 60000))
-                        .sort((a, b) => b.datetime - a.datetime)[0];
-      resultado[chaves[i]] = m ? { nivel: m.nivel, hora: m.datetime.toTimeString().slice(0, 5) } : null;
+      
+      // Janela de 2 horas (120 min) para encontrar a leitura mais próxima do horário
+      const m = medicoes
+        .filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 120 * 60000))
+        .sort((a, b) => b.datetime - a.datetime)[0];
+                        
+      resultado[chaves[i]] = m ? { 
+        nivel: m.nivel, 
+        hora: m.datetime.toTimeString().slice(0, 5) 
+      } : null;
     });
 
     return resultado;
-  } catch (err) { return null; }
+  } catch (err) { 
+    return null; 
+  }
 }
 
 export async function GET(request) {
