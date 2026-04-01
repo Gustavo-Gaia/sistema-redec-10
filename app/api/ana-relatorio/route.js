@@ -5,31 +5,26 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// ============================
-// SUPABASE (SERVER SIDE)
-// ============================
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // ============================
-// TOKEN CACHE (MEMÓRIA)
+// CACHE DE TOKEN
 // ============================
 
 let tokenCache = null;
 let tokenExpiraEm = null;
 
 // ============================
-// BUSCAR TOKEN ANA
+// TOKEN ANA
 // ============================
 
-async function getAuthToken() {
+async function getAuthToken(force = false) {
   const agora = Date.now();
 
-  // reutiliza token válido
-  if (tokenCache && tokenExpiraEm && agora < tokenExpiraEm) {
+  if (!force && tokenCache && tokenExpiraEm && agora < tokenExpiraEm) {
     return tokenCache;
   }
 
@@ -48,25 +43,23 @@ async function getAuthToken() {
     if (!resp.ok) throw new Error("Erro ao autenticar ANA");
 
     const json = await resp.json();
-
     const token = json?.items?.tokenautenticacao;
 
     if (!token) throw new Error("Token inválido");
 
-    // salva por 55 minutos (segurança)
     tokenCache = token;
     tokenExpiraEm = agora + 55 * 60 * 1000;
 
     return token;
 
   } catch (err) {
-    console.error("Erro token ANA:", err);
+    console.error("Erro TOKEN ANA:", err);
     return null;
   }
 }
 
 // ============================
-// GERAR HORÁRIOS
+// HORÁRIOS
 // ============================
 
 function gerarHorariosAlvo(horaRef) {
@@ -82,7 +75,7 @@ function gerarHorariosAlvo(horaRef) {
 }
 
 // ============================
-// PEGAR VALOR MAIS PRÓXIMO
+// VALOR MAIS PRÓXIMO
 // ============================
 
 function getValorAteHorario(lista, alvo) {
@@ -91,12 +84,42 @@ function getValorAteHorario(lista, alvo) {
   if (filtrados.length === 0) return null;
 
   filtrados.sort((a, b) => b.datetime - a.datetime);
-
   return filtrados[0];
 }
 
 // ============================
-// PROCESSAR ESTAÇÃO (NOVA)
+// FETCH COM RETRY (🔥 PRINCIPAL)
+// ============================
+
+async function fetchComToken(url, token, tentativa = 0) {
+
+  const resp = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  // 🔥 TOKEN EXPIRADO → RENOVA AUTOMATICAMENTE
+  if (resp.status === 401 && tentativa === 0) {
+    console.warn("Token expirado, renovando...");
+
+    tokenCache = null;
+
+    const novoToken = await getAuthToken(true);
+
+    if (!novoToken) return null;
+
+    return fetchComToken(url, novoToken, 1);
+  }
+
+  if (!resp.ok) return null;
+
+  return resp.json();
+}
+
+// ============================
+// PROCESSAR ESTAÇÃO
 // ============================
 
 async function processarEstacao(codigo, token, horaRef) {
@@ -108,34 +131,25 @@ async function processarEstacao(codigo, token, horaRef) {
     `&RangeIntervaloDeBusca=DIAS_2`;
 
   try {
-    const resp = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
-    });
+    const json = await fetchComToken(url, token);
 
-    if (!resp.ok) return null;
-
-    const json = await resp.json();
+    if (!json) return null;
 
     const items = json?.items || [];
-
     if (items.length === 0) return null;
 
-    // converter dados
     const medicoes = items
       .map((m) => ({
         datetime: new Date(m.Data_Hora_Medicao),
-        nivel: parseFloat(m.Cota_Adotada) / 100, // cm -> m
+        nivel: parseFloat(m.Cota_Adotada) / 100,
       }))
       .filter((m) => !isNaN(m.nivel));
 
     if (medicoes.length === 0) return null;
 
     const horarios = gerarHorariosAlvo(horaRef);
-
     const chaves = ["ref", "h4", "h8", "h12"];
+
     const resultado = {};
 
     horarios.forEach((alvo, i) => {
@@ -158,7 +172,7 @@ async function processarEstacao(codigo, token, horaRef) {
 }
 
 // ============================
-// API PRINCIPAL
+// API
 // ============================
 
 export async function GET(request) {
@@ -166,12 +180,8 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
 
-  // 🔥 pega token UMA VEZ
-  const token = await getAuthToken();
-
-  if (!token) {
-    return NextResponse.json({});
-  }
+  let token = await getAuthToken();
+  if (!token) return NextResponse.json({});
 
   const { data: estacoes } = await supabase
     .from("estacoes")
@@ -183,23 +193,19 @@ export async function GET(request) {
 
   const resultados = {};
 
-  // ============================
-  // ⚡ PARALELISMO CONTROLADO
-  // ============================
+  await Promise.all(
+    estacoes.map(async (estacao) => {
+      const dados = await processarEstacao(
+        estacao.codigo_estacao,
+        token,
+        horaRef
+      );
 
-  const promises = estacoes.map(async (estacao) => {
-    const dados = await processarEstacao(
-      estacao.codigo_estacao,
-      token,
-      horaRef
-    );
-
-    if (dados) {
-      resultados[estacao.id] = dados;
-    }
-  });
-
-  await Promise.all(promises);
+      if (dados) {
+        resultados[estacao.id] = dados;
+      }
+    })
+  );
 
   return NextResponse.json(resultados);
 }
