@@ -65,7 +65,24 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // BUSCAS
+  // ATUALIZAÇÃO MANUAL
+  // ============================
+
+  function atualizarValor(estacaoId, chave, valor) {
+    setDados(prev => ({
+      ...prev,
+      [estacaoId]: {
+        ...prev[estacaoId],
+        [chave]: {
+          ...prev[estacaoId]?.[chave],
+          nivel: valor === "" ? null : parseFloat(valor)
+        }
+      }
+    }))
+  }
+
+  // ============================
+  // BUSCAR ANA
   // ============================
 
   async function buscarANA() {
@@ -76,10 +93,21 @@ export default function RelatorioAtual() {
       const resp = await fetch(`/api/ana-relatorio?hora=${horaRef}`)
       const json = await resp.json()
 
-      setDados(prev => ({
-        ...prev,
-        ...json
-      }))
+      setDados(prev => {
+        const novo = { ...prev }
+
+        Object.entries(json).forEach(([id, valores]) => {
+          if (!novo[id]) novo[id] = {}
+
+          novo[id] = {
+            ...novo[id],
+            ...valores,
+            fonte: "ANA"
+          }
+        })
+
+        return novo
+      })
 
     } catch {
       alert("Erro ao buscar ANA")
@@ -87,6 +115,10 @@ export default function RelatorioAtual() {
 
     setLoadingAna(false)
   }
+
+  // ============================
+  // BUSCAR INEA
+  // ============================
 
   async function buscarINEA() {
     if (!horaRef) return
@@ -96,10 +128,21 @@ export default function RelatorioAtual() {
       const resp = await fetch(`/api/inea-relatorio?hora=${horaRef}`)
       const json = await resp.json()
 
-      setDados(prev => ({
-        ...prev,
-        ...json
-      }))
+      setDados(prev => {
+        const novo = { ...prev }
+
+        Object.entries(json).forEach(([id, valores]) => {
+          if (!novo[id]) novo[id] = {}
+
+          novo[id] = {
+            ...novo[id],
+            ...valores,
+            fonte: "INEA"
+          }
+        })
+
+        return novo
+      })
 
     } catch {
       alert("Erro ao buscar INEA")
@@ -109,7 +152,7 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // VISUALIZAR RELATÓRIO
+  // VISUALIZAR
   // ============================
 
   function visualizarRelatorio() {
@@ -146,8 +189,8 @@ export default function RelatorioAtual() {
   return (
     <div className="space-y-6">
 
-      {/* CABEÇALHO */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+      {/* HEADER */}
+      <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border">
 
         <div>
           <h3 className="text-xl font-bold text-slate-800">
@@ -163,24 +206,32 @@ export default function RelatorioAtual() {
             max="23"
             value={horaRef}
             onChange={(e) => setHoraRef(e.target.value)}
-            className="w-20 border rounded-lg p-2 text-center font-bold text-lg"
+            className="w-20 border rounded-lg p-2 text-center font-bold"
           />
 
-          <button onClick={buscarANA} disabled={loadingAna}
-            className="bg-green-600 text-white px-3 py-2 rounded-lg">
+          <button
+            onClick={buscarANA}
+            disabled={loadingAna}
+            className="bg-green-600 text-white px-3 py-2 rounded-lg"
+          >
             {loadingAna ? "..." : "Buscar ANA"}
           </button>
 
-          <button onClick={buscarINEA} disabled={loadingInea}
-            className="bg-purple-600 text-white px-3 py-2 rounded-lg">
+          <button
+            onClick={buscarINEA}
+            disabled={loadingInea}
+            className="bg-purple-600 text-white px-3 py-2 rounded-lg"
+          >
             {loadingInea ? "..." : "Buscar INEA"}
           </button>
 
           <div className="w-px h-8 bg-slate-200 mx-1" />
 
-          <button onClick={visualizarRelatorio}
-            className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold">
-            Visualizar Relatório ({idsSelecionados.length})
+          <button
+            onClick={visualizarRelatorio}
+            className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold"
+          >
+            Visualizar ({idsSelecionados.length})
           </button>
 
         </div>
@@ -191,7 +242,7 @@ export default function RelatorioAtual() {
 
         <table className="w-full text-sm">
 
-          <thead className="bg-slate-50 border-b text-slate-600 uppercase text-[11px] font-bold">
+          <thead className="bg-slate-50 border-b text-[11px] font-bold uppercase">
             <tr>
 
               <th className="p-3 text-center w-10">
@@ -218,10 +269,15 @@ export default function RelatorioAtual() {
 
               const d = dados[estacao.id] || {}
 
-              const colunas = [d.h12, d.h8, d.h4, d.ref]
+              const colunas = [
+                { key: "h12" },
+                { key: "h8" },
+                { key: "h4" },
+                { key: "ref" }
+              ]
 
               return (
-                <tr key={estacao.id} className="border-b">
+                <tr key={estacao.id} className="border-b hover:bg-slate-50">
 
                   <td className="text-center">
                     <input
@@ -239,11 +295,27 @@ export default function RelatorioAtual() {
                     {estacao.municipio}
                   </td>
 
-                  {colunas.map((c, i) => (
-                    <td key={i} className="text-center">
-                      {c?.nivel ? c.nivel.toFixed(2) : "—"}
-                    </td>
-                  ))}
+                  {colunas.map(({ key }, i) => {
+
+                    const valor = d[key]?.nivel
+
+                    return (
+                      <td key={i} className="text-center p-2">
+
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="—"
+                          value={valor ?? ""}
+                          onChange={(e) =>
+                            atualizarValor(estacao.id, key, e.target.value)
+                          }
+                          className="w-20 text-center border rounded p-1 font-bold"
+                        />
+
+                      </td>
+                    )
+                  })}
 
                 </tr>
               )
@@ -252,7 +324,6 @@ export default function RelatorioAtual() {
           </tbody>
 
         </table>
-
       </div>
 
       {/* MODAL */}
