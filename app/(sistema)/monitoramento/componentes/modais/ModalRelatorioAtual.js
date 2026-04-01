@@ -97,10 +97,10 @@ export default function ModalRelatorioAtual({
         </button>
       </div>
 
-      {/* RELATÓRIO */}
-      <div ref={reportRef} className="p-6 bg-white flex flex-col items-center">
+      {/* BORDA BRANCA EXTERNA (AQUI FOI TRIPLICADA) */}
+      <div ref={reportRef} className="p-16 bg-white flex flex-col items-center">
 
-        <div className="bg-white border-[4px] border-black flex flex-col w-fit min-w-[1000px]">
+        <div className="bg-white border-[4px] border-black flex flex-col w-fit min-w-[900px]">
 
           {/* TÍTULO */}
           <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
@@ -113,9 +113,9 @@ export default function ModalRelatorioAtual({
           <table className="border-collapse table-auto w-full">
 
             <thead>
-              <tr className="bg-[#8db4e2] text-[15px] uppercase font-black text-center">
+              <tr className="bg-[#8db4e2] text-[14px] uppercase font-black text-center">
 
-                <th className="border-2 border-black p-2 w-[160px]">
+                <th className="border-2 border-black p-2 w-[140px]">
                   RIOS / LAGOAS
                 </th>
 
@@ -123,17 +123,17 @@ export default function ModalRelatorioAtual({
                   MUNICÍPIOS / ESTAÇÃO
                 </th>
 
-                <th className="border-2 border-black p-2 bg-[#ffffcc] text-red-700">
+                <th className="border-2 border-black p-2 bg-[#ffffcc] text-red-700 w-[90px]">
                   TRANSB.
                 </th>
 
                 {cabecalho.map((h, i) => (
-                  <th key={i} className="border-2 border-black p-2">
+                  <th key={i} className="border-2 border-black p-2 w-[85px]">
                     {h}
                   </th>
                 ))}
 
-                <th className="border-2 border-black p-2">
+                <th className="border-2 border-black p-2 w-[80px]">
                   FONTE
                 </th>
 
@@ -157,27 +157,26 @@ export default function ModalRelatorioAtual({
                     d.ref
                   ]
 
-                  // Detectar fonte dinâmica
-                  let fonte = "-"
-                  if (d?.fonte) fonte = d.fonte
+                  // 🔥 AGORA CORRETO (VEM DO BANCO)
+                  const fonte = estacao.fonte || "-"
 
                   return (
-                    <tr key={estacao.id} className="text-center font-black text-[14px]">
+                    <tr key={estacao.id} className="text-center font-black text-[16px] leading-none">
 
                       {idx === 0 && (
                         <td
                           rowSpan={lista.length}
-                          className="border-2 border-black bg-[#d9e1f2]"
+                          className="border-2 border-black bg-[#d9e1f2] text-[14px] px-1"
                         >
                           {rio}
                         </td>
                       )}
 
-                      <td className="border-2 border-black text-left px-2">
+                      <td className="border-2 border-black text-left px-2 text-[14px]">
                         {estacao.municipio}
                       </td>
 
-                      <td className="border-2 border-black text-red-600 bg-[#ffffcc]">
+                      <td className="border-2 border-black text-red-600 bg-[#ffffcc] text-[15px]">
                         {limite
                           ? parseFloat(limite).toFixed(2).replace(".", ",")
                           : "—"}
@@ -186,7 +185,7 @@ export default function ModalRelatorioAtual({
                       {colunas.map((c, i) => (
                         <td
                           key={i}
-                          className={`border-2 border-black ${obterCorNivel(c?.nivel, limite)}`}
+                          className={`border-2 border-black text-[18px] ${obterCorNivel(c?.nivel, limite)}`}
                         >
                           {c?.nivel
                             ? parseFloat(c.nivel).toFixed(2).replace(".", ",")
@@ -194,7 +193,7 @@ export default function ModalRelatorioAtual({
                         </td>
                       ))}
 
-                      <td className="border-2 border-black text-[11px] uppercase">
+                      <td className="border-2 border-black text-[12px] uppercase">
                         {fonte}
                       </td>
 
@@ -230,7 +229,7 @@ export default function ModalRelatorioAtual({
             </div>
 
             <p className="text-[10px] text-center font-bold italic">
-              ANA - Agência Nacional de Águas | INEA - Instituto Estadual do Ambiente
+              ANA - Agência Nacional de Águas | INEA - Instituto Estadual do Ambiente | COMDEC
             </p>
 
           </div>
