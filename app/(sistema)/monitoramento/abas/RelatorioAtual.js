@@ -170,14 +170,9 @@ export default function RelatorioAtual() {
                     <td key={i} className="p-3 text-center">
 
                       {c ? (
-                        <div className="flex flex-col items-center">
-                          <span className="font-bold text-slate-800">
-                            {c.nivel.toFixed(2)}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            ({c.hora})
-                          </span>
-                        </div>
+                        <span className="font-bold text-slate-800">
+                          {c.nivel.toFixed(2)}
+                        </span>
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
