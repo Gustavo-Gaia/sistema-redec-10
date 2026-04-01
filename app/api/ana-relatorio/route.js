@@ -4,15 +4,13 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+// Cache seguindo a regra de 15 minutos do manual (isTokenValid)
 let globalToken = null;
 let globalTokenExp = 0;
 
-// ============================
-// DIAGNÓSTICO DE AUTENTICAÇÃO
-// ============================
 async function getAuthToken() {
   const agora = Date.now();
-  if (globalToken && agora < globalTokenExp) return { token: globalToken, cached: true };
+  if (globalToken && agora < globalTokenExp) return globalToken;
 
   try {
     const resp = await fetch("https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1", {
@@ -26,58 +24,48 @@ async function getAuthToken() {
     });
 
     const json = await resp.json();
+    // Conforme TokenModelVO -> TokenModelItemsVO do manual:
+    const token = json?.items?.tokenautenticacao;
 
-    if (!resp.ok || !json?.items?.tokenautenticacao) {
-      return { 
-        error: true, 
-        status: resp.status, 
-        resposta_ana: json, 
-        config_env: { id: !!process.env.ANA_IDENTIFICADOR, senha: !!process.env.ANA_SENHA }
-      };
-    }
+    if (!token) return null;
 
-    globalToken = json.items.tokenautenticacao;
-    globalTokenExp = agora + (50 * 60 * 1000);
-    return { token: globalToken, cached: false };
+    globalToken = token;
+    globalTokenExp = agora + (15 * 60 * 1000); // 15 minutos exatos como no Java
+    return token;
   } catch (err) {
-    return { error: true, msg: err.message };
+    return null;
   }
 }
 
 async function processarEstacao(codigo, horaRef, token) {
-  // Voltamos para DIAS_3 para ser mais rápido, já que você confirmou que tem dado hoje
-  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetrica/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_3`;
+  // Usando a URL exata do manual (item 6: executeRoute)
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_30`;
 
   try {
     const resp = await fetch(url, {
       headers: {
         "Authorization": `Bearer ${token}`,
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0"
+        "Accept": "application/json"
       },
       cache: "no-store"
     });
 
     if (!resp.ok) return null;
     const json = await resp.json();
-    const items = json?.items || [];
     
-    if (items.length === 0) return null;
+    // Conforme DevolucaoVO do manual: os dados estão em 'items'
+    const items = json?.items || [];
+    if (!Array.isArray(items)) return null;
 
-    // 🔥 MAPEAMENTO REFORÇADO: Tenta pegar o nível de qualquer campo possível
-    const medicoes = items.map(m => {
-      // Tenta Cota (Bruta), se não tiver tenta Cota_Adotada, se não tiver tenta Media
-      const valorBruto = m.Cota ?? m.Cota_Adotada ?? m.Media ?? m.Valor;
-      
-      return {
-        datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
-        nivel: parseFloat(valorBruto) / 100 
-      };
-    }).filter(m => !isNaN(m.nivel));
+    const medicoes = items.map(m => ({
+      // Tratamento para evitar erro de fuso horário no RS/RJ
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      nivel: parseFloat(m.Cota_Adotada || m.Cota) / 100
+    })).filter(m => !isNaN(m.nivel));
 
     if (medicoes.length === 0) return null;
 
-    // Gerar alvos baseado na horaRef (ex: 08:00 de hoje)
+    // Lógica de Alvos (Hoje)
     const base = new Date();
     base.setHours(parseInt(horaRef), 0, 0, 0);
 
@@ -88,9 +76,9 @@ async function processarEstacao(codigo, horaRef, token) {
       const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
       
-      // Janela de 2 horas (120 min) para encontrar a leitura mais próxima do horário
+      // Janela de 4 horas para garantir captura
       const m = medicoes
-        .filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 120 * 60000))
+        .filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 240 * 60000))
         .sort((a, b) => b.datetime - a.datetime)[0];
                         
       resultado[chaves[i]] = m ? { 
@@ -100,57 +88,36 @@ async function processarEstacao(codigo, horaRef, token) {
     });
 
     return resultado;
-  } catch (err) { 
-    return null; 
-  }
+  } catch (err) { return null; }
 }
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
 
-  const auth = await getAuthToken();
-  if (auth.error) {
-    return NextResponse.json({ diagnostico: "Falha na Autenticação", detalhes: auth }, { status: 401 });
-  }
+  const token = await getAuthToken();
+  if (!token) return NextResponse.json({ error: "Token inválido ou ausente" }, { status: 401 });
 
-  // Busca no Supabase
-  const { data: estacoes, error: dbError } = await supabase
+  const { data: estacoes } = await supabase
     .from("estacoes")
-    .select("id, codigo_estacao, fonte, ativo")
+    .select("id, codigo_estacao")
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (dbError) return NextResponse.json({ erro_banco: dbError });
-
-  // --- TESTE DE QUANTIDADE ---
-  if (!estacoes || estacoes.length === 0) {
-    return NextResponse.json({ 
-      aviso: "O banco de dados retornou zero estações",
-      causa: "Verifique se a coluna 'fonte' no Supabase está como 'ANA' (maiúsculo) e 'ativo' está marcado.",
-      sql_tentado: "fonte = ANA AND ativo = true"
-    });
-  }
+  if (!estacoes || estacoes.length === 0) return NextResponse.json({});
 
   const resultados = {};
-  for (let i = 0; i < estacoes.length; i += 5) {
-    const grupo = estacoes.slice(i, i + 5);
+  
+  // No Java eles usam threads (5 simultâneas). Fazemos o mesmo com Promise.all em lotes.
+  const BATCH_SIZE = 5; 
+  for (let i = 0; i < estacoes.length; i += BATCH_SIZE) {
+    const grupo = estacoes.slice(i, i + BATCH_SIZE);
     await Promise.all(grupo.map(async (e) => {
-      const dados = await processarEstacao(e.codigo_estacao, horaRef, auth.token);
-      if (dados) {
-        resultados[e.id] = dados;
-      }
+      const dados = await processarEstacao(e.codigo_estacao, horaRef, token);
+      if (dados) resultados[e.id] = dados;
     }));
-    await new Promise(r => setTimeout(r, 300));
-  }
-
-  // Se após processar tudo continuar vazio, avisamos que a ANA não tinha dados
-  if (Object.keys(resultados).length === 0) {
-     return NextResponse.json({
-       aviso: "Estações encontradas no banco, mas a ANA não retornou medições para elas.",
-       estacoes_consultadas: estacoes.map(e => e.codigo_estacao),
-       periodo: "Últimos 7 dias"
-     });
+    // Pequena pausa para não ser bloqueado por "alta frequência" (item 2.7 do manual)
+    await new Promise(r => setTimeout(r, 200));
   }
 
   return NextResponse.json(resultados);
