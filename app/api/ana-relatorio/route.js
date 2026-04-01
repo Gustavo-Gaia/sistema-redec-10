@@ -46,38 +46,56 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, horaRef, token) {
-  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetrica/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_3`;
+  // Calculamos a data de hoje e de 2 dias atrás no formato AAAA-MM-DD
+  const hoje = new Date();
+  const anteontem = new Date();
+  anteontem.setDate(hoje.getDate() - 2);
+  
+  const dataFim = hoje.toISOString().split('T')[0];
+  const dataInicio = anteontem.toISOString().split('T')[0];
+
+  // ESTRATÉGIA FINAL: Usar DataInicio e DataFim em vez de RangeIntervalo
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetrica/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&DataInicio=${dataInicio}&DataFim=${dataFim}`;
 
   try {
     const resp = await fetch(url, {
-      headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" },
-      // Tempo menor por estação para não travar o relatório todo
-      signal: AbortSignal.timeout(8000), 
+      headers: { 
+        "Authorization": `Bearer ${token}`, 
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0"
+      },
+      signal: AbortSignal.timeout(10000), 
       cache: "no-store"
     });
 
+    if (!resp.ok) return null;
     const json = await resp.json();
     const items = json?.items || [];
+    
     if (items.length === 0) return null;
 
-    const medicoes = items.map(m => ({
-      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
-      nivel: parseFloat(m.Cota || m.Valor || m.Cota_Adotada) / 100
-    })).filter(m => !isNaN(m.nivel));
+    const medicoes = items.map(m => {
+      const valor = m.Cota ?? m.Valor ?? m.Cota_Adotada ?? m.Media;
+      const dataRaw = m.Data_Hora_Medicao || m.Data_Hora_Leitura;
+      return {
+        datetime: new Date(dataRaw.replace(" ", "T")),
+        nivel: parseFloat(valor) / 100 
+      };
+    }).filter(m => !isNaN(m.nivel));
 
     if (medicoes.length === 0) return null;
 
     const base = new Date();
     base.setHours(parseInt(horaRef), 0, 0, 0);
-    const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
     [0, 4, 8, 12].forEach((sub, i) => {
       const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
-      const m = medicoes.filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 360 * 60000))
-                        .sort((a, b) => b.datetime - a.datetime)[0];
-      resultado[chaves[i]] = m ? { nivel: m.nivel, hora: m.datetime.toTimeString().slice(0, 5) } : null;
+      const m = medicoes
+        .filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 480 * 60000))
+        .sort((a, b) => b.datetime - a.datetime)[0];
+      resultado[["ref", "h4", "h8", "h12"][i]] = m ? { nivel: m.nivel, hora: m.datetime.toTimeString().slice(0, 5) } : null;
     });
     return resultado;
   } catch (e) { return null; }
