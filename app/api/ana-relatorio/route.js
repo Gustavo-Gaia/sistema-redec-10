@@ -10,76 +10,130 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Auxiliar para formatar data padrão ANA (DD/MM/AAAA)
+// ============================
+// FORMATAR DATA ANA
+// ============================
+
 function formatarDataANA(d) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
-// Lógica para extrair TODAS as medições do XML e filtrar por hora
-async function processarRelatorioANA(codigo, horaRef) {
+// ============================
+// GERAR HORÁRIOS ALVO
+// ============================
+
+function gerarHorariosAlvo(horaRef) {
+  const base = new Date();
+  base.setMinutes(0, 0, 0);
+  base.setHours(parseInt(horaRef));
+
+  return [0, 4, 8, 12].map((sub) => {
+    const d = new Date(base);
+    d.setHours(d.getHours() - sub);
+    return d;
+  });
+}
+
+// ============================
+// EXTRAIR TODAS MEDIÇÕES
+// ============================
+
+function extrairMedicoes(xml) {
+  const regex = /<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/g;
+
+  let match;
+  const lista = [];
+
+  while ((match = regex.exec(xml)) !== null) {
+    const dataHora = match[1].trim();
+    const nivel = parseFloat(match[2]);
+
+    if (!dataHora || isNaN(nivel)) continue;
+
+    const dt = new Date(dataHora.replace(" ", "T"));
+
+    lista.push({
+      datetime: dt,
+      nivel: nivel / 100
+    });
+  }
+
+  return lista;
+}
+
+// ============================
+// PEGAR VALOR ATÉ HORÁRIO
+// ============================
+
+function getValorAteHorario(lista, alvo) {
+  const filtrados = lista.filter(m => m.datetime <= alvo);
+
+  if (filtrados.length === 0) return null;
+
+  filtrados.sort((a, b) => b.datetime - a.datetime);
+
+  return filtrados[0];
+}
+
+// ============================
+// PROCESSAR ESTAÇÃO
+// ============================
+
+async function processarEstacao(codigo, horaRef) {
+
   const hoje = new Date();
   const inicio = new Date();
-  inicio.setDate(hoje.getDate() - 2); // 2 dias são suficientes e mais rápidos
+  inicio.setDate(hoje.getDate() - 2);
 
-  const url = `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos?codEstacao=${codigo}&dataInicio=${formatarDataANA(inicio)}&dataFim=${formatarDataANA(hoje)}`;
+  const url =
+    `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos` +
+    `?codEstacao=${codigo}` +
+    `&dataInicio=${formatarDataANA(inicio)}` +
+    `&dataFim=${formatarDataANA(hoje)}`;
 
   try {
-    const resp = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, cache: "no-store" });
-    if (!resp.ok) return null;
-    const xml = await resp.text();
-
-    // 1. Criar array com os 4 alvos de horas (Ex: 08, 04, 00, 20)
-    const hRef = parseInt(horaRef);
-    const alvos = [0, 4, 8, 12].map(sub => {
-        let h = hRef - sub;
-        return (h < 0 ? h + 24 : h).toString().padStart(2, '0') + ":00";
+    const resp = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      cache: "no-store"
     });
 
-    // 2. Extrair todas as medições usando Match Global
-    const regex = /<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/g;
-    let matches;
-    const todasMedicoes = [];
+    if (!resp.ok) return null;
 
-    while ((matches = regex.exec(xml)) !== null) {
-      todasMedicoes.push({
-        hora: matches[1].trim().split(" ")[1].slice(0, 5), // Pega só "HH:MM"
-        nivel: parseFloat(matches[2]) / 100
-      });
-    }
+    const xml = await resp.text();
 
-    // 3. Para cada alvo, achar a medição mais próxima
-    // Retornamos um objeto formatado para a tabela
-    const resultado = {};
+    const medicoes = extrairMedicoes(xml);
+    if (medicoes.length === 0) return null;
+
+    const horarios = gerarHorariosAlvo(horaRef);
+
     const chaves = ["ref", "h4", "h8", "h12"];
+    const resultado = {};
 
-    alvos.forEach((alvo, index) => {
-      // Filtra medições que estejam dentro de uma janela de 60min do alvo
-      const alvoMinutos = parseInt(alvo.split(":")[0]) * 60;
-      
-      let melhorMedicao = null;
-      let menorDiferenca = Infinity;
+    horarios.forEach((alvo, i) => {
+      const m = getValorAteHorario(medicoes, alvo);
 
-      todasMedicoes.forEach(m => {
-        const mMinutos = parseInt(m.hora.split(":")[0]) * 60 + parseInt(m.hora.split(":")[1]);
-        const diferenca = Math.abs(alvoMinutos - mMinutos);
-
-        if (diferenca <= 60 && diferenca < menorDiferenca) {
-          menorDiferenca = diferenca;
-          melhorMedicao = m.nivel;
-        }
-      });
-
-      resultado[chaves[index]] = melhorMedicao;
+      resultado[chaves[i]] = m
+        ? {
+            nivel: m.nivel,
+            hora: m.datetime.toTimeString().slice(0, 5)
+          }
+        : null;
     });
 
     return resultado;
 
   } catch (err) {
+    console.log("Erro ANA:", codigo);
     return null;
   }
 }
 
+// ============================
+// API
+// ============================
+
 export async function GET(request) {
+
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
 
@@ -91,15 +145,19 @@ export async function GET(request) {
 
   if (!estacoes) return NextResponse.json({});
 
-  const resultadosTotal = {};
+  const resultados = {};
 
-  // Processa as estações
   for (const estacao of estacoes) {
-    const dadosQuadruplos = await processarRelatorioANA(estacao.codigo_estacao, horaRef);
-    if (dadosQuadruplos) {
-      resultadosTotal[estacao.id] = dadosQuadruplos;
+
+    const dados = await processarEstacao(
+      estacao.codigo_estacao,
+      horaRef
+    );
+
+    if (dados) {
+      resultados[estacao.id] = dados;
     }
   }
 
-  return NextResponse.json(resultadosTotal);
+  return NextResponse.json(resultados);
 }
