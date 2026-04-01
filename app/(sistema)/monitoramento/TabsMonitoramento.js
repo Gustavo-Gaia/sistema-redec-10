@@ -7,6 +7,8 @@ import { useState } from "react"
 import SituacaoAtual from "./abas/SituacaoAtual"
 import InserirMedicoes from "./abas/InserirMedicoes"
 import Configuracoes from "./abas/configuracoes/Configuracoes"
+// Importação do novo componente que será seu laboratório
+import RelatorioAtual from "./abas/RelatorioAtual" 
 
 export default function TabsMonitoramento({
   rios,
@@ -19,15 +21,15 @@ export default function TabsMonitoramento({
   const abas = [
     { id: "situacao", nome: "Situação Atual" },
     { id: "inserir", nome: "Medições e Relatório" },
+    // PADRONIZADO: Nova aba para o robô com busca por hora
+    { id: "relatorio_atual", nome: "Relatório Atual" }, 
     { id: "config", nome: "Configurações" }
   ]
 
   return (
     <div className="w-full">
 
-      {/* ============================= */}
       {/* MENU DAS ABAS */}
-      {/* ============================= */}
       <div className="flex gap-2 overflow-x-auto pb-4 border-b border-slate-200">
         {abas.map((aba) => (
           <button
@@ -45,9 +47,7 @@ export default function TabsMonitoramento({
         ))}
       </div>
 
-      {/* ============================= */}
       {/* CONTEÚDO DAS ABAS */}
-      {/* ============================= */}
       <div className="mt-6">
 
         {abaAtiva === "situacao" && (
@@ -58,6 +58,14 @@ export default function TabsMonitoramento({
           <InserirMedicoes
             rios={rios}
             estacoes={estacoes}
+          />
+        )}
+
+        {/* Renderização da nova aba padronizada */}
+        {abaAtiva === "relatorio_atual" && (
+          <RelatorioAtual 
+            rios={rios} 
+            estacoes={estacoes} 
           />
         )}
 
