@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { createClient } from "@supabase/supabase-js"
 import ModalRelatorioAtual from "../componentes/modais/ModalRelatorioAtual"
 
@@ -23,6 +23,10 @@ export default function RelatorioAtual() {
   const [loadingAna, setLoadingAna] = useState(false)
   const [loadingInea, setLoadingInea] = useState(false)
 
+  // ============================
+  // LOAD ESTAÇÕES
+  // ============================
+
   useEffect(() => {
     carregarEstacoes()
   }, [])
@@ -38,7 +42,7 @@ export default function RelatorioAtual() {
         rios(nome)
       `)
       .eq("ativo", true)
-      .order('id', { ascending: true })
+      .order("id")
 
     setEstacoes(data || [])
     setIdsSelecionados(data?.map(e => e.id) || [])
@@ -48,67 +52,76 @@ export default function RelatorioAtual() {
   // SELEÇÃO
   // ============================
 
-  function toggleSelecao(id) {
+  const toggleSelecao = useCallback((id) => {
     setIdsSelecionados(prev =>
       prev.includes(id)
         ? prev.filter(i => i !== id)
         : [...prev, id]
     )
-  }
+  }, [])
 
-  function toggleTodos() {
-    if (idsSelecionados.length === estacoes.length) {
-      setIdsSelecionados([])
-    } else {
-      setIdsSelecionados(estacoes.map(e => e.id))
-    }
-  }
+  const toggleTodos = useCallback(() => {
+    setIdsSelecionados(prev =>
+      prev.length === estacoes.length
+        ? []
+        : estacoes.map(e => e.id)
+    )
+  }, [estacoes])
 
   // ============================
-  // ATUALIZAÇÃO MANUAL
+  // ATUALIZAÇÃO MANUAL (OTIMIZADA)
   // ============================
 
-  function atualizarValor(estacaoId, chave, valor) {
-    setDados(prev => ({
-      ...prev,
-      [estacaoId]: {
-        ...prev[estacaoId],
-        [chave]: {
-          ...prev[estacaoId]?.[chave],
-          nivel: valor === "" ? null : parseFloat(valor)
+  const atualizarValor = useCallback((id, chave, valor) => {
+    setDados(prev => {
+
+      const atual = prev[id] || {}
+
+      return {
+        ...prev,
+        [id]: {
+          ...atual,
+          [chave]: {
+            ...atual[chave],
+            nivel: valor === "" ? null : parseFloat(valor)
+          }
         }
       }
-    }))
-  }
+    })
+  }, [])
 
   // ============================
-  // BUSCAR ANA
+  // BUSCAS (SEM REPROCESSAR TUDO)
   // ============================
+
+  const mesclarDados = useCallback((json, fonte) => {
+    setDados(prev => {
+
+      const novo = { ...prev }
+
+      for (const id in json) {
+        const atual = novo[id] || {}
+
+        novo[id] = {
+          ...atual,
+          ...json[id],
+          fonte: atual.fonte || fonte // não sobrescreve se já tiver
+        }
+      }
+
+      return novo
+    })
+  }, [])
 
   async function buscarANA() {
     if (!horaRef) return
+
     setLoadingAna(true)
 
     try {
       const resp = await fetch(`/api/ana-relatorio?hora=${horaRef}`)
       const json = await resp.json()
-
-      setDados(prev => {
-        const novo = { ...prev }
-
-        Object.entries(json).forEach(([id, valores]) => {
-          if (!novo[id]) novo[id] = {}
-
-          novo[id] = {
-            ...novo[id],
-            ...valores,
-            fonte: "ANA"
-          }
-        })
-
-        return novo
-      })
-
+      mesclarDados(json, "ANA")
     } catch {
       alert("Erro ao buscar ANA")
     }
@@ -116,40 +129,95 @@ export default function RelatorioAtual() {
     setLoadingAna(false)
   }
 
-  // ============================
-  // BUSCAR INEA
-  // ============================
-
   async function buscarINEA() {
     if (!horaRef) return
+
     setLoadingInea(true)
 
     try {
       const resp = await fetch(`/api/inea-relatorio?hora=${horaRef}`)
       const json = await resp.json()
-
-      setDados(prev => {
-        const novo = { ...prev }
-
-        Object.entries(json).forEach(([id, valores]) => {
-          if (!novo[id]) novo[id] = {}
-
-          novo[id] = {
-            ...novo[id],
-            ...valores,
-            fonte: "INEA"
-          }
-        })
-
-        return novo
-      })
-
+      mesclarDados(json, "INEA")
     } catch {
       alert("Erro ao buscar INEA")
     }
 
     setLoadingInea(false)
   }
+
+  // ============================
+  // CABEÇALHO (MEMO)
+  // ============================
+
+  const cabecalho = useMemo(() => {
+    const h = parseInt(horaRef)
+
+    const calc = (sub) => {
+      let v = h - sub
+      if (v < 0) v += 24
+      return String(v).padStart(2, "0") + "h"
+    }
+
+    return [calc(12), calc(8), calc(4), calc(0)]
+  }, [horaRef])
+
+  // ============================
+  // LINHAS (MEMO - GRANDE GANHO)
+  // ============================
+
+  const linhasTabela = useMemo(() => {
+
+    return estacoes.map((estacao) => {
+
+      const d = dados[estacao.id] || {}
+
+      const colunas = ["h12", "h8", "h4", "ref"]
+
+      return (
+        <tr key={estacao.id} className="border-b hover:bg-slate-50">
+
+          <td className="text-center">
+            <input
+              type="checkbox"
+              checked={idsSelecionados.includes(estacao.id)}
+              onChange={() => toggleSelecao(estacao.id)}
+            />
+          </td>
+
+          <td className="p-3 font-semibold">
+            {estacao.rios?.nome}
+          </td>
+
+          <td className="p-3">
+            {estacao.municipio}
+          </td>
+
+          {colunas.map((key, i) => {
+
+            const valor = d[key]?.nivel
+
+            return (
+              <td key={i} className="text-center p-2">
+
+                <input
+                  type="number"
+                  step="0.01"
+                  value={valor ?? ""}
+                  onChange={(e) =>
+                    atualizarValor(estacao.id, key, e.target.value)
+                  }
+                  className="w-20 text-center border rounded p-1 font-bold"
+                />
+
+              </td>
+            )
+          })}
+
+        </tr>
+      )
+    })
+
+  }, [estacoes, dados, idsSelecionados, atualizarValor, toggleSelecao])
 
   // ============================
   // VISUALIZAR
@@ -165,24 +233,6 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // CABEÇALHO
-  // ============================
-
-  function gerarCabecalho() {
-    const h = parseInt(horaRef)
-
-    const calc = (sub) => {
-      let v = h - sub
-      if (v < 0) v += 24
-      return String(v).padStart(2, "0") + "h"
-    }
-
-    return [calc(12), calc(8), calc(4), calc(0)]
-  }
-
-  const cabecalho = gerarCabecalho()
-
-  // ============================
   // RENDER
   // ============================
 
@@ -192,11 +242,9 @@ export default function RelatorioAtual() {
       {/* HEADER */}
       <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border">
 
-        <div>
-          <h3 className="text-xl font-bold text-slate-800">
-            Relatório Atual
-          </h3>
-        </div>
+        <h3 className="text-xl font-bold text-slate-800">
+          Relatório Atual
+        </h3>
 
         <div className="flex items-center gap-2">
 
@@ -209,28 +257,20 @@ export default function RelatorioAtual() {
             className="w-20 border rounded-lg p-2 text-center font-bold"
           />
 
-          <button
-            onClick={buscarANA}
-            disabled={loadingAna}
-            className="bg-green-600 text-white px-3 py-2 rounded-lg"
-          >
+          <button onClick={buscarANA} disabled={loadingAna}
+            className="bg-green-600 text-white px-3 py-2 rounded-lg">
             {loadingAna ? "..." : "Buscar ANA"}
           </button>
 
-          <button
-            onClick={buscarINEA}
-            disabled={loadingInea}
-            className="bg-purple-600 text-white px-3 py-2 rounded-lg"
-          >
+          <button onClick={buscarINEA} disabled={loadingInea}
+            className="bg-purple-600 text-white px-3 py-2 rounded-lg">
             {loadingInea ? "..." : "Buscar INEA"}
           </button>
 
           <div className="w-px h-8 bg-slate-200 mx-1" />
 
-          <button
-            onClick={visualizarRelatorio}
-            className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold"
-          >
+          <button onClick={visualizarRelatorio}
+            className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold">
             Visualizar ({idsSelecionados.length})
           </button>
 
@@ -239,7 +279,6 @@ export default function RelatorioAtual() {
 
       {/* TABELA */}
       <div className="overflow-auto border rounded-xl bg-white shadow-sm">
-
         <table className="w-full text-sm">
 
           <thead className="bg-slate-50 border-b text-[11px] font-bold uppercase">
@@ -264,63 +303,7 @@ export default function RelatorioAtual() {
           </thead>
 
           <tbody>
-
-            {estacoes.map((estacao) => {
-
-              const d = dados[estacao.id] || {}
-
-              const colunas = [
-                { key: "h12" },
-                { key: "h8" },
-                { key: "h4" },
-                { key: "ref" }
-              ]
-
-              return (
-                <tr key={estacao.id} className="border-b hover:bg-slate-50">
-
-                  <td className="text-center">
-                    <input
-                      type="checkbox"
-                      checked={idsSelecionados.includes(estacao.id)}
-                      onChange={() => toggleSelecao(estacao.id)}
-                    />
-                  </td>
-
-                  <td className="p-3 font-semibold">
-                    {estacao.rios?.nome}
-                  </td>
-
-                  <td className="p-3">
-                    {estacao.municipio}
-                  </td>
-
-                  {colunas.map(({ key }, i) => {
-
-                    const valor = d[key]?.nivel
-
-                    return (
-                      <td key={i} className="text-center p-2">
-
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="—"
-                          value={valor ?? ""}
-                          onChange={(e) =>
-                            atualizarValor(estacao.id, key, e.target.value)
-                          }
-                          className="w-20 text-center border rounded p-1 font-bold"
-                        />
-
-                      </td>
-                    )
-                  })}
-
-                </tr>
-              )
-            })}
-
+            {linhasTabela}
           </tbody>
 
         </table>
