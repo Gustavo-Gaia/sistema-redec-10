@@ -11,87 +11,76 @@ async function getAuthToken() {
   const agora = Date.now();
   if (globalToken && agora < globalTokenExp) return globalToken;
 
+  // Criamos um sinal de cancelamento de 25 segundos (limite máximo seguro na Vercel)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+
   try {
     const resp = await fetch("https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1", {
       method: "GET",
       headers: {
         "Identificador": "09627246700",
         "Senha": "qaex0ake",
-        "Accept": "*/*" // Mudado para aceitar tudo, conforme seu teste curl
+        "Accept": "*/*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"
       },
+      signal: controller.signal,
       cache: "no-store"
     });
 
+    clearTimeout(timeoutId);
     const json = await resp.json();
     
-    // Pegando EXATAMENTE o campo que apareceu no seu teste manual
-    const token = json?.items?.tokenautenticacao;
+    // Captura flexível conforme o manual e seu teste
+    const token = json?.items?.tokenautenticacao || json?.items?.TokenAutenticacao || json?.tokenautenticacao;
 
-    if (!token) {
-      console.error("Token não encontrado no JSON:", json);
-      return null;
-    }
+    if (!token) return null;
 
     globalToken = token;
-    globalTokenExp = agora + (14 * 60 * 1000); // Validade de 14 min
+    globalTokenExp = agora + (14 * 60 * 1000);
     return token;
   } catch (err) {
+    console.error("⏳ Erro ou Timeout na ANA:", err.name === 'AbortError' ? "Tempo esgotado" : err.message);
     return null;
   }
 }
 
 async function processarEstacao(codigo, horaRef, token) {
-  // URL de telemetria bruta (a que costuma ter o dado de hoje mais rápido)
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetrica/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_3`;
 
   try {
     const resp = await fetch(url, {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Accept": "application/json"
-      },
+      headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" },
+      // Tempo menor por estação para não travar o relatório todo
+      signal: AbortSignal.timeout(8000), 
       cache: "no-store"
     });
 
-    if (!resp.ok) return null;
     const json = await resp.json();
     const items = json?.items || [];
-    
     if (items.length === 0) return null;
 
-    const medicoes = items.map(m => {
-      // No seu teste manual os campos costumam ser Cota ou Valor
-      const valorBruto = m.Cota ?? m.Valor ?? m.Cota_Adotada;
-      const dataISO = m.Data_Hora_Medicao.replace(" ", "T");
-
-      return {
-        datetime: new Date(dataISO),
-        nivel: parseFloat(valorBruto) / 100 
-      };
-    }).filter(m => !isNaN(m.nivel));
+    const medicoes = items.map(m => ({
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      nivel: parseFloat(m.Cota || m.Valor || m.Cota_Adotada) / 100
+    })).filter(m => !isNaN(m.nivel));
 
     if (medicoes.length === 0) return null;
 
     const base = new Date();
     base.setHours(parseInt(horaRef), 0, 0, 0);
-
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
     [0, 4, 8, 12].forEach((sub, i) => {
       const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
-      
-      // Janela de 6 horas para garantir o dado
-      const m = medicoes
-        .filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 360 * 60000))
-        .sort((a, b) => b.datetime - a.datetime)[0];
-                        
+      const m = medicoes.filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 360 * 60000))
+                        .sort((a, b) => b.datetime - a.datetime)[0];
       resultado[chaves[i]] = m ? { nivel: m.nivel, hora: m.datetime.toTimeString().slice(0, 5) } : null;
     });
-
     return resultado;
-  } catch (err) { return null; }
+  } catch (e) { return null; }
 }
 
 export async function GET(request) {
@@ -99,13 +88,15 @@ export async function GET(request) {
   const horaRef = searchParams.get("hora") || "08";
 
   const token = await getAuthToken();
-  if (!token) return NextResponse.json({ erro: "Erro ao capturar tokenautenticacao" }, { status: 401 });
+  if (!token) {
+    return NextResponse.json({ erro: "A ANA demorou muito para responder ou as credenciais falharam." }, { status: 504 });
+  }
 
   const { data: estacoes } = await supabase.from("estacoes").select("id, codigo_estacao").eq("fonte", "ANA").eq("ativo", true);
-  if (!estacoes || estacoes.length === 0) return NextResponse.json({ aviso: "Sem estações no banco" });
+  if (!estacoes || estacoes.length === 0) return NextResponse.json({});
 
   const resultados = {};
-  // Lotes pequenos (2 em 2) para garantir que a Vercel não dê timeout
+  // Processamos de 2 em 2 para dar tempo da ANA responder cada uma sem pressa
   for (let i = 0; i < estacoes.length; i += 2) {
     const grupo = estacoes.slice(i, i + 2);
     await Promise.all(grupo.map(async (e) => {
