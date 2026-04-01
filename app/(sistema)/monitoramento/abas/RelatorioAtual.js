@@ -14,7 +14,6 @@ export default function RelatorioAtual() {
 
   const [estacoes, setEstacoes] = useState([])
   const [dados, setDados] = useState({})
-  const [dadosTemporarios, setDadosTemporarios] = useState({})
   const [horaRef, setHoraRef] = useState("08")
 
   const [loadingAna, setLoadingAna] = useState(false)
@@ -41,7 +40,7 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // BUSCAR ANA
+  // BUSCAR ANA (PREENCHE DIRETO)
   // ============================
 
   async function buscarANA() {
@@ -52,7 +51,12 @@ export default function RelatorioAtual() {
     try {
       const resp = await fetch(`/api/ana-relatorio?hora=${horaRef}`)
       const json = await resp.json()
-      setDadosTemporarios(json || {})
+
+      setDados(prev => ({
+        ...prev,
+        ...json
+      }))
+
     } catch {
       alert("Erro ao buscar ANA")
     }
@@ -61,7 +65,7 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // BUSCAR INEA
+  // BUSCAR INEA (SOMA JUNTO)
   // ============================
 
   async function buscarINEA() {
@@ -72,7 +76,12 @@ export default function RelatorioAtual() {
     try {
       const resp = await fetch(`/api/inea-relatorio?hora=${horaRef}`)
       const json = await resp.json()
-      setDadosTemporarios(json || {})
+
+      setDados(prev => ({
+        ...prev,
+        ...json
+      }))
+
     } catch {
       alert("Erro ao buscar INEA")
     }
@@ -81,11 +90,12 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // VISUALIZAR RELATÓRIO
+  // VISUALIZAR (RESERVADO)
   // ============================
 
   function visualizarRelatorio() {
-    setDados(dadosTemporarios)
+    console.log("Dados atuais:", dados)
+    alert("Função de visualização será implementada")
   }
 
   // ============================
@@ -143,7 +153,7 @@ export default function RelatorioAtual() {
             className="w-20 border rounded-lg p-2 text-center font-bold text-lg"
           />
 
-          {/* BOTÃO ANA */}
+          {/* ANA */}
           <button
             onClick={buscarANA}
             disabled={loadingAna}
@@ -152,7 +162,7 @@ export default function RelatorioAtual() {
             {loadingAna ? "..." : "Buscar ANA"}
           </button>
 
-          {/* BOTÃO INEA */}
+          {/* INEA */}
           <button
             onClick={buscarINEA}
             disabled={loadingInea}
@@ -163,7 +173,7 @@ export default function RelatorioAtual() {
 
           <div className="w-px h-8 bg-slate-200 mx-1" />
 
-          {/* BOTÃO VISUALIZAR */}
+          {/* VISUALIZAR */}
           <button
             onClick={visualizarRelatorio}
             className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 font-bold shadow-md transition active:scale-95"
