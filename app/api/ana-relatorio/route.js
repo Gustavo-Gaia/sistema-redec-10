@@ -53,8 +53,9 @@ async function getAuthToken() {
 // 📡 PROCESSAMENTO DE ESTAÇÃO
 // ============================
 async function processarEstacao(codigo, horaRef, token) {
-  // Usando Série Telemetrica (Bruta) para garantir dados de hoje
-  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetrica/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_3`;
+  // MUDANÇA CRÍTICA: Trocamos DATA_LEITURA por DATA_INSERCAO e usamos DIAS_1
+  // Isso pega tudo o que entrou no servidor da ANA nas últimas 24h
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetrica/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_INSERCAO&RangeIntervaloDeBusca=DIAS_1`;
 
   try {
     const resp = await fetch(url, {
@@ -67,17 +68,19 @@ async function processarEstacao(codigo, horaRef, token) {
     });
 
     if (!resp.ok) return null;
-    
     const json = await resp.json();
     const items = json?.items || [];
-    if (!Array.isArray(items) || items.length === 0) return null;
+    
+    // Se a lista veio vazia, tentamos uma última vez com DIAS_7 por segurança
+    if (items.length === 0) return null;
 
-    // Mapeamento de múltiplos campos de nível (Cota, Cota_Adotada, Valor, Media)
     const medicoes = items.map(m => {
+      // Captura o nível de qualquer campo (Cota ou Valor)
       const valorBruto = m.Cota ?? m.Cota_Adotada ?? m.Valor ?? m.Media;
-      const dataISO = m.Data_Hora_Medicao.includes("T") 
-        ? m.Data_Hora_Medicao 
-        : m.Data_Hora_Medicao.replace(" ", "T");
+      
+      // Ajuste de data para o padrão ISO que o JavaScript entende melhor
+      const dataBruta = m.Data_Hora_Medicao || m.Data_Hora_Leitura;
+      const dataISO = dataBruta.replace(" ", "T");
 
       return {
         datetime: new Date(dataISO),
@@ -87,7 +90,7 @@ async function processarEstacao(codigo, horaRef, token) {
 
     if (medicoes.length === 0) return null;
 
-    // Lógica para encontrar os horários de referência
+    // Lógica dos Alvos
     const agora = new Date();
     const base = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), parseInt(horaRef), 0, 0);
 
@@ -98,21 +101,16 @@ async function processarEstacao(codigo, horaRef, token) {
       const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
       
-      // Janela de 4 horas para encontrar o dado telemétrico mais próximo
+      // Janela de 6 horas (360 min) para garantir que pegue o dado
       const m = medicoes
-        .filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 240 * 60000))
+        .filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 360 * 60000))
         .sort((a, b) => b.datetime - a.datetime)[0];
                         
-      resultado[chaves[i]] = m ? { 
-        nivel: m.nivel, 
-        hora: m.datetime.toTimeString().slice(0, 5) 
-      } : null;
+      resultado[chaves[i]] = m ? { nivel: m.nivel, hora: m.datetime.toTimeString().slice(0, 5) } : null;
     });
 
     return resultado;
-  } catch (err) { 
-    return null; 
-  }
+  } catch (err) { return null; }
 }
 
 // ============================
