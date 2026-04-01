@@ -5,21 +5,68 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// ============================
+// SUPABASE (SERVER SIDE)
+// ============================
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // ============================
-// FORMATAR DATA ANA
+// TOKEN CACHE (MEMÓRIA)
 // ============================
 
-function formatarDataANA(d) {
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+let tokenCache = null;
+let tokenExpiraEm = null;
+
+// ============================
+// BUSCAR TOKEN ANA
+// ============================
+
+async function getAuthToken() {
+  const agora = Date.now();
+
+  // reutiliza token válido
+  if (tokenCache && tokenExpiraEm && agora < tokenExpiraEm) {
+    return tokenCache;
+  }
+
+  try {
+    const resp = await fetch(
+      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
+      {
+        headers: {
+          Identificador: process.env.ANA_IDENTIFICADOR,
+          Senha: process.env.ANA_SENHA,
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (!resp.ok) throw new Error("Erro ao autenticar ANA");
+
+    const json = await resp.json();
+
+    const token = json?.items?.tokenautenticacao;
+
+    if (!token) throw new Error("Token inválido");
+
+    // salva por 55 minutos (segurança)
+    tokenCache = token;
+    tokenExpiraEm = agora + 55 * 60 * 1000;
+
+    return token;
+
+  } catch (err) {
+    console.error("Erro token ANA:", err);
+    return null;
+  }
 }
 
 // ============================
-// GERAR HORÁRIOS ALVO
+// GERAR HORÁRIOS
 // ============================
 
 function gerarHorariosAlvo(horaRef) {
@@ -35,38 +82,11 @@ function gerarHorariosAlvo(horaRef) {
 }
 
 // ============================
-// EXTRAIR TODAS MEDIÇÕES
-// ============================
-
-function extrairMedicoes(xml) {
-  const regex = /<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/g;
-
-  let match;
-  const lista = [];
-
-  while ((match = regex.exec(xml)) !== null) {
-    const dataHora = match[1].trim();
-    const nivel = parseFloat(match[2]);
-
-    if (!dataHora || isNaN(nivel)) continue;
-
-    const dt = new Date(dataHora.replace(" ", "T"));
-
-    lista.push({
-      datetime: dt,
-      nivel: nivel / 100
-    });
-  }
-
-  return lista;
-}
-
-// ============================
-// PEGAR VALOR ATÉ HORÁRIO
+// PEGAR VALOR MAIS PRÓXIMO
 // ============================
 
 function getValorAteHorario(lista, alvo) {
-  const filtrados = lista.filter(m => m.datetime <= alvo);
+  const filtrados = lista.filter((m) => m.datetime <= alvo);
 
   if (filtrados.length === 0) return null;
 
@@ -76,32 +96,41 @@ function getValorAteHorario(lista, alvo) {
 }
 
 // ============================
-// PROCESSAR ESTAÇÃO
+// PROCESSAR ESTAÇÃO (NOVA)
 // ============================
 
-async function processarEstacao(codigo, horaRef) {
-
-  const hoje = new Date();
-  const inicio = new Date();
-  inicio.setDate(hoje.getDate() - 2);
+async function processarEstacao(codigo, token, horaRef) {
 
   const url =
-    `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos` +
-    `?codEstacao=${codigo}` +
-    `&dataInicio=${formatarDataANA(inicio)}` +
-    `&dataFim=${formatarDataANA(hoje)}`;
+    `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
+    `?CodigoDaEstacao=${codigo}` +
+    `&TipoFiltroData=DATA_LEITURA` +
+    `&RangeIntervaloDeBusca=DIAS_2`;
 
   try {
     const resp = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      cache: "no-store"
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
     });
 
     if (!resp.ok) return null;
 
-    const xml = await resp.text();
+    const json = await resp.json();
 
-    const medicoes = extrairMedicoes(xml);
+    const items = json?.items || [];
+
+    if (items.length === 0) return null;
+
+    // converter dados
+    const medicoes = items
+      .map((m) => ({
+        datetime: new Date(m.Data_Hora_Medicao),
+        nivel: parseFloat(m.Cota_Adotada) / 100, // cm -> m
+      }))
+      .filter((m) => !isNaN(m.nivel));
+
     if (medicoes.length === 0) return null;
 
     const horarios = gerarHorariosAlvo(horaRef);
@@ -115,7 +144,7 @@ async function processarEstacao(codigo, horaRef) {
       resultado[chaves[i]] = m
         ? {
             nivel: m.nivel,
-            hora: m.datetime.toTimeString().slice(0, 5)
+            hora: m.datetime.toTimeString().slice(0, 5),
           }
         : null;
     });
@@ -123,19 +152,26 @@ async function processarEstacao(codigo, horaRef) {
     return resultado;
 
   } catch (err) {
-    console.log("Erro ANA:", codigo);
+    console.error("Erro estação ANA:", codigo);
     return null;
   }
 }
 
 // ============================
-// API
+// API PRINCIPAL
 // ============================
 
 export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
+
+  // 🔥 pega token UMA VEZ
+  const token = await getAuthToken();
+
+  if (!token) {
+    return NextResponse.json({});
+  }
 
   const { data: estacoes } = await supabase
     .from("estacoes")
@@ -147,17 +183,23 @@ export async function GET(request) {
 
   const resultados = {};
 
-  for (const estacao of estacoes) {
+  // ============================
+  // ⚡ PARALELISMO CONTROLADO
+  // ============================
 
+  const promises = estacoes.map(async (estacao) => {
     const dados = await processarEstacao(
       estacao.codigo_estacao,
+      token,
       horaRef
     );
 
     if (dados) {
       resultados[estacao.id] = dados;
     }
-  }
+  });
+
+  await Promise.all(promises);
 
   return NextResponse.json(resultados);
 }
