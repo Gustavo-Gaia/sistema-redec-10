@@ -23,6 +23,10 @@ export default function RelatorioAtual() {
   const [loadingAna, setLoadingAna] = useState(false)
   const [loadingInea, setLoadingInea] = useState(false)
 
+  // ============================
+  // INIT
+  // ============================
+
   useEffect(() => {
     carregarEstacoes()
   }, [])
@@ -38,7 +42,7 @@ export default function RelatorioAtual() {
         rios(nome)
       `)
       .eq("ativo", true)
-      .order('id', { ascending: true })
+      .order("id", { ascending: true })
 
     setEstacoes(data || [])
     setIdsSelecionados(data?.map(e => e.id) || [])
@@ -57,11 +61,11 @@ export default function RelatorioAtual() {
   }
 
   function toggleTodos() {
-    if (idsSelecionados.length === estacoes.length) {
-      setIdsSelecionados([])
-    } else {
-      setIdsSelecionados(estacoes.map(e => e.id))
-    }
+    setIdsSelecionados(prev =>
+      prev.length === estacoes.length
+        ? []
+        : estacoes.map(e => e.id)
+    )
   }
 
   // ============================
@@ -82,7 +86,32 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // BUSCAR ANA (CORRIGIDO)
+  // FETCH GENÉRICO (🔥 NOVO)
+  // ============================
+
+  async function fetchSeguro(url) {
+    try {
+      const resp = await fetch(url, {
+        cache: "no-store"
+      })
+
+      if (!resp.ok) {
+        const text = await resp.text()
+        throw new Error(`HTTP ${resp.status} - ${text}`)
+      }
+
+      const json = await resp.json()
+
+      return json
+
+    } catch (err) {
+      console.error("❌ ERRO FETCH:", err)
+      throw err
+    }
+  }
+
+  // ============================
+  // BUSCAR ANA (🔥 REFORÇADO)
   // ============================
 
   async function buscarANA() {
@@ -91,13 +120,12 @@ export default function RelatorioAtual() {
     setLoadingAna(true)
 
     try {
-      const resp = await fetch(`/api/ana-relatorio?hora=${horaRef}`)
-      const json = await resp.json()
+      const json = await fetchSeguro(`/api/ana-relatorio?hora=${horaRef}`)
 
-      console.log("ANA RETORNO:", json)
+      console.log("🔥 ANA RETORNO:", json)
 
       if (!json || Object.keys(json).length === 0) {
-        alert("ANA não retornou dados")
+        alert("ANA não retornou dados (ver console)")
         return
       }
 
@@ -106,9 +134,7 @@ export default function RelatorioAtual() {
 
         Object.entries(json).forEach(([id, valores]) => {
 
-          const idNum = Number(id) // 🔥 CORREÇÃO CRÍTICA
-
-          if (!novo[idNum]) novo[idNum] = {}
+          const idNum = Number(id)
 
           novo[idNum] = {
             ...novo[idNum],
@@ -117,15 +143,14 @@ export default function RelatorioAtual() {
           }
         })
 
-        return novo
+        return { ...novo } // 🔥 força re-render
       })
 
     } catch (err) {
-      console.error(err)
-      alert("Erro ao buscar ANA")
+      alert("Erro ao buscar ANA (ver console)")
+    } finally {
+      setLoadingAna(false)
     }
-
-    setLoadingAna(false)
   }
 
   // ============================
@@ -138,10 +163,9 @@ export default function RelatorioAtual() {
     setLoadingInea(true)
 
     try {
-      const resp = await fetch(`/api/inea-relatorio?hora=${horaRef}`)
-      const json = await resp.json()
+      const json = await fetchSeguro(`/api/inea-relatorio?hora=${horaRef}`)
 
-      console.log("INEA RETORNO:", json)
+      console.log("🔥 INEA RETORNO:", json)
 
       if (!json || Object.keys(json).length === 0) {
         alert("INEA não retornou dados")
@@ -155,8 +179,6 @@ export default function RelatorioAtual() {
 
           const idNum = Number(id)
 
-          if (!novo[idNum]) novo[idNum] = {}
-
           novo[idNum] = {
             ...novo[idNum],
             ...valores,
@@ -164,15 +186,14 @@ export default function RelatorioAtual() {
           }
         })
 
-        return novo
+        return { ...novo }
       })
 
     } catch (err) {
-      console.error(err)
       alert("Erro ao buscar INEA")
+    } finally {
+      setLoadingInea(false)
     }
-
-    setLoadingInea(false)
   }
 
   // ============================
@@ -290,7 +311,6 @@ export default function RelatorioAtual() {
             {estacoes.map((estacao) => {
 
               const d = dados[estacao.id] || {}
-
               const colunas = ["h12", "h8", "h4", "ref"]
 
               return (
@@ -312,27 +332,19 @@ export default function RelatorioAtual() {
                     {estacao.municipio}
                   </td>
 
-                  {colunas.map((key, i) => {
-
-                    const valor = d[key]?.nivel ?? ""
-
-                    return (
-                      <td key={i} className="text-center p-2">
-
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="—"
-                          value={valor}
-                          onChange={(e) =>
-                            atualizarValor(estacao.id, key, e.target.value)
-                          }
-                          className="w-20 text-center border rounded p-1 font-bold"
-                        />
-
-                      </td>
-                    )
-                  })}
+                  {colunas.map((key, i) => (
+                    <td key={i} className="text-center p-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={d[key]?.nivel ?? ""}
+                        onChange={(e) =>
+                          atualizarValor(estacao.id, key, e.target.value)
+                        }
+                        className="w-20 text-center border rounded p-1 font-bold"
+                      />
+                    </td>
+                  ))}
 
                 </tr>
               )
