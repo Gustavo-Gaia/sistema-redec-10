@@ -82,25 +82,36 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // BUSCAR ANA
+  // BUSCAR ANA (CORRIGIDO)
   // ============================
 
   async function buscarANA() {
     if (!horaRef) return
+
     setLoadingAna(true)
 
     try {
       const resp = await fetch(`/api/ana-relatorio?hora=${horaRef}`)
       const json = await resp.json()
 
+      console.log("ANA RETORNO:", json)
+
+      if (!json || Object.keys(json).length === 0) {
+        alert("ANA não retornou dados")
+        return
+      }
+
       setDados(prev => {
         const novo = { ...prev }
 
         Object.entries(json).forEach(([id, valores]) => {
-          if (!novo[id]) novo[id] = {}
 
-          novo[id] = {
-            ...novo[id],
+          const idNum = Number(id) // 🔥 CORREÇÃO CRÍTICA
+
+          if (!novo[idNum]) novo[idNum] = {}
+
+          novo[idNum] = {
+            ...novo[idNum],
             ...valores,
             fonte: "ANA"
           }
@@ -109,7 +120,8 @@ export default function RelatorioAtual() {
         return novo
       })
 
-    } catch {
+    } catch (err) {
+      console.error(err)
       alert("Erro ao buscar ANA")
     }
 
@@ -122,20 +134,31 @@ export default function RelatorioAtual() {
 
   async function buscarINEA() {
     if (!horaRef) return
+
     setLoadingInea(true)
 
     try {
       const resp = await fetch(`/api/inea-relatorio?hora=${horaRef}`)
       const json = await resp.json()
 
+      console.log("INEA RETORNO:", json)
+
+      if (!json || Object.keys(json).length === 0) {
+        alert("INEA não retornou dados")
+        return
+      }
+
       setDados(prev => {
         const novo = { ...prev }
 
         Object.entries(json).forEach(([id, valores]) => {
-          if (!novo[id]) novo[id] = {}
 
-          novo[id] = {
-            ...novo[id],
+          const idNum = Number(id)
+
+          if (!novo[idNum]) novo[idNum] = {}
+
+          novo[idNum] = {
+            ...novo[idNum],
             ...valores,
             fonte: "INEA"
           }
@@ -144,7 +167,8 @@ export default function RelatorioAtual() {
         return novo
       })
 
-    } catch {
+    } catch (err) {
+      console.error(err)
       alert("Erro ao buscar INEA")
     }
 
@@ -192,11 +216,9 @@ export default function RelatorioAtual() {
       {/* HEADER */}
       <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border">
 
-        <div>
-          <h3 className="text-xl font-bold text-slate-800">
-            Relatório Atual
-          </h3>
-        </div>
+        <h3 className="text-xl font-bold text-slate-800">
+          Relatório Atual
+        </h3>
 
         <div className="flex items-center gap-2">
 
@@ -214,7 +236,7 @@ export default function RelatorioAtual() {
             disabled={loadingAna}
             className="bg-green-600 text-white px-3 py-2 rounded-lg"
           >
-            {loadingAna ? "..." : "Buscar ANA"}
+            {loadingAna ? "Buscando..." : "Buscar ANA"}
           </button>
 
           <button
@@ -222,7 +244,7 @@ export default function RelatorioAtual() {
             disabled={loadingInea}
             className="bg-purple-600 text-white px-3 py-2 rounded-lg"
           >
-            {loadingInea ? "..." : "Buscar INEA"}
+            {loadingInea ? "Buscando..." : "Buscar INEA"}
           </button>
 
           <div className="w-px h-8 bg-slate-200 mx-1" />
@@ -248,7 +270,7 @@ export default function RelatorioAtual() {
               <th className="p-3 text-center w-10">
                 <input
                   type="checkbox"
-                  checked={idsSelecionados.length === estacoes.length}
+                  checked={idsSelecionados.length === estacoes.length && estacoes.length > 0}
                   onChange={toggleTodos}
                 />
               </th>
@@ -269,12 +291,7 @@ export default function RelatorioAtual() {
 
               const d = dados[estacao.id] || {}
 
-              const colunas = [
-                { key: "h12" },
-                { key: "h8" },
-                { key: "h4" },
-                { key: "ref" }
-              ]
+              const colunas = ["h12", "h8", "h4", "ref"]
 
               return (
                 <tr key={estacao.id} className="border-b hover:bg-slate-50">
@@ -295,9 +312,9 @@ export default function RelatorioAtual() {
                     {estacao.municipio}
                   </td>
 
-                  {colunas.map(({ key }, i) => {
+                  {colunas.map((key, i) => {
 
-                    const valor = d[key]?.nivel
+                    const valor = d[key]?.nivel ?? ""
 
                     return (
                       <td key={i} className="text-center p-2">
@@ -306,7 +323,7 @@ export default function RelatorioAtual() {
                           type="number"
                           step="0.01"
                           placeholder="—"
-                          value={valor ?? ""}
+                          value={valor}
                           onChange={(e) =>
                             atualizarValor(estacao.id, key, e.target.value)
                           }
