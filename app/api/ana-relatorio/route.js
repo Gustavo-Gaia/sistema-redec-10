@@ -90,42 +90,48 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
 
-  // 1. Tenta Autenticar
   const auth = await getAuthToken();
-  
-  // Se houver erro de login, a API retorna o erro detalhado para você ler no navegador
   if (auth.error) {
-    return NextResponse.json({ 
-      diagnostico: "Falha na Autenticação ANA", 
-      detalhes: auth 
-    }, { status: 401 });
+    return NextResponse.json({ diagnostico: "Falha na Autenticação", detalhes: auth }, { status: 401 });
   }
 
-  // 2. Busca no Supabase
+  // Busca no Supabase
   const { data: estacoes, error: dbError } = await supabase
     .from("estacoes")
-    .select("id, codigo_estacao")
+    .select("id, codigo_estacao, fonte, ativo")
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (dbError) return NextResponse.json({ diagnostico: "Erro no Banco de Dados", detalhes: dbError }, { status: 500 });
-  
+  if (dbError) return NextResponse.json({ erro_banco: dbError });
+
+  // --- TESTE DE QUANTIDADE ---
   if (!estacoes || estacoes.length === 0) {
     return NextResponse.json({ 
-      diagnostico: "Nenhuma estação ANA encontrada no banco",
-      filtro: "fonte=ANA AND ativo=true"
+      aviso: "O banco de dados retornou zero estações",
+      causa: "Verifique se a coluna 'fonte' no Supabase está como 'ANA' (maiúsculo) e 'ativo' está marcado.",
+      sql_tentado: "fonte = ANA AND ativo = true"
     });
   }
 
-  // 3. Processa
   const resultados = {};
   for (let i = 0; i < estacoes.length; i += 5) {
     const grupo = estacoes.slice(i, i + 5);
     await Promise.all(grupo.map(async (e) => {
       const dados = await processarEstacao(e.codigo_estacao, horaRef, auth.token);
-      if (dados) resultados[e.id] = dados;
+      if (dados) {
+        resultados[e.id] = dados;
+      }
     }));
     await new Promise(r => setTimeout(r, 300));
+  }
+
+  // Se após processar tudo continuar vazio, avisamos que a ANA não tinha dados
+  if (Object.keys(resultados).length === 0) {
+     return NextResponse.json({
+       aviso: "Estações encontradas no banco, mas a ANA não retornou medições para elas.",
+       estacoes_consultadas: estacoes.map(e => e.codigo_estacao),
+       periodo: "Últimos 7 dias"
+     });
   }
 
   return NextResponse.json(resultados);
