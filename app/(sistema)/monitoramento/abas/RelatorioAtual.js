@@ -14,8 +14,11 @@ export default function RelatorioAtual() {
 
   const [estacoes, setEstacoes] = useState([])
   const [dados, setDados] = useState({})
+  const [dadosTemporarios, setDadosTemporarios] = useState({})
   const [horaRef, setHoraRef] = useState("08")
-  const [loading, setLoading] = useState(false)
+
+  const [loadingAna, setLoadingAna] = useState(false)
+  const [loadingInea, setLoadingInea] = useState(false)
 
   useEffect(() => {
     carregarEstacoes()
@@ -38,27 +41,55 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // BUSCAR DADOS ANA (RELATÓRIO)
+  // BUSCAR ANA
   // ============================
 
-  async function buscarRelatorio() {
+  async function buscarANA() {
     if (!horaRef) return
 
-    setLoading(true)
+    setLoadingAna(true)
 
     try {
       const resp = await fetch(`/api/ana-relatorio?hora=${horaRef}`)
       const json = await resp.json()
-      setDados(json || {})
+      setDadosTemporarios(json || {})
     } catch {
-      alert("Erro ao buscar dados da ANA")
+      alert("Erro ao buscar ANA")
     }
 
-    setLoading(false)
+    setLoadingAna(false)
   }
 
   // ============================
-  // GERAR CABEÇALHO DINÂMICO
+  // BUSCAR INEA
+  // ============================
+
+  async function buscarINEA() {
+    if (!horaRef) return
+
+    setLoadingInea(true)
+
+    try {
+      const resp = await fetch(`/api/inea-relatorio?hora=${horaRef}`)
+      const json = await resp.json()
+      setDadosTemporarios(json || {})
+    } catch {
+      alert("Erro ao buscar INEA")
+    }
+
+    setLoadingInea(false)
+  }
+
+  // ============================
+  // VISUALIZAR RELATÓRIO
+  // ============================
+
+  function visualizarRelatorio() {
+    setDados(dadosTemporarios)
+  }
+
+  // ============================
+  // CABEÇALHO DINÂMICO
   // ============================
 
   function gerarCabecalho() {
@@ -96,12 +127,13 @@ export default function RelatorioAtual() {
           </h3>
 
           <p className="text-sm text-slate-500 mt-1">
-            Informe a hora de referência para gerar o histórico automático (ANA).
+            Informe a hora de referência para gerar o histórico automático.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
 
+          {/* INPUT HORA */}
           <input
             type="number"
             min="0"
@@ -111,12 +143,32 @@ export default function RelatorioAtual() {
             className="w-20 border rounded-lg p-2 text-center font-bold text-lg"
           />
 
+          {/* BOTÃO ANA */}
           <button
-            onClick={buscarRelatorio}
-            disabled={loading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+            onClick={buscarANA}
+            disabled={loadingAna}
+            className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium transition"
           >
-            {loading ? "Buscando..." : "Buscar"}
+            {loadingAna ? "..." : "Buscar ANA"}
+          </button>
+
+          {/* BOTÃO INEA */}
+          <button
+            onClick={buscarINEA}
+            disabled={loadingInea}
+            className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium transition"
+          >
+            {loadingInea ? "..." : "Buscar INEA"}
+          </button>
+
+          <div className="w-px h-8 bg-slate-200 mx-1" />
+
+          {/* BOTÃO VISUALIZAR */}
+          <button
+            onClick={visualizarRelatorio}
+            className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 font-bold shadow-md transition active:scale-95"
+          >
+            Visualizar Relatório
           </button>
 
         </div>
