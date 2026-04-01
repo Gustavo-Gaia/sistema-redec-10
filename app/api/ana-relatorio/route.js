@@ -11,17 +11,6 @@ const supabase = createClient(
 );
 
 // ============================
-// CONFIG
-// ============================
-
-// ⏱ Pequeno delay para evitar bloqueio da ANA
-const DELAY = 250;
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// ============================
 // FORMATAR DATA ANA
 // ============================
 
@@ -30,7 +19,7 @@ function formatarDataANA(d) {
 }
 
 // ============================
-// GERAR HORÁRIOS
+// GERAR HORÁRIOS ALVO
 // ============================
 
 function gerarHorariosAlvo(horaRef) {
@@ -38,16 +27,15 @@ function gerarHorariosAlvo(horaRef) {
   base.setMinutes(0, 0, 0);
   base.setHours(parseInt(horaRef));
 
-  return {
-    ref: new Date(base),
-    h4: new Date(base.getTime() - 4 * 3600000),
-    h8: new Date(base.getTime() - 8 * 3600000),
-    h12: new Date(base.getTime() - 12 * 3600000),
-  };
+  return [0, 4, 8, 12].map((sub) => {
+    const d = new Date(base);
+    d.setHours(d.getHours() - sub);
+    return d;
+  });
 }
 
 // ============================
-// EXTRAIR MEDIÇÕES (RÁPIDO)
+// EXTRAIR TODAS MEDIÇÕES
 // ============================
 
 function extrairMedicoes(xml) {
@@ -57,7 +45,7 @@ function extrairMedicoes(xml) {
   const lista = [];
 
   while ((match = regex.exec(xml)) !== null) {
-    const dataHora = match[1];
+    const dataHora = match[1].trim();
     const nivel = parseFloat(match[2]);
 
     if (!dataHora || isNaN(nivel)) continue;
@@ -74,22 +62,17 @@ function extrairMedicoes(xml) {
 }
 
 // ============================
-// BUSCAR VALOR MAIS PRÓXIMO
+// PEGAR VALOR ATÉ HORÁRIO
 // ============================
 
-function buscarValor(lista, alvo) {
-  let melhor = null;
+function getValorAteHorario(lista, alvo) {
+  const filtrados = lista.filter(m => m.datetime <= alvo);
 
-  for (let i = lista.length - 1; i >= 0; i--) {
-    const m = lista[i];
+  if (filtrados.length === 0) return null;
 
-    if (m.datetime <= alvo) {
-      melhor = m;
-      break;
-    }
-  }
+  filtrados.sort((a, b) => b.datetime - a.datetime);
 
-  return melhor;
+  return filtrados[0];
 }
 
 // ============================
@@ -109,7 +92,6 @@ async function processarEstacao(codigo, horaRef) {
     `&dataFim=${formatarDataANA(hoje)}`;
 
   try {
-
     const resp = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0" },
       cache: "no-store"
@@ -122,37 +104,32 @@ async function processarEstacao(codigo, horaRef) {
     const medicoes = extrairMedicoes(xml);
     if (medicoes.length === 0) return null;
 
-    // 🔥 ordena uma única vez (ganho de performance)
-    medicoes.sort((a, b) => a.datetime - b.datetime);
-
     const horarios = gerarHorariosAlvo(horaRef);
 
+    const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
-    for (const chave in horarios) {
-      const alvo = horarios[chave];
+    horarios.forEach((alvo, i) => {
+      const m = getValorAteHorario(medicoes, alvo);
 
-      const m = buscarValor(medicoes, alvo);
-
-      resultado[chave] = m
+      resultado[chaves[i]] = m
         ? {
             nivel: m.nivel,
-            hora: m.datetime.toTimeString().slice(0, 5),
-            fonte: "ANA"
+            hora: m.datetime.toTimeString().slice(0, 5)
           }
         : null;
-    }
+    });
 
     return resultado;
 
   } catch (err) {
-    console.log("Erro ANA estação:", codigo);
+    console.log("Erro ANA:", codigo);
     return null;
   }
 }
 
 // ============================
-// API PRINCIPAL
+// API
 // ============================
 
 export async function GET(request) {
@@ -180,9 +157,6 @@ export async function GET(request) {
     if (dados) {
       resultados[estacao.id] = dados;
     }
-
-    // 🔥 CONTROLE DE BLOQUEIO (ESSENCIAL)
-    await sleep(DELAY);
   }
 
   return NextResponse.json(resultados);
