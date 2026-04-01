@@ -25,46 +25,44 @@ let tokenExpiraEm = 0;
 // AUTENTICAÇÃO ANA
 // ============================
 
-async function getAuthToken(force = false) {
-  const agora = Date.now();
-
-  // usa cache se válido
-  if (!force && tokenCache && agora < tokenExpiraEm) {
-    return tokenCache;
-  }
-
+async function getAuthToken() {
   try {
+    console.log("ANA ENV:", {
+      id: process.env.ANA_IDENTIFICADOR,
+      senha: process.env.ANA_SENHA ? "OK" : "VAZIA"
+    });
+
     const resp = await fetch(
       "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
       {
         method: "GET",
         headers: {
-          Identificador: process.env.ANA_IDENTIFICADOR,
-          Senha: process.env.ANA_SENHA,
+          "Identificador": process.env.ANA_IDENTIFICADOR,
+          "Senha": process.env.ANA_SENHA,
+          "accept": "*/*"
         },
-        cache: "no-store",
+        cache: "no-store"
       }
     );
 
     const json = await resp.json();
 
+    console.log("TOKEN RESPONSE:", json);
+
+    if (!resp.ok) {
+      throw new Error("Erro autenticação ANA");
+    }
+
     const token = json?.items?.tokenautenticacao;
 
     if (!token) {
-      console.error("❌ Token inválido ANA:", json);
-      return null;
+      throw new Error("Token não encontrado");
     }
-
-    // salva por 50 minutos (segurança)
-    tokenCache = token;
-    tokenExpiraEm = agora + 50 * 60 * 1000;
-
-    console.log("✅ Novo token ANA gerado");
 
     return token;
 
   } catch (err) {
-    console.error("❌ Erro ao autenticar ANA:", err);
+    console.error("ERRO TOKEN ANA:", err);
     return null;
   }
 }
