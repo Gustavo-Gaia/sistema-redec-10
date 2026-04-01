@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
+import ModalRelatorioAtual from "../componentes/modais/ModalRelatorioAtual"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -15,6 +16,9 @@ export default function RelatorioAtual() {
   const [estacoes, setEstacoes] = useState([])
   const [dados, setDados] = useState({})
   const [horaRef, setHoraRef] = useState("08")
+
+  const [idsSelecionados, setIdsSelecionados] = useState([])
+  const [mostrarModal, setMostrarModal] = useState(false)
 
   const [loadingAna, setLoadingAna] = useState(false)
   const [loadingInea, setLoadingInea] = useState(false)
@@ -37,15 +41,35 @@ export default function RelatorioAtual() {
       .order('id', { ascending: true })
 
     setEstacoes(data || [])
+    setIdsSelecionados(data?.map(e => e.id) || [])
   }
 
   // ============================
-  // BUSCAR ANA (PREENCHE DIRETO)
+  // SELEÇÃO
+  // ============================
+
+  function toggleSelecao(id) {
+    setIdsSelecionados(prev =>
+      prev.includes(id)
+        ? prev.filter(i => i !== id)
+        : [...prev, id]
+    )
+  }
+
+  function toggleTodos() {
+    if (idsSelecionados.length === estacoes.length) {
+      setIdsSelecionados([])
+    } else {
+      setIdsSelecionados(estacoes.map(e => e.id))
+    }
+  }
+
+  // ============================
+  // BUSCAS
   // ============================
 
   async function buscarANA() {
     if (!horaRef) return
-
     setLoadingAna(true)
 
     try {
@@ -64,13 +88,8 @@ export default function RelatorioAtual() {
     setLoadingAna(false)
   }
 
-  // ============================
-  // BUSCAR INEA (SOMA JUNTO)
-  // ============================
-
   async function buscarINEA() {
     if (!horaRef) return
-
     setLoadingInea(true)
 
     try {
@@ -90,16 +109,20 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // VISUALIZAR (RESERVADO)
+  // VISUALIZAR RELATÓRIO
   // ============================
 
   function visualizarRelatorio() {
-    console.log("Dados atuais:", dados)
-    alert("Função de visualização será implementada")
+    if (idsSelecionados.length === 0) {
+      alert("Selecione pelo menos uma estação")
+      return
+    }
+
+    setMostrarModal(true)
   }
 
   // ============================
-  // CABEÇALHO DINÂMICO
+  // CABEÇALHO
   // ============================
 
   function gerarCabecalho() {
@@ -111,12 +134,7 @@ export default function RelatorioAtual() {
       return String(v).padStart(2, "0") + "h"
     }
 
-    return [
-      calc(12),
-      calc(8),
-      calc(4),
-      calc(0)
-    ]
+    return [calc(12), calc(8), calc(4), calc(0)]
   }
 
   const cabecalho = gerarCabecalho()
@@ -135,15 +153,10 @@ export default function RelatorioAtual() {
           <h3 className="text-xl font-bold text-slate-800">
             Relatório Atual
           </h3>
-
-          <p className="text-sm text-slate-500 mt-1">
-            Informe a hora de referência para gerar o histórico automático.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
 
-          {/* INPUT HORA */}
           <input
             type="number"
             min="0"
@@ -153,36 +166,24 @@ export default function RelatorioAtual() {
             className="w-20 border rounded-lg p-2 text-center font-bold text-lg"
           />
 
-          {/* ANA */}
-          <button
-            onClick={buscarANA}
-            disabled={loadingAna}
-            className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium transition"
-          >
+          <button onClick={buscarANA} disabled={loadingAna}
+            className="bg-green-600 text-white px-3 py-2 rounded-lg">
             {loadingAna ? "..." : "Buscar ANA"}
           </button>
 
-          {/* INEA */}
-          <button
-            onClick={buscarINEA}
-            disabled={loadingInea}
-            className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium transition"
-          >
+          <button onClick={buscarINEA} disabled={loadingInea}
+            className="bg-purple-600 text-white px-3 py-2 rounded-lg">
             {loadingInea ? "..." : "Buscar INEA"}
           </button>
 
           <div className="w-px h-8 bg-slate-200 mx-1" />
 
-          {/* VISUALIZAR */}
-          <button
-            onClick={visualizarRelatorio}
-            className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 font-bold shadow-md transition active:scale-95"
-          >
-            Visualizar Relatório
+          <button onClick={visualizarRelatorio}
+            className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold">
+            Visualizar Relatório ({idsSelecionados.length})
           </button>
 
         </div>
-
       </div>
 
       {/* TABELA */}
@@ -192,13 +193,20 @@ export default function RelatorioAtual() {
 
           <thead className="bg-slate-50 border-b text-slate-600 uppercase text-[11px] font-bold">
             <tr>
+
+              <th className="p-3 text-center w-10">
+                <input
+                  type="checkbox"
+                  checked={idsSelecionados.length === estacoes.length}
+                  onChange={toggleTodos}
+                />
+              </th>
+
               <th className="p-3 text-left">Rio</th>
               <th className="p-3 text-left">Município</th>
 
               {cabecalho.map((h, i) => (
-                <th key={i} className="p-3 text-center">
-                  {h}
-                </th>
+                <th key={i} className="p-3 text-center">{h}</th>
               ))}
 
             </tr>
@@ -210,35 +218,30 @@ export default function RelatorioAtual() {
 
               const d = dados[estacao.id] || {}
 
-              const colunas = [
-                d.h12,
-                d.h8,
-                d.h4,
-                d.ref
-              ]
+              const colunas = [d.h12, d.h8, d.h4, d.ref]
 
               return (
-                <tr key={estacao.id} className="border-b hover:bg-slate-50">
+                <tr key={estacao.id} className="border-b">
 
-                  <td className="p-3 font-semibold text-slate-700">
+                  <td className="text-center">
+                    <input
+                      type="checkbox"
+                      checked={idsSelecionados.includes(estacao.id)}
+                      onChange={() => toggleSelecao(estacao.id)}
+                    />
+                  </td>
+
+                  <td className="p-3 font-semibold">
                     {estacao.rios?.nome}
                   </td>
 
-                  <td className="p-3 text-slate-600">
+                  <td className="p-3">
                     {estacao.municipio}
                   </td>
 
                   {colunas.map((c, i) => (
-                    <td key={i} className="p-3 text-center">
-
-                      {c ? (
-                        <span className="font-bold text-slate-800">
-                          {c.nivel.toFixed(2)}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-
+                    <td key={i} className="text-center">
+                      {c?.nivel ? c.nivel.toFixed(2) : "—"}
                     </td>
                   ))}
 
@@ -251,6 +254,16 @@ export default function RelatorioAtual() {
         </table>
 
       </div>
+
+      {/* MODAL */}
+      {mostrarModal && (
+        <ModalRelatorioAtual
+          dados={dados}
+          estacoes={estacoes.filter(e => idsSelecionados.includes(e.id))}
+          cabecalho={cabecalho}
+          onClose={() => setMostrarModal(false)}
+        />
+      )}
 
     </div>
   )
