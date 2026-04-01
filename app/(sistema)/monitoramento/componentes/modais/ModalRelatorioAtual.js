@@ -105,7 +105,7 @@ export default function ModalRelatorioAtual({
           {/* TÍTULO */}
           <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
             <h1 className="text-2xl font-black uppercase italic tracking-tighter">
-              MONITORAMENTO DOS RIOS - REDEC 10
+              MONITORAMENTO DOS RIOS - REDEC 10 Norte / REDEC 11 Noroeste
             </h1>
           </div>
 
@@ -207,31 +207,47 @@ export default function ModalRelatorioAtual({
           </table>
 
           {/* RODAPÉ */}
-          <div className="p-3 border-t-[3px] border-black">
-
-            <div className="flex gap-10 justify-center mb-2">
-
-              <div className="flex gap-2 items-center">
-                <div className="w-6 h-6 bg-[#ffc000] border-2 border-black"></div>
-                <span className="text-[12px] font-black">ALERTA</span>
+          <div className="p-4 bg-white border-t-[4px] border-black mt-auto">
+            
+            {/* Legenda de Cores */}
+            <div className="flex gap-10 mb-4 items-center justify-center">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-[#ffc000] border-2 border-black"></div> 
+                <span className="text-[13px] font-black uppercase">ALERTA</span>
               </div>
-
-              <div className="flex gap-2 items-center">
-                <div className="w-6 h-6 bg-[#ff0000] border-2 border-black"></div>
-                <span className="text-[12px] font-black">TRANSBORDO</span>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-[#ff0000] border-2 border-black"></div> 
+                <span className="text-[13px] font-black uppercase">TRANSBORDO</span>
               </div>
-
-              <div className="flex gap-2 items-center">
-                <div className="w-6 h-6 bg-[#ff00ff] border-2 border-black"></div>
-                <span className="text-[12px] font-black">20% ACIMA</span>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-[#ff00ff] border-2 border-black"></div> 
+                <span className="text-[13px] font-black uppercase">20% ACIMA</span>
               </div>
-
             </div>
 
-            <p className="text-[10px] text-center font-bold italic">
-              ANA - Agência Nacional de Águas | INEA - Instituto Estadual do Ambiente | COMDEC
-            </p>
+            {/* Caixa de Informações e Siglas */}
+            <div className="border-[2px] border-black p-3 bg-white">
+              <p className="text-[11px] font-bold leading-tight text-black italic mb-2 text-center">
+                * Última Medição Válida / N/INF - Não Informado / A/R - Abaixo da régua / INOP - Inoperante / 
+                DBM - Destacamento de Bombeiro Militar / COMDEC - Coordenadoria Municipal de Defesa Civil / 
+                CPRM - Serviço Geológico do Brasil / ANA - Agência Nacional de Águas / 
+                INEA - Instituto Estadual do Ambiente (Sistema Alerta de Cheias)
+              </p>
+              
+              {/* Linha Divisória interna */}
+              <div className="h-[2px] bg-black mb-2 w-full"></div>
+              
+              <p className="text-[11px] font-black协议 leading-tight text-black italic text-center">
+                Obs.: A dinâmica dos níveis dos rios é calculada com os dados disponíveis no momento, 
+                tendo como base as duas últimas cotas, podendo sofrer influência da dificuldade de 
+                comunicação entre os colaboradores ou demora na atualização dos aparelhos automáticos.
+              </p>
+            </div>
 
+            {/* Crédito Final (Opcional) */}
+            <p className="text-[9px] text-center mt-2 font-black uppercase">
+              REDEC 10 - NORTE - DEFESA CIVIL DO ESTADO DO RIO DE JANEIRO
+            </p>
           </div>
 
         </div>
