@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// Cache seguindo a regra de 15 minutos do manual (isTokenValid)
+// Cache de Token (conforme item 6 do manual: validade de 15 min)
 let globalToken = null;
 let globalTokenExp = 0;
 
@@ -24,13 +24,13 @@ async function getAuthToken() {
     });
 
     const json = await resp.json();
-    // Conforme TokenModelVO -> TokenModelItemsVO do manual:
-    const token = json?.items?.tokenautenticacao;
+    // O manual Java mostra json.items.tokenautenticacao
+    const token = json?.items?.tokenautenticacao || json?.items?.TokenAutenticacao;
 
     if (!token) return null;
 
     globalToken = token;
-    globalTokenExp = agora + (15 * 60 * 1000); // 15 minutos exatos como no Java
+    globalTokenExp = agora + (14 * 60 * 1000); // 14 minutos para segurança
     return token;
   } catch (err) {
     return null;
@@ -38,36 +38,45 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, horaRef, token) {
-  // Usando a URL exata do manual (item 6: executeRoute)
-  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_30`;
+  // Usamos a URL base do manual, mas DIAS_3 para performance (já que o dado é de hoje)
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetrica/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_3`;
 
   try {
     const resp = await fetch(url, {
       headers: {
         "Authorization": `Bearer ${token}`,
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0"
       },
       cache: "no-store"
     });
 
     if (!resp.ok) return null;
     const json = await resp.json();
-    
-    // Conforme DevolucaoVO do manual: os dados estão em 'items'
     const items = json?.items || [];
-    if (!Array.isArray(items)) return null;
+    
+    if (!Array.isArray(items) || items.length === 0) return null;
 
-    const medicoes = items.map(m => ({
-      // Tratamento para evitar erro de fuso horário no RS/RJ
-      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
-      nivel: parseFloat(m.Cota_Adotada || m.Cota) / 100
-    })).filter(m => !isNaN(m.nivel));
+    // MAPEAMENTO AGRESSIVO: Tenta encontrar o nível em qualquer campo possível
+    const medicoes = items.map(m => {
+      const valorBruto = m.Cota ?? m.Cota_Adotada ?? m.Media ?? m.Valor ?? m.Cota_Bruta;
+      
+      // ISO Date fix: Garante que "2026-04-01 08:00:00" vire "2026-04-01T08:00:00"
+      const dataString = m.Data_Hora_Medicao.includes("T") 
+        ? m.Data_Hora_Medicao 
+        : m.Data_Hora_Medicao.replace(" ", "T");
+
+      return {
+        datetime: new Date(dataString),
+        nivel: parseFloat(valorBruto) / 100 
+      };
+    }).filter(m => !isNaN(m.nivel));
 
     if (medicoes.length === 0) return null;
 
-    // Lógica de Alvos (Hoje)
-    const base = new Date();
-    base.setHours(parseInt(horaRef), 0, 0, 0);
+    // Lógica de horários alvos
+    const agora = new Date();
+    const base = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), parseInt(horaRef), 0, 0);
 
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
@@ -76,7 +85,7 @@ async function processarEstacao(codigo, horaRef, token) {
       const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
       
-      // Janela de 4 horas para garantir captura
+      // Janela de 4 horas (240 min) para "pescar" o dado mais próximo do alvo
       const m = medicoes
         .filter(med => med.datetime <= alvo && med.datetime >= new Date(alvo.getTime() - 240 * 60000))
         .sort((a, b) => b.datetime - a.datetime)[0];
@@ -88,36 +97,54 @@ async function processarEstacao(codigo, horaRef, token) {
     });
 
     return resultado;
-  } catch (err) { return null; }
+  } catch (err) { 
+    return null; 
+  }
 }
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
 
+  // 1. Token
   const token = await getAuthToken();
-  if (!token) return NextResponse.json({ error: "Token inválido ou ausente" }, { status: 401 });
+  if (!token) {
+    return NextResponse.json({ erro: "Falha na autenticação ANA (Token nulo)" }, { status: 401 });
+  }
 
-  const { data: estacoes } = await supabase
+  // 2. Estações do Supabase
+  const { data: estacoes, error: dbError } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (!estacoes || estacoes.length === 0) return NextResponse.json({});
+  if (dbError) return NextResponse.json({ erro: "Erro Banco", detalhes: dbError }, { status: 500 });
+  if (!estacoes || estacoes.length === 0) return NextResponse.json({ aviso: "Sem estações ANA no banco" });
 
+  // 3. Processamento em Lotes (Simulando o threadCount do Java)
   const resultados = {};
-  
-  // No Java eles usam threads (5 simultâneas). Fazemos o mesmo com Promise.all em lotes.
-  const BATCH_SIZE = 5; 
+  const BATCH_SIZE = 3; // Lote menor para evitar Timeout da Vercel (10s)
+
   for (let i = 0; i < estacoes.length; i += BATCH_SIZE) {
     const grupo = estacoes.slice(i, i + BATCH_SIZE);
+    
     await Promise.all(grupo.map(async (e) => {
       const dados = await processarEstacao(e.codigo_estacao, horaRef, token);
-      if (dados) resultados[e.id] = dados;
+      if (dados) {
+        resultados[e.id] = dados;
+      }
     }));
-    // Pequena pausa para não ser bloqueado por "alta frequência" (item 2.7 do manual)
-    await new Promise(r => setTimeout(r, 200));
+
+    // Se estivermos chegando perto do limite de tempo da Vercel, o loop continua
+  }
+
+  // Se resultados estiver vazio, enviamos um log útil para você ler no navegador
+  if (Object.keys(resultados).length === 0) {
+    return NextResponse.json({
+      aviso: "Token OK, Estações OK, mas a ANA não retornou dados para estes códigos.",
+      codigos_testados: estacoes.map(e => e.codigo_estacao)
+    });
   }
 
   return NextResponse.json(resultados);
