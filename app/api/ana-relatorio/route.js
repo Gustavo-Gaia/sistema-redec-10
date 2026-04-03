@@ -12,7 +12,7 @@ const supabase = createClient(
 );
 
 // ============================
-// 🔐 TOKEN ANA
+// 🔐 TOKEN
 // ============================
 
 async function getToken() {
@@ -29,30 +29,30 @@ async function getToken() {
       }
     );
 
-    if (!resp.ok) {
-      console.error("❌ ERRO TOKEN:", await resp.text());
-      return null;
-    }
+    const text = await resp.text();
 
-    const json = await resp.json();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return { erro: "Token não é JSON", raw: text };
+    }
 
     const token = json?.items?.tokenautenticacao;
 
-    if (!token) {
-      console.error("❌ TOKEN INVÁLIDO:", json);
-      return null;
-    }
-
-    return token;
+    return {
+      sucesso: !!token,
+      token: token ? token.substring(0, 20) + "..." : null,
+      raw: json
+    };
 
   } catch (err) {
-    console.error("❌ ERRO AO OBTER TOKEN:", err);
-    return null;
+    return { erro: err.message };
   }
 }
 
 // ============================
-// 🌊 BUSCAR DADOS DA ESTAÇÃO
+// 🌊 BUSCAR ESTAÇÃO
 // ============================
 
 async function buscarEstacao(token, codigo) {
@@ -66,160 +66,78 @@ async function buscarEstacao(token, codigo) {
       cache: "no-store"
     });
 
-    if (!resp.ok) {
-      console.error(`❌ ERRO ESTAÇÃO ${codigo}:`, await resp.text());
-      return null;
+    const text = await resp.text();
+
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return { erro: "Resposta não é JSON", raw: text };
     }
 
-    const json = await resp.json();
-
-    return json?.items || [];
+    return {
+      status: resp.status,
+      exemplo: json?.items?.[0] || null,
+      total: json?.items?.length || 0,
+      raw: json
+    };
 
   } catch (err) {
-    console.error(`❌ ERRO FETCH ESTAÇÃO ${codigo}:`, err);
-    return null;
+    return { erro: err.message };
   }
 }
 
 // ============================
-// 🔄 CONVERTER DADOS
+// 🚀 API DEBUG
 // ============================
 
-function extrairMedicoesJSON(items) {
-  if (!Array.isArray(items)) return [];
-
-  return items
-    .map(item => {
-      const dataStr =
-        item?.DataHora ||
-        item?.dataHora ||
-        item?.Data ||
-        item?.data;
-
-      const nivelRaw =
-        item?.Nivel ||
-        item?.nivel;
-
-      if (!dataStr || nivelRaw === undefined || nivelRaw === null) {
-        return null;
-      }
-
-      const dt = new Date(dataStr);
-      const nivel = parseFloat(nivelRaw);
-
-      if (isNaN(dt.getTime()) || isNaN(nivel)) return null;
-
-      return {
-        datetime: dt,
-        nivel
-      };
-    })
-    .filter(Boolean);
-}
-
-// ============================
-// 🧠 LÓGICA DE HORÁRIO (MANTIDA)
-// ============================
-
-function getValorAteHorario(lista, alvo) {
-  const limitePassado = new Date(alvo.getTime() - (120 * 60000));
-  const limiteFuturo = new Date(alvo.getTime() + (30 * 60000));
-
-  const filtrados = lista.filter(m =>
-    m.datetime >= limitePassado && m.datetime <= limiteFuturo
-  );
-
-  if (filtrados.length === 0) return null;
-
-  filtrados.sort((a, b) => {
-    return Math.abs(a.datetime - alvo) - Math.abs(b.datetime - alvo);
-  });
-
-  return filtrados[0];
-}
-
-// ============================
-// ⚙️ PROCESSAR ESTAÇÃO
-// ============================
-
-async function processarEstacao(token, codigo, horaRef) {
-  const items = await buscarEstacao(token, codigo);
-  if (!items) return null;
-
-  const medicoes = extrairMedicoesJSON(items);
-
-  if (medicoes.length === 0) return null;
-
-  const base = new Date();
-  base.setMinutes(0, 0, 0);
-  base.setHours(parseInt(horaRef));
-
-  const chaves = ["ref", "h4", "h8", "h12"];
-  const resultado = {};
-
-  [0, 4, 8, 12].forEach((sub, i) => {
-    const alvo = new Date(base);
-    alvo.setHours(alvo.getHours() - sub);
-
-    const m = getValorAteHorario(medicoes, alvo);
-
-    resultado[chaves[i]] = m
-      ? {
-          nivel: m.nivel,
-          hora: m.datetime.toTimeString().slice(0, 5)
-        }
-      : null;
-  });
-
-  return resultado;
-}
-
-// ============================
-// 🚀 API PRINCIPAL
-// ============================
-
-export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const horaRef = searchParams.get("hora") || "08";
-
-  // 🔐 pega token
-  const token = await getToken();
-
-  if (!token) {
-    return NextResponse.json(
-      { error: "Erro ao autenticar na ANA" },
-      { status: 500 }
-    );
-  }
-
-  // 📡 busca estações no banco
+export async function GET() {
+  // pega 1 estação só (para debug)
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
     .eq("fonte", "ANA")
-    .eq("ativo", true);
+    .eq("ativo", true)
+    .limit(1);
 
   if (!estacoes || estacoes.length === 0) {
-    return NextResponse.json({});
+    return NextResponse.json({ erro: "Sem estações no banco" });
   }
 
-  const resultados = {};
+  const estacao = estacoes[0];
 
-  // 🔄 processa uma por uma (seguro)
-  for (const estacao of estacoes) {
-    const dados = await processarEstacao(
-      token,
-      estacao.codigo_estacao,
-      horaRef
-    );
+  // 🔐 TOKEN
+  const tokenInfo = await getToken();
 
-    if (dados) {
-      resultados[estacao.id] = dados;
-    }
-
-    // pequena pausa (evita bloqueio)
-    await new Promise(r => setTimeout(r, 150));
+  if (!tokenInfo.sucesso) {
+    return NextResponse.json({
+      etapa: "TOKEN",
+      erro: tokenInfo
+    });
   }
 
-  return NextResponse.json(resultados);
+  // 🌊 DADOS
+  const dados = await buscarEstacao(
+    tokenInfo.raw.items.tokenautenticacao,
+    estacao.codigo_estacao
+  );
+
+  return NextResponse.json({
+    etapa: "DEBUG COMPLETO",
+    
+    estacao: estacao,
+
+    token: {
+      ok: tokenInfo.sucesso,
+      preview: tokenInfo.token
+    },
+
+    respostaANA: {
+      status: dados.status,
+      totalRegistros: dados.total,
+      exemploItem: dados.exemplo
+    },
+
+    bruto: dados.raw
+  });
 }
