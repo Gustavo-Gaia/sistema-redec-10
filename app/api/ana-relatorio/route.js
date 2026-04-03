@@ -28,63 +28,72 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  const hoje = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-  const ontem = new Date(hoje);
-  ontem.setDate(ontem.getDate() - 1);
-
-  // Formato AAAA-MM-DD que a ANA exige para filtros de data
-  const iso = (d) => d.toISOString().split('T')[0];
-
-  // Vamos disparar as duas buscas ao mesmo tempo para ganhar velocidade
-  const urls = [
-    `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}&Tipo%20Filtro%20Data=DATA_LEITURA&Data%20In%C3%ADcio=${iso(hoje)}&Data%20Fim=${iso(hoje)}`,
-    `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}&Tipo%20Filtro%20Data=DATA_LEITURA&Data%20In%C3%ADcio=${iso(ontem)}&Data%20Fim=${iso(ontem)}`
-  ];
+  // Voltamos para a URL que VOCÊ validou que funciona 100%
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
+              `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
+              `&Tipo%20Filtro%20Data=DATA_LEITURA` +
+              `&Range%20Intervalo%20de%20busca=DIAS_2`;
 
   try {
-    const respostas = await Promise.all(urls.map(u => 
-      fetch(u, { headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` }, cache: "no-store" })
-    ));
+    const resp = await fetch(url, {
+      headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` },
+      cache: "no-store",
+    });
 
-    const jsons = await Promise.all(respostas.map(r => r.json()));
-    
-    // Unificamos as medições de ontem e hoje em um único array para o filtro
-    const todosItems = [...(jsons[0]?.items || []), ...(jsons[1]?.items || [])];
-    
-    if (todosItems.length === 0) return null;
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const items = json?.items || [];
+    if (items.length === 0) return null;
 
-    const medicoes = todosItems.map((m) => ({
+    const medicoes = items.map((m) => ({
       datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    const extrairParaData = (dataRef) => {
-      const base = new Date(dataRef.getFullYear(), dataRef.getMonth(), dataRef.getDate(), parseInt(horaRef), 0, 0);
+    // CORREÇÃO DE FUSO: Forçamos o cálculo baseado no horário de Brasília
+    // Sem isso, a Vercel se perde no que é "Ontem"
+    const agoraBr = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    
+    const extrairParaData = (dataBase) => {
+      const base = new Date(
+        dataBase.getFullYear(),
+        dataBase.getMonth(),
+        dataBase.getDate(),
+        parseInt(horaRef),
+        0, 0, 0
+      );
+
       const chaves = ["ref", "h4", "h8", "h12"];
-      const obj = {};
+      const resultado = {};
 
       [0, 4, 8, 12].forEach((sub, i) => {
         const alvo = new Date(base);
         alvo.setHours(alvo.getHours() - sub);
-        const limiteMinimo = new Date(alvo.getTime() - 120 * 60000); // 2h de margem
+        
+        // Aumentamos a margem para 120min (2h) para garantir captura no histórico
+        const limiteMinimo = new Date(alvo.getTime() - 120 * 60000);
+
         const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
 
         if (filtrados.length > 0) {
           filtrados.sort((a, b) => b.datetime - a.datetime);
-          obj[chaves[i]] = {
+          resultado[chaves[i]] = {
             nivel: filtrados[0].nivel,
-            hora: filtrados[0].datetime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})
+            hora: filtrados[0].datetime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
           };
         } else {
-          obj[chaves[i]] = null;
+          resultado[chaves[i]] = null;
         }
       });
-      return obj;
+      return resultado;
     };
 
+    const ontemBr = new Date(agoraBr);
+    ontemBr.setDate(ontemBr.getDate() - 1);
+
     return {
-      hoje: extrairParaData(hoje),
-      ontem: extrairParaData(ontem)
+      hoje: extrairParaData(agoraBr),
+      ontem: extrairParaData(ontemBr)
     };
 
   } catch (err) {
