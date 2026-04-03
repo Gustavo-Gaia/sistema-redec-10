@@ -11,26 +11,45 @@ const supabase = createClient(
 );
 
 async function getAuthToken() {
-  try {
-    const resp = await fetch(
-      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
-      {
-        headers: {
-          'accept': '*/*',
-          'Identificador': process.env.ANA_IDENTIFICADOR,
-          'Senha': process.env.ANA_SENHA,
-        },
-        cache: "no-store",
+  const MAX_RETRIES = 3; // Tenta até 3 vezes
+  
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    try {
+      const resp = await fetch(
+        "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
+        {
+          headers: {
+            'accept': '*/*',
+            'Identificador': process.env.ANA_IDENTIFICADOR,
+            'Senha': process.env.ANA_SENHA,
+          },
+          cache: "no-store",
+          // Define um timeout curto para não travar a Vercel
+          signal: AbortSignal.timeout(5000) 
+        }
+      );
+
+      if (resp.ok) {
+        const json = await resp.json();
+        const token = json?.items?.tokenautenticacao;
+        if (token) return token;
       }
-    );
+      
+      // Se chegou aqui, deu erro no status (ex: 401 ou 500)
+      console.warn(`⚠️ Tentativa de Auth ${i + 1} falhou. Status: ${resp.status}`);
 
-    const json = await resp.json();
-    return json?.items?.tokenautenticacao || null;
-  } catch (err) {
-    return null;
+    } catch (err) {
+      console.error(`❌ Erro na tentativa ${i + 1}:`, err.message);
+    }
+
+    // Espera 1 segundo antes de tentar novamente (dá tempo do servidor da ANA "respirar")
+    if (i < MAX_RETRIES - 1) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
   }
-}
 
+  return null; // Se após 3 vezes não deu, aí sim retorna erro
+}
 async function processarEstacao(codigo, token, horaRef) {
   // 1. Garantir data correta no fuso de Brasília (independente do servidor)
   const agoraBr = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
