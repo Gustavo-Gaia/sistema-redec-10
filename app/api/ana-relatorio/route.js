@@ -23,7 +23,6 @@ async function getAuthToken() {
         cache: "no-store",
       }
     );
-
     const json = await resp.json();
     return json?.items?.tokenautenticacao || null;
   } catch (err) {
@@ -32,11 +31,11 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-
+  // 1. Mudamos para DIAS_3 para garantir que dados de > 24h (como 13h de ontem) venham no JSON
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_2`;
+              `&Range%20Intervalo%20de%20busca=DIAS_3`;
 
   try {
     const resp = await fetch(url, {
@@ -48,21 +47,18 @@ async function processarEstacao(codigo, token, horaRef) {
     });
 
     if (!resp.ok) return null;
-
     const json = await resp.json();
     const items = json?.items || [];
-
     if (items.length === 0) return null;
 
-    // mantém seu parse (já está funcionando)
     const medicoes = items.map((m) => ({
-      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      // Usamos getTime() para facilitar a comparação numérica
+      timestamp: new Date(m.Data_Hora_Medicao.replace(" ", "T")).getTime(),
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    // 🔥 CORREÇÃO AQUI
     const agora = new Date();
-
+    // Base fixada em HOJE na hora digitada
     const base = new Date(
       agora.getFullYear(),
       agora.getMonth(),
@@ -75,33 +71,32 @@ async function processarEstacao(codigo, token, horaRef) {
     const resultado = {};
 
     [0, 4, 8, 12].forEach((sub, i) => {
-
-      const alvo = new Date(base);
+      const alvo = new Date(base.getTime());
       alvo.setHours(alvo.getHours() - sub);
 
-      // mesma lógica de 1h (mantida)
-      const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
+      const alvoTS = alvo.getTime();
+      const limiteMinimoTS = alvoTS - (60 * 60000); // 60 min de tolerância
 
+      // Filtramos usando os Timestamps (mais seguro contra erros de fuso)
       const filtrados = medicoes.filter(m =>
-        m.datetime <= alvo && m.datetime >= limiteMinimo
+        m.timestamp <= alvoTS && m.timestamp >= limiteMinimoTS
       );
 
       if (filtrados.length > 0) {
-        filtrados.sort((a, b) => b.datetime - a.datetime);
+        filtrados.sort((a, b) => b.timestamp - a.timestamp);
         const m = filtrados[0];
+        const dataObjeto = new Date(m.timestamp);
 
         resultado[chaves[i]] = {
           nivel: m.nivel,
-          hora: m.datetime.toTimeString().slice(0, 5)
+          hora: dataObjeto.toTimeString().slice(0, 5)
         };
       } else {
         resultado[chaves[i]] = null;
       }
-
     });
 
     return resultado;
-
   } catch (err) {
     return null;
   }
@@ -123,18 +118,11 @@ export async function GET(request) {
   if (!estacoes) return NextResponse.json({});
 
   const resultados = {};
-
   for (const estacao of estacoes) {
-    const dados = await processarEstacao(
-      estacao.codigo_estacao,
-      token,
-      horaRef
-    );
-
+    const dados = await processarEstacao(estacao.codigo_estacao, token, horaRef);
     if (dados) {
       resultados[estacao.id] = dados;
     }
-
     await new Promise(r => setTimeout(r, 200));
   }
 
