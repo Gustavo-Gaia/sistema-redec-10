@@ -16,48 +16,40 @@ const supabase = createClient(
 // ============================
 
 async function getToken() {
-  try {
-    const resp = await fetch(
-      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
-      {
-        method: "GET",
-        headers: {
-          Identificador: process.env.ANA_IDENTIFICADOR,
-          Senha: process.env.ANA_SENHA
-        },
-        cache: "no-store"
-      }
-    );
-
-    const text = await resp.text();
-
-    let json;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      return { erro: "Token não é JSON", raw: text };
+  const resp = await fetch(
+    "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
+    {
+      method: "GET",
+      headers: {
+        Identificador: process.env.ANA_IDENTIFICADOR,
+        Senha: process.env.ANA_SENHA
+      },
+      cache: "no-store"
     }
+  );
 
-    const token = json?.items?.tokenautenticacao;
-
-    return {
-      sucesso: !!token,
-      token: token ? token.substring(0, 20) + "..." : null,
-      raw: json
-    };
-
-  } catch (err) {
-    return { erro: err.message };
-  }
+  const json = await resp.json();
+  return json?.items?.tokenautenticacao;
 }
 
 // ============================
-// 🌊 BUSCAR ESTAÇÃO
+// 🌊 BUSCAR ESTAÇÃO (CORRIGIDO)
 // ============================
 
 async function buscarEstacao(token, codigo) {
   try {
-    const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_30`;
+    const hoje = new Date();
+    const inicio = new Date();
+    inicio.setDate(hoje.getDate() - 2);
+
+    const formatar = (d) =>
+      d.toISOString().slice(0, 19).replace("T", " ");
+
+    const url =
+      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1" +
+      `?CodigoDaEstacao=${codigo}` +
+      `&DataInicio=${encodeURIComponent(formatar(inicio))}` +
+      `&DataFim=${encodeURIComponent(formatar(hoje))}`;
 
     const resp = await fetch(url, {
       headers: {
@@ -72,13 +64,13 @@ async function buscarEstacao(token, codigo) {
     try {
       json = JSON.parse(text);
     } catch {
-      return { erro: "Resposta não é JSON", raw: text };
+      return { erro: "Não é JSON", raw: text };
     }
 
     return {
       status: resp.status,
-      exemplo: json?.items?.[0] || null,
       total: json?.items?.length || 0,
+      exemplo: json?.items?.[0] || null,
       raw: json
     };
 
@@ -92,7 +84,7 @@ async function buscarEstacao(token, codigo) {
 // ============================
 
 export async function GET() {
-  // pega 1 estação só (para debug)
+
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
@@ -101,40 +93,30 @@ export async function GET() {
     .limit(1);
 
   if (!estacoes || estacoes.length === 0) {
-    return NextResponse.json({ erro: "Sem estações no banco" });
+    return NextResponse.json({ erro: "Sem estações" });
   }
 
   const estacao = estacoes[0];
 
   // 🔐 TOKEN
-  const tokenInfo = await getToken();
+  const token = await getToken();
 
-  if (!tokenInfo.sucesso) {
+  if (!token) {
     return NextResponse.json({
-      etapa: "TOKEN",
-      erro: tokenInfo
+      erro: "Token inválido"
     });
   }
 
-  // 🌊 DADOS
-  const dados = await buscarEstacao(
-    tokenInfo.raw.items.tokenautenticacao,
-    estacao.codigo_estacao
-  );
+  // 🌊 BUSCA
+  const dados = await buscarEstacao(token, estacao.codigo_estacao);
 
   return NextResponse.json({
-    etapa: "DEBUG COMPLETO",
-    
-    estacao: estacao,
-
-    token: {
-      ok: tokenInfo.sucesso,
-      preview: tokenInfo.token
-    },
+    estacao,
+    token: token.substring(0, 25) + "...",
 
     respostaANA: {
       status: dados.status,
-      totalRegistros: dados.total,
+      total: dados.total,
       exemploItem: dados.exemplo
     },
 
