@@ -28,18 +28,23 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // TESTE 1: Usar datas fixas em vez de Range (Mais estável na ANA)
+  // 1. Gerar as datas no formato AAAA-MM-DD (ISO)
   const hoje = new Date();
   const ontem = new Date();
   ontem.setDate(ontem.getDate() - 1);
-  
-  const fmt = (d) => d.toLocaleDateString('pt-BR');
-  
+
+  // Função simples para formatar: 2026-04-03
+  const formatarISO = (d) => d.toISOString().split('T')[0];
+
+  const dataInicio = formatarISO(ontem);
+  const dataFim = formatarISO(hoje);
+
+  // 2. Montar a URL com o formato correto (aaaa-MM-dd)
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Data%20In%C3%ADcio=${fmt(ontem)}` + 
-              `&Data%20Fim=${fmt(hoje)}`;
+              `&Data%20In%C3%ADcio=${dataInicio}` + 
+              `&Data%20Fim=${dataFim}`;
 
   try {
     const resp = await fetch(url, {
@@ -47,25 +52,55 @@ async function processarEstacao(codigo, token, horaRef) {
       cache: "no-store",
     });
 
+    if (!resp.ok) return { erro: "Erro na resposta da ANA", status: resp.status };
+
     const json = await resp.json();
     const items = json?.items || [];
 
-    // Se vier vazio, retornamos um objeto de erro para sabermos qual estação falhou
-    if (items.length === 0) {
-      return { erro: "ANA retornou zero itens para esta data", url_tentada: url };
-    }
+    if (items.length === 0) return { erro: "Sem dados para este período", data_tentada: dataInicio };
 
-    // Se chegou aqui, os dados existem. Vamos ver o que tem dentro:
+    // 3. Converter os dados recebidos
     const medicoes = items.map((m) => ({
-      dt: m.Data_Hora_Medicao,
-      n: parseFloat(m.Cota_Adotada) / 100,
-    }));
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      nivel: parseFloat(m.Cota_Adotada) / 100,
+    })).filter(m => !isNaN(m.nivel));
+
+    // 4. Função para organizar os horários (Ref, H4, H8, H12)
+    const organizarPorDia = (dataBase) => {
+      const base = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), parseInt(horaRef), 0, 0);
+      const chaves = ["ref", "h4", "h8", "h12"];
+      const obj = {};
+
+      [0, 4, 8, 12].forEach((sub, i) => {
+        const alvo = new Date(base);
+        alvo.setHours(alvo.getHours() - sub);
+        
+        // Margem de 120min (2 horas) para garantir captura
+        const limiteMinimo = new Date(alvo.getTime() - 120 * 60000);
+        const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
+
+        if (filtrados.length > 0) {
+          filtrados.sort((a, b) => b.datetime - a.datetime);
+          obj[chaves[i]] = {
+            nivel: filtrados[0].nivel,
+            hora: filtrados[0].datetime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}),
+            data: filtrados[0].datetime.toLocaleDateString('pt-BR').slice(0, 5)
+          };
+        } else {
+          obj[chaves[i]] = null;
+        }
+      });
+      return obj;
+    };
 
     return {
-      total: items.length,
-      ultima: medicoes[0],
-      primeira: medicoes[medicoes.length - 1],
-      amostra: medicoes.slice(0, 2) // Só as duas primeiras para não encher a tela
+      hoje: organizarPorDia(hoje),
+      ontem: organizarPorDia(ontem),
+      debug: {
+        total: items.length,
+        inicio_busca: dataInicio,
+        fim_busca: dataFim
+      }
     };
 
   } catch (err) {
