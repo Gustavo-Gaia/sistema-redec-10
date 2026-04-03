@@ -1,370 +1,142 @@
-/* app/(sistema)/monitoramento/abas/RelatorioAtual.js */
+/* app/api/ana-relatorio/route.js */
 
-"use client"
+export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
-import ModalRelatorioAtual from "../componentes/modais/ModalRelatorioAtual"
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-export default function RelatorioAtual() {
-
-  const [estacoes, setEstacoes] = useState([])
-  const [dados, setDados] = useState({})
-  const [horaRef, setHoraRef] = useState("08")
-
-  const [idsSelecionados, setIdsSelecionados] = useState([])
-  const [mostrarModal, setMostrarModal] = useState(false)
-
-  const [loadingAna, setLoadingAna] = useState(false)
-  const [loadingInea, setLoadingInea] = useState(false)
-
-  // ============================
-  // INIT
-  // ============================
-
-  useEffect(() => {
-    carregarEstacoes()
-  }, [])
-
-  async function carregarEstacoes() {
-    const { data } = await supabase
-      .from("estacoes")
-      .select(`
-        id,
-        municipio,
-        fonte,
-        nivel_transbordo,
-        rios(nome)
-      `)
-      .eq("ativo", true)
-      .order("id", { ascending: true })
-
-    setEstacoes(data || [])
-    setIdsSelecionados(data?.map(e => e.id) || [])
-  }
-
-  // ============================
-  // SELEÇÃO
-  // ============================
-
-  function toggleSelecao(id) {
-    setIdsSelecionados(prev =>
-      prev.includes(id)
-        ? prev.filter(i => i !== id)
-        : [...prev, id]
-    )
-  }
-
-  function toggleTodos() {
-    setIdsSelecionados(prev =>
-      prev.length === estacoes.length
-        ? []
-        : estacoes.map(e => e.id)
-    )
-  }
-
-  // ============================
-  // ATUALIZAÇÃO MANUAL
-  // ============================
-
-  function atualizarValor(estacaoId, chave, valor) {
-    setDados(prev => ({
-      ...prev,
-      [estacaoId]: {
-        ...prev[estacaoId],
-        [chave]: {
-          ...prev[estacaoId]?.[chave],
-          nivel: valor === "" ? null : parseFloat(valor)
-        }
+async function getAuthToken() {
+  try {
+    const resp = await fetch(
+      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
+      {
+        headers: {
+          'accept': '*/*',
+          'Identificador': process.env.ANA_IDENTIFICADOR,
+          'Senha': process.env.ANA_SENHA,
+        },
+        cache: "no-store",
       }
-    }))
+    );
+
+    const json = await resp.json();
+    return json?.items?.tokenautenticacao || null;
+  } catch (err) {
+    return null;
   }
+}
 
-  // ============================
-  // FETCH GENÉRICO (🔥 NOVO)
-  // ============================
+async function processarEstacao(codigo, token, horaRef) {
 
-  async function fetchSeguro(url) {
-    try {
-      const resp = await fetch(url, {
-        cache: "no-store"
-      })
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
+              `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
+              `&Tipo%20Filtro%20Data=DATA_LEITURA` +
+              `&Range%20Intervalo%20de%20busca=DIAS_2`;
 
-      if (!resp.ok) {
-        const text = await resp.text()
-        throw new Error(`HTTP ${resp.status} - ${text}`)
-      }
+  try {
+    const resp = await fetch(url, {
+      headers: { 
+        'accept': '*/*',
+        'Authorization': `Bearer ${token}` 
+      },
+      cache: "no-store",
+    });
 
-      const json = await resp.json()
+    if (!resp.ok) return null;
 
-      return json
+    const json = await resp.json();
+    const items = json?.items || [];
 
-    } catch (err) {
-      console.error("❌ ERRO FETCH:", err)
-      throw err
-    }
-  }
+    if (items.length === 0) return null;
 
-  // ============================
-  // BUSCAR ANA (🔥 REFORÇADO)
-  // ============================
+    // mantém seu parse (já está funcionando)
+    const medicoes = items.map((m) => ({
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      nivel: parseFloat(m.Cota_Adotada) / 100,
+    })).filter(m => !isNaN(m.nivel));
 
-  async function buscarANA() {
-    if (!horaRef) return
+    // 🔥 CORREÇÃO AQUI
+    const agora = new Date();
 
-    setLoadingAna(true)
+    const base = new Date(
+      agora.getFullYear(),
+      agora.getMonth(),
+      agora.getDate(),
+      parseInt(horaRef),
+      0, 0, 0
+    );
 
-    try {
-      const json = await fetchSeguro(`/api/ana-relatorio?hora=${horaRef}`)
+    const chaves = ["ref", "h4", "h8", "h12"];
+    const resultado = {};
 
-      console.log("🔥 ANA RETORNO:", json)
+    [0, 4, 8, 12].forEach((sub, i) => {
 
-      if (!json || Object.keys(json).length === 0) {
-        alert("ANA não retornou dados (ver console)")
-        return
+      const alvo = new Date(base);
+      alvo.setHours(alvo.getHours() - sub);
+
+      // mesma lógica de 1h (mantida)
+      const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
+
+      const filtrados = medicoes.filter(m =>
+        m.datetime <= alvo && m.datetime >= limiteMinimo
+      );
+
+      if (filtrados.length > 0) {
+        filtrados.sort((a, b) => b.datetime - a.datetime);
+        const m = filtrados[0];
+
+        resultado[chaves[i]] = {
+          nivel: m.nivel,
+          hora: m.datetime.toTimeString().slice(0, 5)
+        };
+      } else {
+        resultado[chaves[i]] = null;
       }
 
-      setDados(prev => {
-        const novo = { ...prev }
+    });
 
-        Object.entries(json).forEach(([id, valores]) => {
+    return resultado;
 
-          const idNum = Number(id)
-
-          novo[idNum] = {
-            ...novo[idNum],
-            ...valores,
-            fonte: "ANA"
-          }
-        })
-
-        return { ...novo } // 🔥 força re-render
-      })
-
-    } catch (err) {
-      alert("Erro ao buscar ANA (ver console)")
-    } finally {
-      setLoadingAna(false)
-    }
+  } catch (err) {
+    return null;
   }
+}
 
-  // ============================
-  // BUSCAR INEA
-  // ============================
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const horaRef = searchParams.get("hora") || "08";
 
-  async function buscarINEA() {
-    if (!horaRef) return
+  const token = await getAuthToken();
+  if (!token) return NextResponse.json({ debug: "Erro Token" });
 
-    setLoadingInea(true)
+  const { data: estacoes } = await supabase
+    .from("estacoes")
+    .select("id, codigo_estacao")
+    .eq("fonte", "ANA")
+    .eq("ativo", true);
 
-    try {
-      const json = await fetchSeguro(`/api/inea-relatorio?hora=${horaRef}`)
+  if (!estacoes) return NextResponse.json({});
 
-      console.log("🔥 INEA RETORNO:", json)
+  const resultados = {};
 
-      if (!json || Object.keys(json).length === 0) {
-        alert("INEA não retornou dados")
-        return
-      }
+  for (const estacao of estacoes) {
+    const dados = await processarEstacao(
+      estacao.codigo_estacao,
+      token,
+      horaRef
+    );
 
-      setDados(prev => {
-        const novo = { ...prev }
-
-        Object.entries(json).forEach(([id, valores]) => {
-
-          const idNum = Number(id)
-
-          novo[idNum] = {
-            ...novo[idNum],
-            ...valores,
-            fonte: "INEA"
-          }
-        })
-
-        return { ...novo }
-      })
-
-    } catch (err) {
-      alert("Erro ao buscar INEA")
-    } finally {
-      setLoadingInea(false)
-    }
-  }
-
-  // ============================
-  // VISUALIZAR
-  // ============================
-
-  function visualizarRelatorio() {
-    if (idsSelecionados.length === 0) {
-      alert("Selecione pelo menos uma estação")
-      return
+    if (dados) {
+      resultados[estacao.id] = dados;
     }
 
-    setMostrarModal(true)
+    await new Promise(r => setTimeout(r, 200));
   }
 
-  // ============================
-  // CABEÇALHO
-  // ============================
-
-  function gerarCabecalho() {
-    const h = parseInt(horaRef)
-
-    const calc = (sub) => {
-      let v = h - sub
-      if (v < 0) v += 24
-      return String(v).padStart(2, "0") + "h"
-    }
-
-    return [calc(12), calc(8), calc(4), calc(0)]
-  }
-
-  const cabecalho = gerarCabecalho()
-
-  // ============================
-  // RENDER
-  // ============================
-
-  return (
-    <div className="space-y-6">
-
-      {/* HEADER */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border">
-
-        <h3 className="text-xl font-bold text-slate-800">
-          Relatório Atual
-        </h3>
-
-        <div className="flex items-center gap-2">
-
-          <input
-            type="number"
-            min="0"
-            max="23"
-            value={horaRef}
-            onChange={(e) => setHoraRef(e.target.value)}
-            className="w-20 border rounded-lg p-2 text-center font-bold"
-          />
-
-          <button
-            onClick={buscarANA}
-            disabled={loadingAna}
-            className="bg-green-600 text-white px-3 py-2 rounded-lg"
-          >
-            {loadingAna ? "Buscando..." : "Buscar ANA"}
-          </button>
-
-          <button
-            onClick={buscarINEA}
-            disabled={loadingInea}
-            className="bg-purple-600 text-white px-3 py-2 rounded-lg"
-          >
-            {loadingInea ? "Buscando..." : "Buscar INEA"}
-          </button>
-
-          <div className="w-px h-8 bg-slate-200 mx-1" />
-
-          <button
-            onClick={visualizarRelatorio}
-            className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold"
-          >
-            Visualizar ({idsSelecionados.length})
-          </button>
-
-        </div>
-      </div>
-
-      {/* TABELA */}
-      <div className="overflow-auto border rounded-xl bg-white shadow-sm">
-
-        <table className="w-full text-sm">
-
-          <thead className="bg-slate-50 border-b text-[11px] font-bold uppercase">
-            <tr>
-
-              <th className="p-3 text-center w-10">
-                <input
-                  type="checkbox"
-                  checked={idsSelecionados.length === estacoes.length && estacoes.length > 0}
-                  onChange={toggleTodos}
-                />
-              </th>
-
-              <th className="p-3 text-left">Rio</th>
-              <th className="p-3 text-left">Município</th>
-
-              {cabecalho.map((h, i) => (
-                <th key={i} className="p-3 text-center">{h}</th>
-              ))}
-
-            </tr>
-          </thead>
-
-          <tbody>
-
-            {estacoes.map((estacao) => {
-
-              const d = dados[estacao.id] || {}
-              const colunas = ["h12", "h8", "h4", "ref"]
-
-              return (
-                <tr key={estacao.id} className="border-b hover:bg-slate-50">
-
-                  <td className="text-center">
-                    <input
-                      type="checkbox"
-                      checked={idsSelecionados.includes(estacao.id)}
-                      onChange={() => toggleSelecao(estacao.id)}
-                    />
-                  </td>
-
-                  <td className="p-3 font-semibold">
-                    {estacao.rios?.nome}
-                  </td>
-
-                  <td className="p-3">
-                    {estacao.municipio}
-                  </td>
-
-                  {colunas.map((key, i) => (
-                    <td key={i} className="text-center p-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={d[key]?.nivel ?? ""}
-                        onChange={(e) =>
-                          atualizarValor(estacao.id, key, e.target.value)
-                        }
-                        className="w-20 text-center border rounded p-1 font-bold"
-                      />
-                    </td>
-                  ))}
-
-                </tr>
-              )
-            })}
-
-          </tbody>
-
-        </table>
-      </div>
-
-      {/* MODAL */}
-      {mostrarModal && (
-        <ModalRelatorioAtual
-          dados={dados}
-          estacoes={estacoes.filter(e => idsSelecionados.includes(e.id))}
-          cabecalho={cabecalho}
-          onClose={() => setMostrarModal(false)}
-        />
-      )}
-
-    </div>
-  )
+  return NextResponse.json(resultados);
 }
