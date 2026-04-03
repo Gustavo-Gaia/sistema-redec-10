@@ -28,11 +28,18 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // Mudamos para DIAS_3 para garantir que o "ontem" esteja sempre no pacote
+  // TESTE 1: Usar datas fixas em vez de Range (Mais estável na ANA)
+  const hoje = new Date();
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  
+  const fmt = (d) => d.toLocaleDateString('pt-BR');
+  
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_3`;
+              `&Data%20In%C3%ADcio=${fmt(ontem)}` + 
+              `&Data%20Fim=${fmt(hoje)}`;
 
   try {
     const resp = await fetch(url, {
@@ -40,67 +47,31 @@ async function processarEstacao(codigo, token, horaRef) {
       cache: "no-store",
     });
 
-    if (!resp.ok) return null;
     const json = await resp.json();
     const items = json?.items || [];
-    if (items.length === 0) return null;
 
+    // Se vier vazio, retornamos um objeto de erro para sabermos qual estação falhou
+    if (items.length === 0) {
+      return { erro: "ANA retornou zero itens para esta data", url_tentada: url };
+    }
+
+    // Se chegou aqui, os dados existem. Vamos ver o que tem dentro:
     const medicoes = items.map((m) => ({
-      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
-      nivel: parseFloat(m.Cota_Adotada) / 100,
-    })).filter(m => !isNaN(m.nivel));
-
-    // Função auxiliar para filtrar os horários (ref, h4, h8, h12) de uma data base
-    const extrairHorarios = (dataReferencia) => {
-      const base = new Date(
-        dataReferencia.getFullYear(),
-        dataReferencia.getMonth(),
-        dataReferencia.getDate(),
-        parseInt(horaRef),
-        0, 0, 0
-      );
-
-      const chaves = ["ref", "h4", "h8", "h12"];
-      const blocos = {};
-
-      [0, 4, 8, 12].forEach((sub, i) => {
-        const alvo = new Date(base);
-        alvo.setHours(alvo.getHours() - sub);
-        
-        // Margem de 90 min para compensar atrasos de transmissão da estação
-        const limiteMinimo = new Date(alvo.getTime() - 90 * 60000);
-
-        const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
-
-        if (filtrados.length > 0) {
-          filtrados.sort((a, b) => b.datetime - a.datetime);
-          blocos[chaves[i]] = {
-            nivel: filtrados[0].nivel,
-            hora: filtrados[0].datetime.toTimeString().slice(0, 5),
-            data: filtrados[0].datetime.toLocaleDateString('pt-BR').slice(0, 5)
-          };
-        } else {
-          blocos[chaves[i]] = null;
-        }
-      });
-      return blocos;
-    };
-
-    const hoje = new Date();
-    const ontem = new Date();
-    ontem.setDate(ontem.getDate() - 1);
+      dt: m.Data_Hora_Medicao,
+      n: parseFloat(m.Cota_Adotada) / 100,
+    }));
 
     return {
-      hoje: extrairHorarios(hoje),
-      ontem: extrairHorarios(ontem),
-      debug_total_recebido: items.length // Para sabermos quantos dados a ANA mandou
+      total: items.length,
+      ultima: medicoes[0],
+      primeira: medicoes[medicoes.length - 1],
+      amostra: medicoes.slice(0, 2) // Só as duas primeiras para não encher a tela
     };
 
   } catch (err) {
-    return null;
+    return { erro: err.message };
   }
 }
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
