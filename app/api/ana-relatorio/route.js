@@ -28,11 +28,19 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // Voltamos para a URL que VOCÊ validou que funciona 100%
+  const agoraBr = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+  const ontemBr = new Date(agoraBr);
+  ontemBr.setDate(ontemBr.getDate() - 1);
+
+  // Formato DD/MM/AAAA que a ANA costuma aceitar sem dar Erro 400
+  const fmt = (d) => d.toLocaleDateString('pt-BR');
+  
+  // Buscamos do início de ontem até o final de hoje
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_2`;
+              `&Data%20In%C3%ADcio=${fmt(ontemBr)}` + 
+              `&Data%20Fim=${fmt(agoraBr)}`;
 
   try {
     const resp = await fetch(url, {
@@ -50,19 +58,8 @@ async function processarEstacao(codigo, token, horaRef) {
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    // CORREÇÃO DE FUSO: Forçamos o cálculo baseado no horário de Brasília
-    // Sem isso, a Vercel se perde no que é "Ontem"
-    const agoraBr = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-    
     const extrairParaData = (dataBase) => {
-      const base = new Date(
-        dataBase.getFullYear(),
-        dataBase.getMonth(),
-        dataBase.getDate(),
-        parseInt(horaRef),
-        0, 0, 0
-      );
-
+      const base = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), parseInt(horaRef), 0, 0);
       const chaves = ["ref", "h4", "h8", "h12"];
       const resultado = {};
 
@@ -70,9 +67,8 @@ async function processarEstacao(codigo, token, horaRef) {
         const alvo = new Date(base);
         alvo.setHours(alvo.getHours() - sub);
         
-        // Aumentamos a margem para 120min (2h) para garantir captura no histórico
+        // Janela de 120min para compensar atrasos de transmissão
         const limiteMinimo = new Date(alvo.getTime() - 120 * 60000);
-
         const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
 
         if (filtrados.length > 0) {
@@ -88,9 +84,6 @@ async function processarEstacao(codigo, token, horaRef) {
       return resultado;
     };
 
-    const ontemBr = new Date(agoraBr);
-    ontemBr.setDate(ontemBr.getDate() - 1);
-
     return {
       hoje: extrairParaData(agoraBr),
       ontem: extrairParaData(ontemBr)
@@ -100,6 +93,7 @@ async function processarEstacao(codigo, token, horaRef) {
     return null;
   }
 }
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
