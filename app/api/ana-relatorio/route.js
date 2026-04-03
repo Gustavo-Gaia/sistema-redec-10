@@ -1,3 +1,5 @@
+/* app/api/ana-relatorio/route.js */
+
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
@@ -21,9 +23,7 @@ async function getAuthToken() {
         cache: "no-store",
       }
     );
-
     const json = await resp.json();
-    // No seu print, o token funcional é o 'tokenautenticacao'
     return json?.items?.tokenautenticacao || null;
   } catch (err) {
     return null;
@@ -31,15 +31,11 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // ATENÇÃO: Ajustei os nomes dos parâmetros para o formato que o servidor da ANA exige (codificado)
-  // Código da Estação -> C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o
-  // Tipo Filtro Data -> Tipo%20Filtro%20Data
-  // Range Intervalo de busca -> Range%20Intervalo%20de%20busca
-  
+  // Configurado para 48 horas (DIAS_2), suficiente para cobrir h12 e h24 com folga
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_30`;
+              `&Range%20Intervalo%20de%20busca=DIAS_2`;
 
   try {
     const resp = await fetch(url, {
@@ -51,16 +47,14 @@ async function processarEstacao(codigo, token, horaRef) {
     });
 
     if (!resp.ok) return null;
-
     const json = await resp.json();
     const items = json?.items || [];
 
     if (items.length === 0) return null;
 
-    // Converte os dados do padrão ANA (Cota_Adotada e Data_Hora_Medicao)
     const medicoes = items.map((m) => ({
       datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
-      nivel: parseFloat(m.Cota_Adotada) / 100, // cm para metros
+      nivel: parseFloat(m.Cota_Adotada) / 100, 
     })).filter(m => !isNaN(m.nivel));
 
     const base = new Date();
@@ -74,9 +68,11 @@ async function processarEstacao(codigo, token, horaRef) {
       const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
       
-      // Janela de tolerância de 3 horas
-      const limite = new Date(alvo.getTime() - 180 * 60000);
-      const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limite);
+      // ✅ Tolerância de 60 minutos conforme solicitado
+      const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
+      
+      // Filtra medições que estão dentro da janela de 1 hora antes do alvo
+      const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
       
       if (filtrados.length > 0) {
         filtrados.sort((a, b) => b.datetime - a.datetime);
@@ -101,7 +97,7 @@ export async function GET(request) {
   const horaRef = searchParams.get("hora") || "08";
 
   const token = await getAuthToken();
-  if (!token) return NextResponse.json({ debug: "Erro ao obter token de autenticação" });
+  if (!token) return NextResponse.json({ debug: "Erro Token" });
 
   const { data: estacoes } = await supabase
     .from("estacoes")
@@ -118,7 +114,6 @@ export async function GET(request) {
     if (dados) {
       resultados[estacao.id] = dados;
     }
-    // Delay de 200ms para não ser bloqueado por excesso de requisições
     await new Promise(r => setTimeout(r, 200));
   }
 
