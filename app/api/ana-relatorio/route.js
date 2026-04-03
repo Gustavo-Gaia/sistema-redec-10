@@ -9,40 +9,38 @@ const supabase = createClient(
 );
 
 async function getAuthToken() {
-  console.log("--- INICIANDO AUTENTICAÇÃO ANA ---");
+  console.log("--- TESTE DE VARIÁVEIS ---");
+  
+  const idTest = process.env.ANA_IDENTIFICADOR;
+  const pwTest = process.env.ANA_SENHA;
+
+  if (!idTest || !pwTest) {
+    console.error("❌ ERRO: A Vercel não está lendo as variáveis ANA_IDENTIFICADOR ou ANA_SENHA.");
+    return null; 
+  }
+
   try {
     const resp = await fetch(
       "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
       {
         headers: {
-          Identificador: process.env.ANA_IDENTIFICADOR,
-          Senha: process.env.ANA_SENHA,
+          // Teste forçar os headers como String para garantir
+          'Identificador': String(idTest).trim(),
+          'Senha': String(pwTest).trim(),
         },
         cache: "no-store",
       }
     );
 
-    if (!resp.ok) {
-      console.error(`❌ Erro HTTP na Autenticação: ${resp.status}`);
-      return null;
-    }
-
     const json = await resp.json();
-    const token = json?.items?.tokenautenticacao;
-
-    if (!token) {
-      console.error("❌ Resposta da ANA não continha o campo 'tokenautenticacao':", json);
-      return null;
-    }
-
-    console.log("✅ Token obtido com sucesso!");
-    return token;
+    console.log("Resposta bruta da ANA:", json);
+    
+    return json?.items?.tokenautenticacao || null;
   } catch (err) {
-    console.error("❌ Falha crítica ao pedir token:", err.message);
+    console.error("Erro na chamada Fetch:", err);
     return null;
   }
 }
-
 async function processarEstacao(codigo, token, horaRef) {
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_30`;
 
