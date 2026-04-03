@@ -33,15 +33,7 @@ async function getToken() {
 }
 
 // ---------------------------
-// DATA YYYY-MM-DD
-// ---------------------------
-
-function hojeISO() {
-  return new Date().toISOString().split("T")[0];
-}
-
-// ---------------------------
-// CONSULTA ANA (CORRETA)
+// CONSULTA REAL FUNCIONAL
 // ---------------------------
 
 async function consultarANA(codigo, token) {
@@ -50,8 +42,7 @@ async function consultarANA(codigo, token) {
     "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1" +
     `?CodigoDaEstacao=${codigo}` +
     `&TipoFiltroData=DATA_LEITURA` +
-    `&DataBusca=${hojeISO()}` +
-    `&Intervalo=HORA_1`;
+    `&RangeIntervaloDeBusca=DIAS_30`;
 
   try {
     const resp = await fetch(url, {
@@ -113,9 +104,8 @@ export async function GET() {
   );
 
   return NextResponse.json({
-    etapa: "DEBUG FINAL CORRETO",
+    etapa: "DEBUG FINAL FUNCIONANDO",
     estacao,
-    token: token.slice(0, 30) + "...",
     resultado
   });
 }
