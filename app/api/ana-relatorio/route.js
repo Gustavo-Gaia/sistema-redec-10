@@ -6,148 +6,134 @@ export const revalidate = 0;
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// ---------------------------
+// SUPABASE
+// ---------------------------
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// ============================
-// 🔐 TOKEN ANA
-// ============================
+// ---------------------------
+// TOKEN ANA
+// ---------------------------
 
 async function getToken() {
-  try {
-    const resp = await fetch(
-      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
-      {
-        method: "GET",
-        headers: {
-          Identificador: process.env.ANA_IDENTIFICADOR,
-          Senha: process.env.ANA_SENHA
-        },
-        cache: "no-store"
-      }
-    );
-
-    const json = await resp.json();
-
-    const token = json?.items?.tokenautenticacao;
-
-    if (!token) {
-      return { erro: "Token não retornado", raw: json };
+  const resp = await fetch(
+    "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
+    {
+      method: "GET",
+      headers: {
+        Identificador: process.env.ANA_IDENTIFICADOR,
+        Senha: process.env.ANA_SENHA
+      },
+      cache: "no-store"
     }
+  );
 
-    return { token, raw: json };
+  const json = await resp.json();
 
-  } catch (err) {
-    return { erro: err.message };
-  }
+  return json?.items?.tokenautenticacao || null;
 }
 
-// ============================
-// 🌊 BUSCAR DADOS ANA
-// ============================
+// ---------------------------
+// FORMATAR DATA (yyyy-MM-dd)
+// ---------------------------
 
-async function buscarEstacao(token, codigo) {
+function formatarDataISO(d) {
+  return d.toISOString().split("T")[0];
+}
+
+// ---------------------------
+// PROCESSAR ESTAÇÃO
+// ---------------------------
+
+async function processarEstacao(codigo, token) {
+
+  const hoje = new Date();
+  const inicio = new Date();
+  inicio.setDate(hoje.getDate() - 2);
+
+  const url =
+    "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1" +
+    `?CodigoDaEstacao=${codigo}` +
+    `&TipoFiltroData=DATA_LEITURA` +
+    `&DataInicial=${formatarDataISO(inicio)}` +
+    `&DataFinal=${formatarDataISO(hoje)}`;
+
   try {
-    const hoje = new Date();
-    const dataBusca = hoje.toISOString().split("T")[0]; // YYYY-MM-DD
-
-    const url =
-      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelem%C3%A9tricaAdotada/v1" +
-      `?CodigoDaEstacao=${codigo}` +
-      `&TipoFiltroData=DATA_LEITURA` +
-      `&DataBusca=${dataBusca}` +
-      `&IntervaloDeBusca=HORA_1`;
-
     const resp = await fetch(url, {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`
       },
       cache: "no-store"
     });
 
-    const text = await resp.text();
+    const status = resp.status;
 
-    let json;
+    let json = null;
     try {
-      json = JSON.parse(text);
+      json = await resp.json();
     } catch {
-      return { erro: "Resposta não é JSON", raw: text };
+      json = null;
     }
 
     return {
-      status: resp.status,
+      codigo,
+      status,
       total: json?.items?.length || 0,
       exemplo: json?.items?.[0] || null,
-      raw: json
+      bruto: json
     };
 
   } catch (err) {
-    return { erro: err.message };
+    return {
+      codigo,
+      erro: err.message
+    };
   }
 }
 
-// ============================
-// 🚀 API PRINCIPAL (DEBUG)
-// ============================
+// ---------------------------
+// API PRINCIPAL
+// ---------------------------
 
 export async function GET() {
 
-  // pega apenas 1 estação pra teste
+  // 1. Buscar estações
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
     .eq("fonte", "ANA")
     .eq("ativo", true)
-    .limit(1);
+    .limit(1); // 🔥 DEBUG só 1 estação
 
   if (!estacoes || estacoes.length === 0) {
-    return NextResponse.json({
-      erro: "Nenhuma estação encontrada no banco"
-    });
+    return NextResponse.json({ erro: "Sem estações" });
   }
 
   const estacao = estacoes[0];
 
-  // ============================
-  // TOKEN
-  // ============================
+  // 2. Token
+  const token = await getToken();
 
-  const tokenInfo = await getToken();
-
-  if (tokenInfo.erro) {
-    return NextResponse.json({
-      etapa: "TOKEN",
-      erro: tokenInfo
-    });
+  if (!token) {
+    return NextResponse.json({ erro: "Token inválido" });
   }
 
-  const token = tokenInfo.token;
+  // 3. Consulta ANA
+  const resultado = await processarEstacao(
+    estacao.codigo_estacao,
+    token
+  );
 
-  // ============================
-  // DADOS ANA
-  // ============================
-
-  const dados = await buscarEstacao(token, estacao.codigo_estacao);
-
-  // ============================
-  // RESPOSTA DEBUG
-  // ============================
-
+  // 4. DEBUG COMPLETO
   return NextResponse.json({
-    etapa: "DEBUG FINAL",
-
-    estacao: estacao,
-
-    token: token.substring(0, 30) + "...",
-
-    respostaANA: {
-      status: dados.status,
-      totalRegistros: dados.total,
-      exemploItem: dados.exemplo
-    },
-
-    bruto: dados.raw
+    etapa: "DEBUG FINAL CORRIGIDO",
+    estacao,
+    token: token.slice(0, 30) + "...",
+    resultado
   });
 }
