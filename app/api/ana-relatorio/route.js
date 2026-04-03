@@ -38,19 +38,16 @@ async function getToken() {
 
 async function buscarEstacao(token, codigo) {
   try {
-    const hoje = new Date();
-    const inicio = new Date();
-    inicio.setDate(hoje.getDate() - 2);
 
-    const formatar = (d) =>
-      d.toISOString().split("T")[0]; // YYYY-MM-DD
+    const hoje = new Date();
+    const dataBusca = hoje.toISOString().split("T")[0]; // YYYY-MM-DD
 
     const url =
       "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1" +
       `?CodigoDaEstacao=${codigo}` +
-      `&TipoFiltroData=DATA_MEDICAO` +
-      `&DataInicial=${formatar(inicio)}` +
-      `&DataFinal=${formatar(hoje)}`;
+      `&TipoFiltroData=DATA_LEITURA` +
+      `&DataBusca=${dataBusca}` +
+      `&IntervaloDeBusca=HORA_1`;
 
     const resp = await fetch(url, {
       headers: {
