@@ -111,48 +111,47 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // BUSCAR ANA (🔥 REFORÇADO)
+  // BUSCAR ANA (Ajustado para Nova Estrutura)
   // ============================
-
   async function buscarANA() {
     if (!horaRef) return
-
     setLoadingAna(true)
 
     try {
       const json = await fetchSeguro(`/api/ana-relatorio?hora=${horaRef}`)
-
       console.log("🔥 ANA RETORNO:", json)
 
       if (!json || Object.keys(json).length === 0) {
-        alert("ANA não retornou dados (ver console)")
+        alert("ANA não retornou dados (verifique o console do servidor)")
         return
       }
 
       setDados(prev => {
         const novo = { ...prev }
 
-        Object.entries(json).forEach(([id, valores]) => {
-
+        Object.entries(json).forEach(([id, periodos]) => {
           const idNum = Number(id)
-
-          novo[idNum] = {
-            ...novo[idNum],
-            ...valores,
-            fonte: "ANA"
+          
+          // O segredo está aqui: pegamos apenas o bloco 'hoje' 
+          // que contém o ref, h4, h8, h12 que a sua tabela exibe.
+          if (periodos.hoje) {
+            novo[idNum] = {
+              ...novo[idNum],
+              ...periodos.hoje, // Espalha ref, h4, h8, h12
+              fonte: "ANA"
+            }
           }
         })
 
-        return { ...novo } // 🔥 força re-render
+        return { ...novo }
       })
 
     } catch (err) {
-      alert("Erro ao buscar ANA (ver console)")
+      alert("Erro ao buscar ANA. Verifique o console.")
     } finally {
       setLoadingAna(false)
     }
   }
-
   // ============================
   // BUSCAR INEA
   // ============================
