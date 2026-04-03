@@ -86,9 +86,7 @@ async function processarEstacao(codigo, token, horaRef) {
       return blocos;
     };
 
-    // AJUSTE 2: Garantir que o "Hoje" e "Ontem" usem o fuso de Brasília.
-    // Isso evita que, após as 21h, a API pense que já é o dia seguinte.
-    const hoje = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    
     const ontem = new Date(hoje);
     ontem.setDate(ontem.getDate() - 1);
 
