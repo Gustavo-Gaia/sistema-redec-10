@@ -57,9 +57,17 @@ async function processarEstacao(codigo, token, horaRef) {
       nivel: parseFloat(m.Cota_Adotada) / 100, 
     })).filter(m => !isNaN(m.nivel));
 
-    const base = new Date();
-    base.setMinutes(0, 0, 0);
-    base.setHours(parseInt(horaRef));
+    const agora = new Date();
+
+    const base = new Date(
+      agora.getFullYear(),
+      agora.getMonth(),
+      agora.getDate(),
+      parseInt(horaRef),
+      0,
+      0,
+      0
+    );
 
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
