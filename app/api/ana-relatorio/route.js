@@ -28,27 +28,35 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
+  // 1. Forçar fuso de Brasília para a Vercel não se perder nas datas
   const agoraBr = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
   const ontemBr = new Date(agoraBr);
   ontemBr.setDate(ontemBr.getDate() - 1);
 
-  // Formato DD/MM/AAAA que a ANA costuma aceitar sem dar Erro 400
-  const fmt = (d) => d.toLocaleDateString('pt-BR');
+  // 2. Formato ISO: 2026-04-03 (O que a API costuma exigir internamente)
+  const iso = (d) => d.toISOString().split('T')[0];
   
-  // Buscamos do início de ontem até o final de hoje
+  const dataInicio = iso(ontemBr);
+  const dataFim = iso(agoraBr);
+
+  // 3. Montar a URL com ENCODE nos parâmetros de data
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Data%20In%C3%ADcio=${fmt(ontemBr)}` + 
-              `&Data%20Fim=${fmt(agoraBr)}`;
+              `&Data%20In%C3%ADcio=${encodeURIComponent(dataInicio)}` + 
+              `&Data%20Fim=${encodeURIComponent(dataFim)}`;
 
   try {
     const resp = await fetch(url, {
-      headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` },
+      headers: { 
+        'accept': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
       cache: "no-store",
     });
 
     if (!resp.ok) return null;
+
     const json = await resp.json();
     const items = json?.items || [];
     if (items.length === 0) return null;
@@ -67,7 +75,7 @@ async function processarEstacao(codigo, token, horaRef) {
         const alvo = new Date(base);
         alvo.setHours(alvo.getHours() - sub);
         
-        // Janela de 120min para compensar atrasos de transmissão
+        // Janela de 120min para capturar dados mesmo com atraso
         const limiteMinimo = new Date(alvo.getTime() - 120 * 60000);
         const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
 
