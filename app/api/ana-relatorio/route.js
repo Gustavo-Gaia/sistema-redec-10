@@ -1,66 +1,131 @@
-import { NextResponse } from 'next/server';
+export const dynamic = "force-dynamic";
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-// Função auxiliar para pegar o Token (Ajuste conforme sua lógica de Auth)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 async function getAuthToken() {
-  const url = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/Token";
-  const resp = await fetch(url, { method: 'POST', cache: 'no-store' });
-  const json = await resp.json();
-  return json.access_token;
+  try {
+    const resp = await fetch(
+      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
+      {
+        headers: {
+          'accept': '*/*',
+          'Identificador': process.env.ANA_IDENTIFICADOR,
+          'Senha': process.env.ANA_SENHA,
+        },
+        cache: "no-store",
+      }
+    );
+    const json = await resp.json();
+    return json?.items?.tokenautenticacao || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function processarEstacao(codigo, token, horaRef) {
+  // Mudamos para DIAS_3 para garantir que o "ontem" esteja sempre no pacote
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
+              `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
+              `&Tipo%20Filtro%20Data=DATA_LEITURA` +
+              `&Range%20Intervalo%20de%20busca=DIAS_3`;
+
+  try {
+    const resp = await fetch(url, {
+      headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` },
+      cache: "no-store",
+    });
+
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const items = json?.items || [];
+    if (items.length === 0) return null;
+
+    const medicoes = items.map((m) => ({
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      nivel: parseFloat(m.Cota_Adotada) / 100,
+    })).filter(m => !isNaN(m.nivel));
+
+    // Função auxiliar para filtrar os horários (ref, h4, h8, h12) de uma data base
+    const extrairHorarios = (dataReferencia) => {
+      const base = new Date(
+        dataReferencia.getFullYear(),
+        dataReferencia.getMonth(),
+        dataReferencia.getDate(),
+        parseInt(horaRef),
+        0, 0, 0
+      );
+
+      const chaves = ["ref", "h4", "h8", "h12"];
+      const blocos = {};
+
+      [0, 4, 8, 12].forEach((sub, i) => {
+        const alvo = new Date(base);
+        alvo.setHours(alvo.getHours() - sub);
+        
+        // Margem de 90 min para compensar atrasos de transmissão da estação
+        const limiteMinimo = new Date(alvo.getTime() - 90 * 60000);
+
+        const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
+
+        if (filtrados.length > 0) {
+          filtrados.sort((a, b) => b.datetime - a.datetime);
+          blocos[chaves[i]] = {
+            nivel: filtrados[0].nivel,
+            hora: filtrados[0].datetime.toTimeString().slice(0, 5),
+            data: filtrados[0].datetime.toLocaleDateString('pt-BR').slice(0, 5)
+          };
+        } else {
+          blocos[chaves[i]] = null;
+        }
+      });
+      return blocos;
+    };
+
+    const hoje = new Date();
+    const ontem = new Date();
+    ontem.setDate(ontem.getDate() - 1);
+
+    return {
+      hoje: extrairHorarios(hoje),
+      ontem: extrairHorarios(ontem),
+      debug_total_recebido: items.length // Para sabermos quantos dados a ANA mandou
+    };
+
+  } catch (err) {
+    return null;
+  }
 }
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const estacao = searchParams.get('estacao') || '58770000';
-  
+  const horaRef = searchParams.get("hora") || "08";
+
   const token = await getAuthToken();
-  if (!token) return NextResponse.json({ erro: "Falha no Token" });
+  if (!token) return NextResponse.json({ erro: "Falha na autenticação com ANA" });
 
-  // Configurando Datas: Ontem e Hoje
-  const hoje = new Date();
-  const ontem = new Date();
-  ontem.setDate(ontem.getDate() - 1);
+  const { data: estacoes } = await supabase
+    .from("estacoes")
+    .select("id, codigo_estacao")
+    .eq("fonte", "ANA")
+    .eq("ativo", true);
 
-  // Formatação DD/MM/YYYY para a API da ANA
-  const formatarData = (d) => d.toLocaleDateString('pt-BR');
-  const dataInicio = formatarData(ontem);
-  const dataFim = formatarData(hoje);
+  if (!estacoes) return NextResponse.json({ erro: "Nenhuma estação encontrada no banco" });
 
-  const urlANA = 
-    `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
-    `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${estacao}` +
-    `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-    `&Data%20In%C3%ADcio=${dataInicio}` +
-    `&Data%20Fim=${dataFim}`;
+  const resultados = {};
 
-  try {
-    const resp = await fetch(urlANA, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store'
-    });
-
-    const data = await resp.json();
-    const items = data.items || [];
-
-    // Retorno simplificado para análise humana
-    return NextResponse.json({
-      configuracao: {
-        estacaoBuscada: estacao,
-        dataInicioUsada: dataInicio,
-        dataFimUsada: dataFim,
-        urlGerada: urlANA
-      },
-      resumo: {
-        totalRegistros: items.length,
-        maisRecente: items[0]?.Data_Hora_Medicao,
-        maisAntigo: items[items.length - 1]?.Data_Hora_Medicao
-      },
-      // Mostra as 3 primeiras e 3 últimas para conferir as datas
-      amostra: {
-        topo: items.slice(0, 3),
-        fundo: items.slice(-3)
-      }
-    });
-  } catch (error) {
-    return NextResponse.json({ erro: error.message });
+  for (const estacao of estacoes) {
+    const dados = await processarEstacao(estacao.codigo_estacao, token, horaRef);
+    if (dados) {
+      resultados[estacao.id] = dados;
+    }
+    // Pequeno delay para não sobrecarregar a API da ANA
+    await new Promise(r => setTimeout(r, 150));
   }
+
+  return NextResponse.json(resultados);
 }
