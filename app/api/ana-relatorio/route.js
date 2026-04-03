@@ -32,50 +32,70 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
+
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_3`;
+              `&Range%20Intervalo%20de%20busca=DIAS_2`;
 
   try {
     const resp = await fetch(url, {
-      headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` },
+      headers: { 
+        'accept': '*/*',
+        'Authorization': `Bearer ${token}` 
+      },
       cache: "no-store",
     });
 
     if (!resp.ok) return null;
+
     const json = await resp.json();
     const items = json?.items || [];
+
     if (items.length === 0) return null;
 
-    // 1. FORÇAMOS O FUSO DE BRASÍLIA NA LEITURA DA ANA (-03:00)
     const medicoes = items.map((m) => ({
-      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T") + "-03:00"),
+      raw: m.Data_Hora_Medicao,
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    // 2. FORÇAMOS O FUSO DE BRASÍLIA NA BASE (-03:00)
     const agora = new Date();
-    const ano = agora.getFullYear();
-    const mes = String(agora.getMonth() + 1).padStart(2, '0');
-    const dia = String(agora.getDate()).padStart(2, '0');
-    const horaStr = String(horaRef).padStart(2, '0');
-    
-    // Criamos a data no formato ISO fixando Brasília
-    const base = new Date(`${ano}-${mes}-${dia}T${horaStr}:00:00-03:00`);
+
+    const base = new Date(
+      agora.getFullYear(),
+      agora.getMonth(),
+      agora.getDate(),
+      parseInt(horaRef),
+      0, 0, 0
+    );
 
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
     [0, 4, 8, 12].forEach((sub, i) => {
-      const alvo = new Date(base.getTime());
+
+      const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
 
       const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
 
+      // 🔥 DEBUG PRINCIPAL
+      console.log("------");
+      console.log("Estação:", codigo);
+      console.log("Chave:", chaves[i]);
+      console.log("Alvo:", alvo.toISOString());
+      console.log("Limite:", limiteMinimo.toISOString());
+
+      // pega 5 medições próximas só pra inspecionar
+      const amostra = medicoes.slice(0, 5).map(m => m.datetime.toISOString());
+      console.log("Amostra dados:", amostra);
+
       const filtrados = medicoes.filter(m =>
         m.datetime <= alvo && m.datetime >= limiteMinimo
       );
+
+      console.log("Qtd filtrados:", filtrados.length);
 
       if (filtrados.length > 0) {
         filtrados.sort((a, b) => b.datetime - a.datetime);
@@ -83,16 +103,18 @@ async function processarEstacao(codigo, token, horaRef) {
 
         resultado[chaves[i]] = {
           nivel: m.nivel,
-          // Exibe a hora formatada corretamente para nossa região
-          hora: m.datetime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+          hora: m.datetime.toTimeString().slice(0, 5)
         };
       } else {
         resultado[chaves[i]] = null;
       }
+
     });
 
     return resultado;
+
   } catch (err) {
+    console.error(err);
     return null;
   }
 }
