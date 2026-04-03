@@ -28,35 +28,28 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // 1. Forçar fuso de Brasília para a Vercel não se perder nas datas
+  // 1. Pegamos a data de hoje no fuso de Brasília (AAAA-MM-DD)
   const agoraBr = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-  const ontemBr = new Date(agoraBr);
-  ontemBr.setDate(ontemBr.getDate() - 1);
+  const dataBusca = agoraBr.toISOString().split('T')[0];
 
-  // 2. Formato ISO: 2026-04-03 (O que a API costuma exigir internamente)
-  const iso = (d) => d.toISOString().split('T')[0];
-  
-  const dataInicio = iso(ontemBr);
-  const dataFim = iso(agoraBr);
-
-  // 3. Montar a URL com ENCODE nos parâmetros de data
+  // 2. Montamos a URL exatamente como o seu teste do site mostrou
+  // Chave correta: "Data de Busca (yyyy-MM-dd)"
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Data%20In%C3%ADcio=${encodeURIComponent(dataInicio)}` + 
-              `&Data%20Fim=${encodeURIComponent(dataFim)}`;
+              `&${encodeURIComponent('Data de Busca (yyyy-MM-dd)')}=${dataBusca}` + 
+              `&Range%20Intervalo%20de%20busca=DIAS_2`;
 
   try {
     const resp = await fetch(url, {
       headers: { 
-        'accept': 'application/json',
+        'accept': '*/*',
         'Authorization': `Bearer ${token}` 
       },
       cache: "no-store",
     });
 
     if (!resp.ok) return null;
-
     const json = await resp.json();
     const items = json?.items || [];
     if (items.length === 0) return null;
@@ -91,6 +84,9 @@ async function processarEstacao(codigo, token, horaRef) {
       });
       return resultado;
     };
+
+    const ontemBr = new Date(agoraBr);
+    ontemBr.setDate(ontemBr.getDate() - 1);
 
     return {
       hoje: extrairParaData(agoraBr),
