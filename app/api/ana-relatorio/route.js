@@ -35,7 +35,7 @@ async function processarEstacao(codigo, token, horaRef) {
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_2`;
+              `&Range%20Intervalo%20de%20busca=DIAS_3`;
 
   try {
     const resp = await fetch(url, {
@@ -48,20 +48,21 @@ async function processarEstacao(codigo, token, horaRef) {
     const items = json?.items || [];
     if (items.length === 0) return null;
 
+    // 1. FORÇAMOS O FUSO DE BRASÍLIA NA LEITURA DA ANA (-03:00)
     const medicoes = items.map((m) => ({
-      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T") + "-03:00"),
       nivel: parseFloat(m.Cota_Adotada) / 100,
-      originalStr: m.Data_Hora_Medicao // Guardamos a string original
     })).filter(m => !isNaN(m.nivel));
 
+    // 2. FORÇAMOS O FUSO DE BRASÍLIA NA BASE (-03:00)
     const agora = new Date();
-    const base = new Date(
-      agora.getFullYear(),
-      agora.getMonth(),
-      agora.getDate(),
-      parseInt(horaRef),
-      0, 0, 0
-    );
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, '0');
+    const dia = String(agora.getDate()).padStart(2, '0');
+    const horaStr = String(horaRef).padStart(2, '0');
+    
+    // Criamos a data no formato ISO fixando Brasília
+    const base = new Date(`${ano}-${mes}-${dia}T${horaStr}:00:00-03:00`);
 
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
@@ -79,20 +80,14 @@ async function processarEstacao(codigo, token, horaRef) {
       if (filtrados.length > 0) {
         filtrados.sort((a, b) => b.datetime - a.datetime);
         const m = filtrados[0];
+
         resultado[chaves[i]] = {
           nivel: m.nivel,
-          hora: m.datetime.toTimeString().slice(0, 5)
+          // Exibe a hora formatada corretamente para nossa região
+          hora: m.datetime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
         };
       } else {
-        // --- LOG DE DEBUG PARA O H12 ---
-        if (chaves[i] === "h12") {
-            resultado[chaves[i]] = {
-                debug: `Procurando entre ${limiteMinimo.toISOString()} e ${alvo.toISOString()}. Total de itens no JSON: ${items.length}`,
-                msg: "Não encontrou dado para 20h de ontem"
-            };
-        } else {
-            resultado[chaves[i]] = null;
-        }
+        resultado[chaves[i]] = null;
       }
     });
 
