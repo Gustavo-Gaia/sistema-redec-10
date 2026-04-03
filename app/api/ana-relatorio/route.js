@@ -28,7 +28,6 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // Voltamos para DIAS_2 porque DIAS_3 está estourando o limite da API
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
@@ -50,51 +49,55 @@ async function processarEstacao(codigo, token, horaRef) {
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    // Forçamos o fuso de Brasília para o cálculo não "pular" o dia na Vercel
+    // Força o fuso de Brasília para evitar que a Vercel "pule" o dia
     const agoraBr = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
 
-    const extrairDadosPorData = (dataReferencia) => {
-      // Criamos a data base (ex: 08:00) para o dia solicitado
-      const base = new Date(
-        dataReferencia.getFullYear(),
-        dataReferencia.getMonth(),
-        dataReferencia.getDate(),
-        parseInt(horaRef),
-        0, 0, 0
-      );
-
+    const extrairParaData = (dataRef) => {
+      const base = new Date(dataRef.getFullYear(), dataRef.getMonth(), dataRef.getDate(), parseInt(horaRef), 0, 0);
       const chaves = ["ref", "h4", "h8", "h12"];
-      const blocos = {};
+      const obj = {};
 
       [0, 4, 8, 12].forEach((sub, i) => {
         const alvo = new Date(base);
         alvo.setHours(alvo.getHours() - sub);
         
-        // Margem de 2 horas (120 min) para garantir que pegue o dado mesmo com atraso na ANA
+        // Janela de 120min para capturar dados mesmo com atraso
         const limiteMinimo = new Date(alvo.getTime() - 120 * 60000);
-
         const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
 
         if (filtrados.length > 0) {
           filtrados.sort((a, b) => b.datetime - a.datetime);
-          blocos[chaves[i]] = {
+          obj[chaves[i]] = {
             nivel: filtrados[0].nivel,
             hora: filtrados[0].datetime.toTimeString().slice(0, 5)
           };
         } else {
-          blocos[chaves[i]] = null;
+          obj[chaves[i]] = null;
         }
       });
-      return blocos;
+      return obj;
     };
 
     const ontemBr = new Date(agoraBr);
     ontemBr.setDate(ontemBr.getDate() - 1);
 
-    return {
-      hoje: extrairDadosPorData(agoraBr),
-      ontem: extrairDadosPorData(ontemBr)
-    };
+    const resultadoHoje = extrairParaData(agoraBr);
+    const resultadoOntem = extrairParaData(ontemBr);
+
+    // 🔥 ESTRATÉGIA DE FALLBACK:
+    // Se 'ontem' vier todo nulo, pegamos a medição mais antiga do array (o primeiro registro do dia)
+    const ontemVazio = Object.values(resultadoOntem).every(v => v === null);
+    if (ontemVazio && medicoes.length > 0) {
+      medicoes.sort((a, b) => a.datetime - b.datetime); // Ordem crescente
+      const maisAntiga = medicoes[0];
+      resultadoOntem.ref = {
+        nivel: maisAntiga.nivel,
+        hora: maisAntiga.datetime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}),
+        info: "Medição mais antiga disponível"
+      };
+    }
+
+    return { hoje: resultadoHoje, ontem: resultadoOntem };
 
   } catch (err) {
     return null;
