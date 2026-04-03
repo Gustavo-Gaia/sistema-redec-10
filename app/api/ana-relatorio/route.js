@@ -1,7 +1,6 @@
 /* app/api/ana-relatorio/route.js */
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -12,16 +11,16 @@ const supabase = createClient(
 );
 
 // ============================
-// TOKEN
+// TOKEN CACHE
 // ============================
 
 let tokenCache = null;
-let expira = null;
+let tokenExpiraEm = null;
 
-async function getToken() {
+async function getAuthToken() {
   const agora = Date.now();
 
-  if (tokenCache && expira && agora < expira) {
+  if (tokenCache && agora < tokenExpiraEm) {
     return tokenCache;
   }
 
@@ -41,28 +40,21 @@ async function getToken() {
   const token = json?.items?.tokenautenticacao;
 
   tokenCache = token;
-  expira = agora + 55 * 60 * 1000;
+  tokenExpiraEm = agora + 55 * 60 * 1000;
 
   return token;
 }
 
 // ============================
-// DATAS
+// BUSCAR DADOS (CORRETO)
 // ============================
 
-function formatar(d) {
-  return d.toISOString().slice(0, 10);
-}
-
-// ============================
-// PROCESSAR ESTAÇÃO (HIDROSAT)
-// ============================
-
-async function processarEstacao(codigo, token) {
-
+async function buscarDados(codigo, token) {
   const hoje = new Date();
   const ontem = new Date();
   ontem.setDate(hoje.getDate() - 1);
+
+  const formatar = (d) => d.toISOString().split("T")[0];
 
   const params = new URLSearchParams({
     "Código da Estação": codigo,
@@ -89,16 +81,13 @@ async function processarEstacao(codigo, token) {
 
     return {
       status: resp.status,
-      url,
       total: json?.items?.length || 0,
       exemplo: json?.items?.[0] || null,
+      url,
     };
 
   } catch (err) {
-    return {
-      erro: true,
-      mensagem: err.message,
-    };
+    return { erro: true, codigo };
   }
 }
 
@@ -108,7 +97,7 @@ async function processarEstacao(codigo, token) {
 
 export async function GET() {
 
-  const token = await getToken();
+  const token = await getAuthToken();
 
   const { data: estacoes } = await supabase
     .from("estacoes")
@@ -118,15 +107,14 @@ export async function GET() {
 
   const resultados = {};
 
-  for (const estacao of estacoes) {
-
-    resultados[estacao.id] = await processarEstacao(
-      estacao.codigo_estacao,
-      token
-    );
-
-    await new Promise(r => setTimeout(r, 300));
-  }
+  await Promise.all(
+    estacoes.map(async (e) => {
+      resultados[e.id] = await buscarDados(
+        e.codigo_estacao,
+        token
+      );
+    })
+  );
 
   return NextResponse.json(resultados);
 }
