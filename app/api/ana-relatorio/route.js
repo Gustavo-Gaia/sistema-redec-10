@@ -42,6 +42,7 @@ async function getAuthToken() {
   }
 }
 async function processarEstacao(codigo, token, horaRef) {
+  // Aumentamos para DIAS_30 para garantir que pegamos qualquer dado existente
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_30`;
 
   try {
@@ -50,57 +51,54 @@ async function processarEstacao(codigo, token, horaRef) {
       cache: "no-store",
     });
 
-    if (!resp.ok) {
-      console.warn(`⚠️ Estação ${codigo}: Erro HTTP ${resp.status}`);
-      return null;
-    }
-
+    if (!resp.ok) return null;
     const json = await resp.json();
     const items = json?.items || [];
 
-    if (items.length === 0) {
-      console.warn(`⚠️ Estação ${codigo}: Retornou lista de itens vazia.`);
-      return null;
-    }
-
-    // Diagnóstico de formato de data
-    console.log(`🔎 Exemplo de dado bruto da estação ${codigo}:`, items[0]);
+    if (items.length === 0) return null;
 
     const medicoes = items.map((m) => {
-      // Tentativa de conversão robusta
-      const dataStr = m.Data_Hora_Medicao ? m.Data_Hora_Medicao.replace(" ", "T") : null;
-      const dt = new Date(dataStr);
+      // 1. Tenta tratar a data de várias formas (ISO, Espaço, ou Local)
+      let dataBruta = m.Data_Hora_Medicao || m.DataLeitura; // Tenta os dois nomes possíveis
+      if (!dataBruta) return { nivel: NaN };
+
+      const dataTratada = dataBruta.includes(" ") ? dataBruta.replace(" ", "T") : dataBruta;
+      const dt = new Date(dataTratada);
+
+      // 2. Tenta pegar o nível de diferentes campos possíveis na API nova
+      const nivelBruto = m.Cota_Adotada ?? m.Cota ?? m.Nivel;
       
       return {
         datetime: dt,
-        nivel: parseFloat(m.Cota_Adotada) / 100,
+        nivel: parseFloat(nivelBruto) / 100, // Converte cm para metros
       };
     }).filter((m) => !isNaN(m.nivel) && m.datetime.toString() !== "Invalid Date");
 
-    if (medicoes.length === 0) {
-      console.error(`❌ Estação ${codigo}: Falha ao processar datas/níveis dos itens.`);
-      return null;
-    }
+    if (medicoes.length === 0) return null;
 
-    // ... (Lógica de filtragem por horário permanece igual)
+    // Lógica de horários alvo
     const base = new Date();
     base.setMinutes(0, 0, 0);
     base.setHours(parseInt(horaRef));
+
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
     [0, 4, 8, 12].forEach((sub, i) => {
       const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
-      const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= new Date(alvo.getTime() - 180 * 60000));
-      filtrados.sort((a, b) => b.datetime - a.datetime);
-      const m = filtrados[0];
-      resultado[chaves[i]] = m ? { nivel: m.nivel, hora: m.datetime.toTimeString().slice(0, 5) } : null;
+      
+      // Janela de busca de 4 horas para garantir que ache o dado mais próximo
+      const m = getValorAteHorario(medicoes, alvo);
+      
+      resultado[chaves[i]] = m ? {
+        nivel: m.nivel,
+        hora: m.datetime.toTimeString().slice(0, 5),
+      } : null;
     });
 
     return resultado;
   } catch (err) {
-    console.error(`❌ Erro no processamento da estação ${codigo}:`, err.message);
     return null;
   }
 }
