@@ -32,62 +32,61 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_2`;
+              `&Range%20Intervalo%20de%20busca=DIAS_3`;
 
   try {
     const resp = await fetch(url, {
-      headers: { 
-        'accept': '*/*',
-        'Authorization': `Bearer ${token}` 
-      },
+      headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` },
       cache: "no-store",
     });
 
     if (!resp.ok) return null;
-
     const json = await resp.json();
     const items = json?.items || [];
-
     if (items.length === 0) return null;
 
-    // mantém seu parse (já está funcionando)
+    // 1. Criamos os objetos de data das medições
     const medicoes = items.map((m) => ({
       datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    // 🔥 CORREÇÃO AQUI
+    // 2. Construção da BASE robusta
     const agora = new Date();
-
-    const base = new Date(
-      agora.getFullYear(),
-      agora.getMonth(),
-      agora.getDate(),
-      parseInt(horaRef),
-      0, 0, 0
-    );
+    // Forçamos a criação da data com Strings para evitar bugs de virada de dia do objeto Date
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, '0');
+    const dia = String(agora.getDate()).padStart(2, '0');
+    const hora = String(horaRef).padStart(2, '0');
+    
+    // "2026-04-03T01:00:00"
+    const base = new Date(`${ano}-${mes}-${dia}T${hora}:00:00`);
 
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
     [0, 4, 8, 12].forEach((sub, i) => {
+      // Criamos o alvo a partir do Timestamp (milissegundos) da base
+      // Isso GARANTE que ao subtrair 4 horas de 01:00, ele vá para 21:00 do dia anterior
+      const alvoTimestamp = base.getTime() - (sub * 60 * 60 * 1000);
+      const alvo = new Date(alvoTimestamp);
 
-      const alvo = new Date(base);
-      alvo.setHours(alvo.getHours() - sub);
+      // Janela de tolerância: 60 minutos ANTES do horário alvo
+      const limiteMinimo = new Date(alvo.getTime() - (60 * 60 * 1000));
 
-      // mesma lógica de 1h (mantida)
-      const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
-
-      const filtrados = medicoes.filter(m =>
-        m.datetime <= alvo && m.datetime >= limiteMinimo
-      );
+      // LOGICA DE FILTRO ALTERADA: 
+      // Buscamos qualquer medição que esteja na janela de 1 hora
+      const filtrados = medicoes.filter(m => {
+        const mTime = m.datetime.getTime();
+        return mTime <= alvo.getTime() && mTime >= limiteMinimo.getTime();
+      });
 
       if (filtrados.length > 0) {
-        filtrados.sort((a, b) => b.datetime - a.datetime);
+        // Ordena para garantir que pegamos o dado MAIS PRÓXIMO da hora cheia (o maior timestamp)
+        filtrados.sort((a, b) => b.datetime.getTime() - a.datetime.getTime());
         const m = filtrados[0];
 
         resultado[chaves[i]] = {
@@ -97,11 +96,9 @@ async function processarEstacao(codigo, token, horaRef) {
       } else {
         resultado[chaves[i]] = null;
       }
-
     });
 
     return resultado;
-
   } catch (err) {
     return null;
   }
