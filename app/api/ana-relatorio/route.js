@@ -31,12 +31,13 @@ async function getAuthToken() {
   }
 }
 
-async function processarEstacao(codigo, token, horaRef) {
+async function processarEstacao(codigo, token, horaRef, debug) {
+
   const url =
     `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
     `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
     `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-    `&Range%20Intervalo%20de%20busca=DIAS_3`;
+    `&Range%20Intervalo%20de%20busca=DIAS_2`;
 
   try {
     const resp = await fetch(url, {
@@ -54,16 +55,15 @@ async function processarEstacao(codigo, token, horaRef) {
 
     if (items.length === 0) return null;
 
-    // 🔥 converter para timestamp (NÚMERO)
     const medicoes = items
       .map((m) => ({
-        ms: new Date(m.Data_Hora_Medicao.replace(" ", "T")).getTime(),
+        datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
         nivel: parseFloat(m.Cota_Adotada) / 100,
       }))
       .filter((m) => !isNaN(m.nivel));
 
-    // 🔥 base HOJE na hora digitada
     const agora = new Date();
+
     const base = new Date(
       agora.getFullYear(),
       agora.getMonth(),
@@ -74,39 +74,57 @@ async function processarEstacao(codigo, token, horaRef) {
       0
     );
 
-    const baseMS = base.getTime();
-
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
+    const debugInfo = [];
 
     [0, 4, 8, 12].forEach((sub, i) => {
-      const alvoMS = baseMS - sub * 60 * 60 * 1000;
+      const alvo = new Date(base);
+      alvo.setHours(alvo.getHours() - sub);
 
-      // 🔥 busca o MAIS PRÓXIMO (não usa janela fixa)
-      let maisProximo = null;
-      let menorDiff = Infinity;
+      const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
 
-      for (const m of medicoes) {
-        const diff = Math.abs(m.ms - alvoMS);
+      const filtrados = medicoes.filter(
+        (m) => m.datetime <= alvo && m.datetime >= limiteMinimo
+      );
 
-        if (diff < menorDiff) {
-          menorDiff = diff;
-          maisProximo = m;
-        }
-      }
-
-      // 🔥 tolerância de até 3 horas
-      if (maisProximo && menorDiff <= 3 * 60 * 60 * 1000) {
-        const data = new Date(maisProximo.ms);
+      if (filtrados.length > 0) {
+        filtrados.sort((a, b) => b.datetime - a.datetime);
+        const m = filtrados[0];
 
         resultado[chaves[i]] = {
-          nivel: maisProximo.nivel,
-          hora: data.toTimeString().slice(0, 5),
+          nivel: m.nivel,
+          hora: m.datetime.toTimeString().slice(0, 5),
         };
       } else {
         resultado[chaves[i]] = null;
       }
+
+      // 🔥 DEBUG DETALHADO
+      if (debug) {
+        debugInfo.push({
+          chave: chaves[i],
+          alvo: alvo.toISOString(),
+          limiteMinimo: limiteMinimo.toISOString(),
+          encontrados: filtrados.length,
+        });
+      }
     });
+
+    // 🔥 MODO DEBUG ATIVO
+    if (debug) {
+      return {
+        totalRegistros: items.length,
+
+        primeiros: items.slice(0, 5),
+
+        ultimos: items.slice(-20), // 🔥 OLHE AQUI (dia anterior)
+
+        base: base.toISOString(),
+
+        debugBuscas: debugInfo,
+      };
+    }
 
     return resultado;
   } catch (err) {
@@ -116,7 +134,11 @@ async function processarEstacao(codigo, token, horaRef) {
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
+
   const horaRef = searchParams.get("hora") || "08";
+
+  // 🔥 ATIVA DEBUG VIA URL
+  const debug = searchParams.get("debug") === "1";
 
   const token = await getAuthToken();
   if (!token) return NextResponse.json({ debug: "Erro Token" });
@@ -135,7 +157,8 @@ export async function GET(request) {
     const dados = await processarEstacao(
       estacao.codigo_estacao,
       token,
-      horaRef
+      horaRef,
+      debug
     );
 
     if (dados) {
