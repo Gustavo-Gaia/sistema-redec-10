@@ -32,7 +32,6 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
@@ -40,29 +39,34 @@ async function processarEstacao(codigo, token, horaRef) {
 
   try {
     const resp = await fetch(url, {
-      headers: { 
-        'accept': '*/*',
-        'Authorization': `Bearer ${token}` 
-      },
+      headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` },
       cache: "no-store",
     });
 
     if (!resp.ok) return null;
-
     const json = await resp.json();
     const items = json?.items || [];
-
     if (items.length === 0) return null;
 
-    // 🔥 TRANSFORMA EM NÚMERO (CHAVE DA SOLUÇÃO)
-    const medicoes = items.map((m) => ({
-      ms: new Date(m.Data_Hora_Medicao.replace(" ", "T")).getTime(),
-      nivel: parseFloat(m.Cota_Adotada) / 100,
-    })).filter(m => !isNaN(m.nivel));
+    // 1. Parse Manual: Evita o erro de "Invalid Date" no servidor
+    const medicoes = items.map((m) => {
+      // m.Data_Hora_Medicao vem como "02/04/2026 20:00:00"
+      const [data, horaFull] = m.Data_Hora_Medicao.split(" ");
+      const [d, mes, a] = data.split("/");
+      const [h, min] = horaFull.split(":");
+      
+      // Criamos o objeto Date de forma explícita (Ano, Mês-1, Dia, Hora, Min)
+      const dt = new Date(parseInt(a), parseInt(mes) - 1, parseInt(d), parseInt(h), parseInt(min));
 
-    // 🔥 BASE HOJE
+      return {
+        timestamp: dt.getTime(),
+        nivel: parseFloat(m.Cota_Adotada) / 100,
+        horaTexto: `${h}:${min}`
+      };
+    }).filter(m => !isNaN(m.nivel) && !isNaN(m.timestamp));
+
+    // 2. Base de HOJE (08h, 04h, etc)
     const agora = new Date();
-
     const base = new Date(
       agora.getFullYear(),
       agora.getMonth(),
@@ -71,40 +75,37 @@ async function processarEstacao(codigo, token, horaRef) {
       0, 0, 0
     );
 
-    const baseMS = base.getTime();
-
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
+    // 3. Loop de Subtração
     [0, 4, 8, 12].forEach((sub, i) => {
-
-      // 🔥 AQUI ESTÁ A CORREÇÃO REAL
-      const alvoMS = baseMS - (sub * 60 * 60 * 1000);
-      const limiteMinimoMS = alvoMS - (60 * 60 * 1000);
+      // Subtração de milissegundos pura (3600000 ms = 1 hora)
+      const alvoMs = base.getTime() - (sub * 3600000);
+      const limiteMinimoMs = alvoMs - (60 * 60000); // Janela de 1 hora para trás
 
       const filtrados = medicoes.filter(m =>
-        m.ms <= alvoMS && m.ms >= limiteMinimoMS
+        m.timestamp <= alvoMs && m.timestamp >= limiteMinimoMs
       );
 
       if (filtrados.length > 0) {
-        filtrados.sort((a, b) => b.ms - a.ms);
+        // Ordena pelo timestamp mais recente
+        filtrados.sort((a, b) => b.timestamp - a.timestamp);
         const m = filtrados[0];
-
-        const data = new Date(m.ms);
 
         resultado[chaves[i]] = {
           nivel: m.nivel,
-          hora: data.toTimeString().slice(0, 5)
+          hora: m.horaTexto
         };
       } else {
         resultado[chaves[i]] = null;
       }
-
     });
 
     return resultado;
 
   } catch (err) {
+    console.error("Erro interno processarEstacao:", err);
     return null;
   }
 }
