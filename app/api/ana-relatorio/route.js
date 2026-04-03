@@ -31,8 +31,8 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // Range de 3 dias para garantir que os dados de ontem à tarde (h8 e h12) 
-  // estejam sempre presentes na resposta da API.
+  // Alterado para DIAS_3 para garantir que dados de ontem à tarde/noite 
+  // (ex: 20h, 16h) estejam presentes na resposta da ANA.
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
@@ -58,7 +58,8 @@ async function processarEstacao(codigo, token, horaRef) {
       nivel: parseFloat(m.Cota_Adotada) / 100, 
     })).filter(m => !isNaN(m.nivel));
 
-    // --- LÓGICA DE HORA CORRIGIDA ---
+    // --- AJUSTE DA HORA BASE (DETERMINÍSTICO) ---
+    // Criamos a data de HOJE com a HORA que você digitou.
     const agora = new Date();
     const base = new Date(
       agora.getFullYear(),
@@ -75,13 +76,12 @@ async function processarEstacao(codigo, token, horaRef) {
       const alvo = new Date(base.getTime());
       alvo.setHours(alvo.getHours() - sub);
       
-      // Janela de tolerância de 60 minutos
+      // ✅ Tolerância de 60 minutos
       const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
       
       const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
       
       if (filtrados.length > 0) {
-        // Pega o dado mais recente dentro da janela de 1 hora
         filtrados.sort((a, b) => b.datetime - a.datetime);
         const m = filtrados[0];
         resultado[chaves[i]] = {
@@ -121,7 +121,6 @@ export async function GET(request) {
     if (dados) {
       resultados[estacao.id] = dados;
     }
-    // Delay para respeitar o limite de taxa da API da ANA
     await new Promise(r => setTimeout(r, 200));
   }
 
