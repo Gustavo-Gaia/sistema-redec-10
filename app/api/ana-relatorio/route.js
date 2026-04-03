@@ -32,7 +32,6 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef, debug) {
-
   const url =
     `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
     `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
@@ -41,18 +40,13 @@ async function processarEstacao(codigo, token, horaRef, debug) {
 
   try {
     const resp = await fetch(url, {
-      headers: {
-        accept: "*/*",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { accept: "*/*", Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
 
     if (!resp.ok) return null;
-
     const json = await resp.json();
     const items = json?.items || [];
-
     if (items.length === 0) return null;
 
     const medicoes = items
@@ -62,67 +56,48 @@ async function processarEstacao(codigo, token, horaRef, debug) {
       }))
       .filter((m) => !isNaN(m.nivel));
 
-    const agora = new Date();
+    // Função interna para buscar dados de uma data específica
+    const buscarPorData = (dataAlvo) => {
+      const base = new Date(dataAlvo.getFullYear(), dataAlvo.getMonth(), dataAlvo.getDate(), parseInt(horaRef), 0, 0);
+      const chaves = ["ref", "h4", "h8", "h12"];
+      const res = {};
 
-    const base = new Date(
-      agora.getFullYear(),
-      agora.getMonth(),
-      agora.getDate(),
-      parseInt(horaRef),
-      0,
-      0,
-      0
-    );
+      [0, 4, 8, 12].forEach((sub, i) => {
+        const alvo = new Date(base);
+        alvo.setHours(alvo.getHours() - sub);
+        
+        // Aumentei a margem para 90 min para garantir captura de estações horárias
+        const limiteMinimo = new Date(alvo.getTime() - 90 * 60000);
 
-    const chaves = ["ref", "h4", "h8", "h12"];
-    const resultado = {};
-    const debugInfo = [];
+        const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
+        if (filtrados.length > 0) {
+          filtrados.sort((a, b) => b.datetime - a.datetime);
+          res[chaves[i]] = {
+            nivel: filtrados[0].nivel,
+            hora: filtrados[0].datetime.toTimeString().slice(0, 5),
+            data: filtrados[0].datetime.toLocaleDateString('pt-BR').slice(0, 5)
+          };
+        } else {
+          res[chaves[i]] = null;
+        }
+      });
+      return res;
+    };
 
-    [0, 4, 8, 12].forEach((sub, i) => {
-      const alvo = new Date(base);
-      alvo.setHours(alvo.getHours() - sub);
+    const hoje = new Date();
+    const ontem = new Date();
+    ontem.setDate(ontem.getDate() - 1);
 
-      const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
+    const resultado = {
+      hoje: buscarPorData(hoje),
+      ontem: buscarPorData(ontem)
+    };
 
-      const filtrados = medicoes.filter(
-        (m) => m.datetime <= alvo && m.datetime >= limiteMinimo
-      );
-
-      if (filtrados.length > 0) {
-        filtrados.sort((a, b) => b.datetime - a.datetime);
-        const m = filtrados[0];
-
-        resultado[chaves[i]] = {
-          nivel: m.nivel,
-          hora: m.datetime.toTimeString().slice(0, 5),
-        };
-      } else {
-        resultado[chaves[i]] = null;
-      }
-
-      // 🔥 DEBUG DETALHADO
-      if (debug) {
-        debugInfo.push({
-          chave: chaves[i],
-          alvo: alvo.toISOString(),
-          limiteMinimo: limiteMinimo.toISOString(),
-          encontrados: filtrados.length,
-        });
-      }
-    });
-
-    // 🔥 MODO DEBUG ATIVO
     if (debug) {
-      return {
+      resultado.debug = {
         totalRegistros: items.length,
-
-        primeiros: items.slice(0, 5),
-
-        ultimos: items.slice(-20), // 🔥 OLHE AQUI (dia anterior)
-
-        base: base.toISOString(),
-
-        debugBuscas: debugInfo,
+        ultimaLeitura: items[0]?.Data_Hora_Medicao,
+        primeiraLeitura: items[items.length - 1]?.Data_Hora_Medicao
       };
     }
 
