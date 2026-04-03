@@ -28,29 +28,35 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
-              `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
-              `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_2`;
+  const hoje = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+  const ontem = new Date(hoje);
+  ontem.setDate(ontem.getDate() - 1);
+
+  // Formato AAAA-MM-DD que a ANA exige para filtros de data
+  const iso = (d) => d.toISOString().split('T')[0];
+
+  // Vamos disparar as duas buscas ao mesmo tempo para ganhar velocidade
+  const urls = [
+    `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}&Tipo%20Filtro%20Data=DATA_LEITURA&Data%20In%C3%ADcio=${iso(hoje)}&Data%20Fim=${iso(hoje)}`,
+    `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}&Tipo%20Filtro%20Data=DATA_LEITURA&Data%20In%C3%ADcio=${iso(ontem)}&Data%20Fim=${iso(ontem)}`
+  ];
 
   try {
-    const resp = await fetch(url, {
-      headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` },
-      cache: "no-store",
-    });
+    const respostas = await Promise.all(urls.map(u => 
+      fetch(u, { headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` }, cache: "no-store" })
+    ));
 
-    if (!resp.ok) return null;
-    const json = await resp.json();
-    const items = json?.items || [];
-    if (items.length === 0) return null;
+    const jsons = await Promise.all(respostas.map(r => r.json()));
+    
+    // Unificamos as medições de ontem e hoje em um único array para o filtro
+    const todosItems = [...(jsons[0]?.items || []), ...(jsons[1]?.items || [])];
+    
+    if (todosItems.length === 0) return null;
 
-    const medicoes = items.map((m) => ({
+    const medicoes = todosItems.map((m) => ({
       datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
-
-    // Força o fuso de Brasília para evitar que a Vercel "pule" o dia
-    const agoraBr = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
 
     const extrairParaData = (dataRef) => {
       const base = new Date(dataRef.getFullYear(), dataRef.getMonth(), dataRef.getDate(), parseInt(horaRef), 0, 0);
@@ -60,16 +66,14 @@ async function processarEstacao(codigo, token, horaRef) {
       [0, 4, 8, 12].forEach((sub, i) => {
         const alvo = new Date(base);
         alvo.setHours(alvo.getHours() - sub);
-        
-        // Janela de 120min para capturar dados mesmo com atraso
-        const limiteMinimo = new Date(alvo.getTime() - 120 * 60000);
+        const limiteMinimo = new Date(alvo.getTime() - 120 * 60000); // 2h de margem
         const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
 
         if (filtrados.length > 0) {
           filtrados.sort((a, b) => b.datetime - a.datetime);
           obj[chaves[i]] = {
             nivel: filtrados[0].nivel,
-            hora: filtrados[0].datetime.toTimeString().slice(0, 5)
+            hora: filtrados[0].datetime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})
           };
         } else {
           obj[chaves[i]] = null;
@@ -78,26 +82,10 @@ async function processarEstacao(codigo, token, horaRef) {
       return obj;
     };
 
-    const ontemBr = new Date(agoraBr);
-    ontemBr.setDate(ontemBr.getDate() - 1);
-
-    const resultadoHoje = extrairParaData(agoraBr);
-    const resultadoOntem = extrairParaData(ontemBr);
-
-    // 🔥 ESTRATÉGIA DE FALLBACK:
-    // Se 'ontem' vier todo nulo, pegamos a medição mais antiga do array (o primeiro registro do dia)
-    const ontemVazio = Object.values(resultadoOntem).every(v => v === null);
-    if (ontemVazio && medicoes.length > 0) {
-      medicoes.sort((a, b) => a.datetime - b.datetime); // Ordem crescente
-      const maisAntiga = medicoes[0];
-      resultadoOntem.ref = {
-        nivel: maisAntiga.nivel,
-        hora: maisAntiga.datetime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}),
-        info: "Medição mais antiga disponível"
-      };
-    }
-
-    return { hoje: resultadoHoje, ontem: resultadoOntem };
+    return {
+      hoje: extrairParaData(hoje),
+      ontem: extrairParaData(ontem)
+    };
 
   } catch (err) {
     return null;
