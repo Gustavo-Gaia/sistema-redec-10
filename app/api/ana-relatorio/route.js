@@ -1,7 +1,6 @@
 /* app/api/ana-relatorio/route.js */
 
 export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -12,26 +11,21 @@ const supabase = createClient(
 
 async function getAuthToken() {
   try {
-    const resp = await fetch(
-      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
-      {
-        headers: {
-          'accept': '*/*',
-          'Identificador': process.env.ANA_IDENTIFICADOR,
-          'Senha': process.env.ANA_SENHA,
-        },
-        cache: "no-store",
-      }
-    );
-
+    const resp = await fetch("https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1", {
+      headers: { 
+        'accept': '*/*', 
+        'Identificador': process.env.ANA_IDENTIFICADOR, 
+        'Senha': process.env.ANA_SENHA 
+      },
+      cache: "no-store",
+    });
     const json = await resp.json();
     return json?.items?.tokenautenticacao || null;
-  } catch (err) {
-    return null;
-  }
+  } catch (err) { return null; }
 }
 
 async function processarEstacao(codigo, token, horaRef) {
+  // Buscamos um range maior para garantir que o JSON tenha os dois dias
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
@@ -48,60 +42,62 @@ async function processarEstacao(codigo, token, horaRef) {
     const items = json?.items || [];
     if (items.length === 0) return null;
 
-    // 1. Criamos os objetos de data das medições
-    const medicoes = items.map((m) => ({
-      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
-      nivel: parseFloat(m.Cota_Adotada) / 100,
-    })).filter(m => !isNaN(m.nivel));
-
-    // 2. Construção da BASE robusta
+    // Criamos a base de hoje (ex: 03/04/2026 04:00)
     const agora = new Date();
-    // Forçamos a criação da data com Strings para evitar bugs de virada de dia do objeto Date
-    const ano = agora.getFullYear();
-    const mes = String(agora.getMonth() + 1).padStart(2, '0');
-    const dia = String(agora.getDate()).padStart(2, '0');
-    const hora = String(horaRef).padStart(2, '0');
-    
-    // "2026-04-03T01:00:00"
-    const base = new Date(`${ano}-${mes}-${dia}T${hora}:00:00`);
+    const baseHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), parseInt(horaRef), 0, 0);
 
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
     [0, 4, 8, 12].forEach((sub, i) => {
-      // Criamos o alvo a partir do Timestamp (milissegundos) da base
-      // Isso GARANTE que ao subtrair 4 horas de 01:00, ele vá para 21:00 do dia anterior
-      const alvoTimestamp = base.getTime() - (sub * 60 * 60 * 1000);
-      const alvo = new Date(alvoTimestamp);
+      // Cálculo exato do alvo
+      const alvo = new Date(baseHoje.getTime());
+      alvo.setHours(alvo.getHours() - sub);
 
-      // Janela de tolerância: 60 minutos ANTES do horário alvo
-      const limiteMinimo = new Date(alvo.getTime() - (60 * 60 * 1000));
+      // Criamos strings de busca para comparar texto (mais seguro que objeto Date para o 'ontem')
+      const diaBusca = String(alvo.getDate()).padStart(2, '0');
+      const mesBusca = String(alvo.getMonth() + 1).padStart(2, '0');
+      const anoBusca = alvo.getFullYear();
+      const horaBusca = String(alvo.getHours()).padStart(2, '0');
+      
+      // Formato esperado no JSON da ANA: "DD/MM/YYYY HH:"
+      const prefixoBusca = `${diaBusca}/${mesBusca}/${anoBusca} ${horaBusca}:`;
 
-      // LOGICA DE FILTRO ALTERADA: 
-      // Buscamos qualquer medição que esteja na janela de 1 hora
-      const filtrados = medicoes.filter(m => {
-        const mTime = m.datetime.getTime();
-        return mTime <= alvo.getTime() && mTime >= limiteMinimo.getTime();
-      });
+      // Filtramos no JSON os itens que batem com esse dia e essa hora específica
+      const filtrados = items.filter(m => m.Data_Hora_Medicao.startsWith(prefixoBusca));
 
       if (filtrados.length > 0) {
-        // Ordena para garantir que pegamos o dado MAIS PRÓXIMO da hora cheia (o maior timestamp)
-        filtrados.sort((a, b) => b.datetime.getTime() - a.datetime.getTime());
+        // Ordenamos por Data_Hora_Medicao para pegar o minuto mais alto (mais próximo da hora cheia)
+        filtrados.sort((a, b) => b.Data_Hora_Medicao.localeCompare(a.Data_Hora_Medicao));
+        
         const m = filtrados[0];
-
         resultado[chaves[i]] = {
-          nivel: m.nivel,
-          hora: m.datetime.toTimeString().slice(0, 5)
+          nivel: parseFloat(m.Cota_Adotada) / 100,
+          hora: m.Data_Hora_Medicao.split(' ')[1].substring(0, 5)
         };
       } else {
-        resultado[chaves[i]] = null;
+        // Se falhou por texto, fazemos uma última tentativa via objeto Date (fallback)
+        const alvoTime = alvo.getTime();
+        const margem = 60 * 60 * 1000;
+        
+        const fallback = items.find(m => {
+          const mDate = new Date(m.Data_Hora_Medicao.replace(" ", "T")).getTime();
+          return mDate <= alvoTime && mDate >= (alvoTime - margem);
+        });
+
+        if (fallback) {
+          resultado[chaves[i]] = {
+            nivel: parseFloat(fallback.Cota_Adotada) / 100,
+            hora: fallback.Data_Hora_Medicao.split(' ')[1].substring(0, 5)
+          };
+        } else {
+          resultado[chaves[i]] = null;
+        }
       }
     });
 
     return resultado;
-  } catch (err) {
-    return null;
-  }
+  } catch (err) { return null; }
 }
 
 export async function GET(request) {
@@ -120,19 +116,10 @@ export async function GET(request) {
   if (!estacoes) return NextResponse.json({});
 
   const resultados = {};
-
   for (const estacao of estacoes) {
-    const dados = await processarEstacao(
-      estacao.codigo_estacao,
-      token,
-      horaRef
-    );
-
-    if (dados) {
-      resultados[estacao.id] = dados;
-    }
-
-    await new Promise(r => setTimeout(r, 200));
+    const dados = await processarEstacao(estacao.codigo_estacao, token, horaRef);
+    if (dados) { resultados[estacao.id] = dados; }
+    await new Promise(r => setTimeout(r, 150));
   }
 
   return NextResponse.json(resultados);
