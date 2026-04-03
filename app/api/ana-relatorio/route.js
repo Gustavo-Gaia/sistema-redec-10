@@ -31,7 +31,7 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // Aumentamos para DIAS_3 para garantir que o "ontem" esteja sempre no pacote de dados
+  // Mantemos DIAS_3 apenas por segurança de sobra de dados
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
@@ -48,45 +48,49 @@ async function processarEstacao(codigo, token, horaRef) {
     const items = json?.items || [];
     if (items.length === 0) return null;
 
-    const medicoes = items.map((m) => {
-      // ✅ CORREÇÃO DE FUSO: Forçamos o JS a ler a data exatamente como texto
-      // Adicionar "-03:00" no final garante que ele entenda que o dado é de Brasília
-      const dataCorrigida = m.Data_Hora_Medicao.replace(" ", "T") + "-03:00";
-      
-      return {
-        datetime: new Date(dataCorrigida),
-        nivel: parseFloat(m.Cota_Adotada) / 100,
-      };
-    }).filter(m => !isNaN(m.nivel));
+    // 1. Parse simples das medições (o seu original que você disse que funciona)
+    const medicoes = items.map((m) => ({
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      nivel: parseFloat(m.Cota_Adotada) / 100,
+    })).filter(m => !isNaN(m.nivel));
 
+    // 2. Criação da base FORÇANDO o dia de hoje
     const agora = new Date();
-    // Criamos a base no horário local de Brasília
     const base = new Date(
-      agora.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})
+      agora.getFullYear(),
+      agora.getMonth(),
+      agora.getDate(),
+      parseInt(horaRef),
+      0, 0, 0
     );
-    base.setHours(parseInt(horaRef), 0, 0, 0);
 
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
+    // 3. Processamento dos 4 horários
     [0, 4, 8, 12].forEach((sub, i) => {
+      // Criamos um novo objeto para cada cálculo para não "sujar" a base
       const alvo = new Date(base.getTime());
-      alvo.setHours(alvo.getHours() - sub);
+      
+      // Subtraímos milissegundos em vez de usar setHours (é mais preciso para virada de dia)
+      const subEmMs = sub * 60 * 60 * 1000; 
+      alvo.setTime(alvo.getTime() - subEmMs);
 
       const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
 
+      // Filtro
       const filtrados = medicoes.filter(m =>
         m.datetime <= alvo && m.datetime >= limiteMinimo
       );
 
       if (filtrados.length > 0) {
+        // Pegar o mais próximo do alvo (o último da lista filtrada e ordenada)
         filtrados.sort((a, b) => b.datetime - a.datetime);
         const m = filtrados[0];
 
         resultado[chaves[i]] = {
           nivel: m.nivel,
-          // Exibe a hora formatada em Brasília
-          hora: m.datetime.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit', timeZone: "America/Sao_Paulo" })
+          hora: m.datetime.toTimeString().slice(0, 5)
         };
       } else {
         resultado[chaves[i]] = null;
@@ -98,7 +102,6 @@ async function processarEstacao(codigo, token, horaRef) {
     return null;
   }
 }
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
