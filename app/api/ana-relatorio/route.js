@@ -32,81 +32,75 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
+              `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
+              `&Tipo%20Filtro%20Data=DATA_LEITURA` +
+              `&Range%20Intervalo%20de%20busca=DIAS_2`;
 
-  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
-              `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
-              `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_2`;
+  try {
+    const resp = await fetch(url, {
+      headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` },
+      cache: "no-store",
+    });
 
-  try {
-    const resp = await fetch(url, {
-      headers: { 
-        'accept': '*/*',
-        'Authorization': `Bearer ${token}` 
-      },
-      cache: "no-store",
-    });
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const items = json?.items || [];
+    if (items.length === 0) return null;
 
-    if (!resp.ok) return null;
+    const medicoes = items.map((m) => ({
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      nivel: parseFloat(m.Cota_Adotada) / 100,
+      originalStr: m.Data_Hora_Medicao // Guardamos a string original
+    })).filter(m => !isNaN(m.nivel));
 
-    const json = await resp.json();
-    const items = json?.items || [];
+    const agora = new Date();
+    const base = new Date(
+      agora.getFullYear(),
+      agora.getMonth(),
+      agora.getDate(),
+      parseInt(horaRef),
+      0, 0, 0
+    );
 
-    if (items.length === 0) return null;
+    const chaves = ["ref", "h4", "h8", "h12"];
+    const resultado = {};
 
-    // mantém seu parse (já está funcionando)
-    const medicoes = items.map((m) => ({
-      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
-      nivel: parseFloat(m.Cota_Adotada) / 100,
-    })).filter(m => !isNaN(m.nivel));
+    [0, 4, 8, 12].forEach((sub, i) => {
+      const alvo = new Date(base.getTime());
+      alvo.setHours(alvo.getHours() - sub);
 
-    // 🔥 CORREÇÃO AQUI
-    const agora = new Date();
+      const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
 
-    const base = new Date(
-      agora.getFullYear(),
-      agora.getMonth(),
-      agora.getDate(),
-      parseInt(horaRef),
-      0, 0, 0
-    );
+      const filtrados = medicoes.filter(m =>
+        m.datetime <= alvo && m.datetime >= limiteMinimo
+      );
 
-    const chaves = ["ref", "h4", "h8", "h12"];
-    const resultado = {};
+      if (filtrados.length > 0) {
+        filtrados.sort((a, b) => b.datetime - a.datetime);
+        const m = filtrados[0];
+        resultado[chaves[i]] = {
+          nivel: m.nivel,
+          hora: m.datetime.toTimeString().slice(0, 5)
+        };
+      } else {
+        // --- LOG DE DEBUG PARA O H12 ---
+        if (chaves[i] === "h12") {
+            resultado[chaves[i]] = {
+                debug: `Procurando entre ${limiteMinimo.toISOString()} e ${alvo.toISOString()}. Total de itens no JSON: ${items.length}`,
+                msg: "Não encontrou dado para 20h de ontem"
+            };
+        } else {
+            resultado[chaves[i]] = null;
+        }
+      }
+    });
 
-    [0, 4, 8, 12].forEach((sub, i) => {
-
-      const alvo = new Date(base);
-      alvo.setHours(alvo.getHours() - sub);
-
-      // mesma lógica de 1h (mantida)
-      const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
-
-      const filtrados = medicoes.filter(m =>
-        m.datetime <= alvo && m.datetime >= limiteMinimo
-      );
-
-      if (filtrados.length > 0) {
-        filtrados.sort((a, b) => b.datetime - a.datetime);
-        const m = filtrados[0];
-
-        resultado[chaves[i]] = {
-          nivel: m.nivel,
-          hora: m.datetime.toTimeString().slice(0, 5)
-        };
-      } else {
-        resultado[chaves[i]] = null;
-      }
-
-    });
-
-    return resultado;
-
-  } catch (err) {
-    return null;
-  }
+    return resultado;
+  } catch (err) {
+    return null;
+  }
 }
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
