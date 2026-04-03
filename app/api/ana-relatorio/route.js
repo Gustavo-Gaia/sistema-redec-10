@@ -9,74 +9,60 @@ const supabase = createClient(
 );
 
 async function getAuthToken() {
-  console.log("--- TESTE DE VARIÁVEIS ---");
-  
-  const idTest = process.env.ANA_IDENTIFICADOR;
-  const pwTest = process.env.ANA_SENHA;
-
-  if (!idTest || !pwTest) {
-    console.error("❌ ERRO: A Vercel não está lendo as variáveis ANA_IDENTIFICADOR ou ANA_SENHA.");
-    return null; 
-  }
-
   try {
     const resp = await fetch(
       "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
       {
         headers: {
-          // Teste forçar os headers como String para garantir
-          'Identificador': String(idTest).trim(),
-          'Senha': String(pwTest).trim(),
+          'accept': '*/*',
+          'Identificador': process.env.ANA_IDENTIFICADOR,
+          'Senha': process.env.ANA_SENHA,
         },
         cache: "no-store",
       }
     );
 
     const json = await resp.json();
-    console.log("Resposta bruta da ANA:", json);
-    
+    // No seu print, o token funcional é o 'tokenautenticacao'
     return json?.items?.tokenautenticacao || null;
   } catch (err) {
-    console.error("Erro na chamada Fetch:", err);
     return null;
   }
 }
+
 async function processarEstacao(codigo, token, horaRef) {
-  // Aumentamos para DIAS_30 para garantir que pegamos qualquer dado existente
-  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_30`;
+  // ATENÇÃO: Ajustei os nomes dos parâmetros para o formato que o servidor da ANA exige (codificado)
+  // Código da Estação -> C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o
+  // Tipo Filtro Data -> Tipo%20Filtro%20Data
+  // Range Intervalo de busca -> Range%20Intervalo%20de%20busca
+  
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
+              `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
+              `&Tipo%20Filtro%20Data=DATA_LEITURA` +
+              `&Range%20Intervalo%20de%20busca=DIAS_30`;
 
   try {
     const resp = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { 
+        'accept': '*/*',
+        'Authorization': `Bearer ${token}` 
+      },
       cache: "no-store",
     });
 
     if (!resp.ok) return null;
+
     const json = await resp.json();
     const items = json?.items || [];
 
     if (items.length === 0) return null;
 
-    const medicoes = items.map((m) => {
-      // 1. Tenta tratar a data de várias formas (ISO, Espaço, ou Local)
-      let dataBruta = m.Data_Hora_Medicao || m.DataLeitura; // Tenta os dois nomes possíveis
-      if (!dataBruta) return { nivel: NaN };
+    // Converte os dados do padrão ANA (Cota_Adotada e Data_Hora_Medicao)
+    const medicoes = items.map((m) => ({
+      datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
+      nivel: parseFloat(m.Cota_Adotada) / 100, // cm para metros
+    })).filter(m => !isNaN(m.nivel));
 
-      const dataTratada = dataBruta.includes(" ") ? dataBruta.replace(" ", "T") : dataBruta;
-      const dt = new Date(dataTratada);
-
-      // 2. Tenta pegar o nível de diferentes campos possíveis na API nova
-      const nivelBruto = m.Cota_Adotada ?? m.Cota ?? m.Nivel;
-      
-      return {
-        datetime: dt,
-        nivel: parseFloat(nivelBruto) / 100, // Converte cm para metros
-      };
-    }).filter((m) => !isNaN(m.nivel) && m.datetime.toString() !== "Invalid Date");
-
-    if (medicoes.length === 0) return null;
-
-    // Lógica de horários alvo
     const base = new Date();
     base.setMinutes(0, 0, 0);
     base.setHours(parseInt(horaRef));
@@ -88,13 +74,20 @@ async function processarEstacao(codigo, token, horaRef) {
       const alvo = new Date(base);
       alvo.setHours(alvo.getHours() - sub);
       
-      // Janela de busca de 4 horas para garantir que ache o dado mais próximo
-      const m = getValorAteHorario(medicoes, alvo);
+      // Janela de tolerância de 3 horas
+      const limite = new Date(alvo.getTime() - 180 * 60000);
+      const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limite);
       
-      resultado[chaves[i]] = m ? {
-        nivel: m.nivel,
-        hora: m.datetime.toTimeString().slice(0, 5),
-      } : null;
+      if (filtrados.length > 0) {
+        filtrados.sort((a, b) => b.datetime - a.datetime);
+        const m = filtrados[0];
+        resultado[chaves[i]] = {
+          nivel: m.nivel,
+          hora: m.datetime.toTimeString().slice(0, 5)
+        };
+      } else {
+        resultado[chaves[i]] = null;
+      }
     });
 
     return resultado;
@@ -108,44 +101,25 @@ export async function GET(request) {
   const horaRef = searchParams.get("hora") || "08";
 
   const token = await getAuthToken();
-  if (!token) {
-    return NextResponse.json({ debug: "Falha na geração do Token. Verifique CNPJ/Senha nas variáveis de ambiente." });
-  }
+  if (!token) return NextResponse.json({ debug: "Erro ao obter token de autenticação" });
 
-  const { data: estacoes, error: dbError } = await supabase
+  const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (dbError) {
-    return NextResponse.json({ debug: "Erro ao ler Supabase", error: dbError });
-  }
-
-  if (!estacoes || estacoes.length === 0) {
-    return NextResponse.json({ debug: "Nenhuma estação encontrada no Supabase com fonte 'ANA' e 'ativo=true'." });
-  }
+  if (!estacoes) return NextResponse.json({});
 
   const resultados = {};
-  const logs = [];
 
   for (const estacao of estacoes) {
     const dados = await processarEstacao(estacao.codigo_estacao, token, horaRef);
     if (dados) {
       resultados[estacao.id] = dados;
-    } else {
-      logs.push(`Estação ${estacao.codigo_estacao} falhou ou não tem dados recentes.`);
     }
+    // Delay de 200ms para não ser bloqueado por excesso de requisições
     await new Promise(r => setTimeout(r, 200));
-  }
-
-  // Se o resultado for vazio, retornamos um objeto de debug para você ver no navegador
-  if (Object.keys(resultados).length === 0) {
-    return NextResponse.json({
-      debug: "A busca foi concluída, mas nenhum dado válido foi processado.",
-      detalhes: logs,
-      total_estacoes_tentadas: estacoes.length
-    });
   }
 
   return NextResponse.json(resultados);
