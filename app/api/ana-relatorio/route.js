@@ -108,9 +108,9 @@ async function processarEstacao(codigo, token, horaRef) {
   const url =
     `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
     `?CodigoDaEstacao=${codigo}` +
-    `&TipoFiltroData=DATA_LEITURA` +
+    `&TipoFiltroDados=DATA_LEITURA` +
     `&DataBusca=${dataBusca}` +
-    `&Intervalo=HORA_1`;
+    `&IntervaloDeBusca=HORA_1`;
 
   try {
     const resp = await fetch(url, {
