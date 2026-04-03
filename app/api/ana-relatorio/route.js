@@ -32,7 +32,7 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // Aumentamos para DIAS_3 para garantir que o "ontem" esteja no JSON
+
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
@@ -40,23 +40,29 @@ async function processarEstacao(codigo, token, horaRef) {
 
   try {
     const resp = await fetch(url, {
-      headers: { 'accept': '*/*', 'Authorization': `Bearer ${token}` },
+      headers: { 
+        'accept': '*/*',
+        'Authorization': `Bearer ${token}` 
+      },
       cache: "no-store",
     });
 
     if (!resp.ok) return null;
+
     const json = await resp.json();
     const items = json?.items || [];
+
     if (items.length === 0) return null;
 
-    // 1. Transformamos tudo em milissegundos para comparação matemática pura
+    // 🔥 TRANSFORMA EM NÚMERO (CHAVE DA SOLUÇÃO)
     const medicoes = items.map((m) => ({
       ms: new Date(m.Data_Hora_Medicao.replace(" ", "T")).getTime(),
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    // 2. Base de HOJE
+    // 🔥 BASE HOJE
     const agora = new Date();
+
     const base = new Date(
       agora.getFullYear(),
       agora.getMonth(),
@@ -64,37 +70,40 @@ async function processarEstacao(codigo, token, horaRef) {
       parseInt(horaRef),
       0, 0, 0
     );
+
     const baseMS = base.getTime();
 
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
     [0, 4, 8, 12].forEach((sub, i) => {
-      // 3. Subtração matemática de milissegundos (8 horas = 8 * 3600000 ms)
-      // Isso GARANTE que 4h da manhã - 8h resulte em 20h de ontem
+
+      // 🔥 AQUI ESTÁ A CORREÇÃO REAL
       const alvoMS = baseMS - (sub * 60 * 60 * 1000);
-      const limiteMinimoMS = alvoMS - (60 * 60 * 1000); // Janela de 1 hora
+      const limiteMinimoMS = alvoMS - (60 * 60 * 1000);
 
       const filtrados = medicoes.filter(m =>
         m.ms <= alvoMS && m.ms >= limiteMinimoMS
       );
 
       if (filtrados.length > 0) {
-        // Pegamos o dado mais recente dentro daquela janela
         filtrados.sort((a, b) => b.ms - a.ms);
         const m = filtrados[0];
-        const dataObjeto = new Date(m.ms);
+
+        const data = new Date(m.ms);
 
         resultado[chaves[i]] = {
           nivel: m.nivel,
-          hora: dataObjeto.toTimeString().slice(0, 5)
+          hora: data.toTimeString().slice(0, 5)
         };
       } else {
         resultado[chaves[i]] = null;
       }
+
     });
 
     return resultado;
+
   } catch (err) {
     return null;
   }
