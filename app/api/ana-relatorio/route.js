@@ -6,111 +6,76 @@ export const revalidate = 0;
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// ============================
-// SUPABASE
-// ============================
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // ============================
-// CACHE TOKEN
+// TOKEN
 // ============================
 
 let tokenCache = null;
-let tokenExpira = null;
+let expira = null;
 
-async function getTokenANA() {
+async function getToken() {
   const agora = Date.now();
 
-  if (tokenCache && tokenExpira && agora < tokenExpira) {
+  if (tokenCache && expira && agora < expira) {
     return tokenCache;
   }
 
-  try {
-    const resp = await fetch(
-      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
-      {
-        headers: {
-          Identificador: process.env.ANA_IDENTIFICADOR,
-          Senha: process.env.ANA_SENHA,
-        },
-        cache: "no-store",
-      }
-    );
+  const resp = await fetch(
+    "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
+    {
+      headers: {
+        Identificador: process.env.ANA_IDENTIFICADOR,
+        Senha: process.env.ANA_SENHA,
+      },
+      cache: "no-store",
+    }
+  );
 
-    const json = await resp.json();
+  const json = await resp.json();
 
-    const token = json?.items?.tokenautenticacao;
+  const token = json?.items?.tokenautenticacao;
 
-    if (!token) return null;
+  tokenCache = token;
+  expira = agora + 55 * 60 * 1000;
 
-    tokenCache = token;
-    tokenExpira = agora + 55 * 60 * 1000;
-
-    return token;
-
-  } catch (err) {
-    console.error("Erro token ANA:", err);
-    return null;
-  }
+  return token;
 }
 
 // ============================
-// FORMATAR DATA
+// DATAS
 // ============================
 
-function formatarDataHoje() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+function formatar(d) {
+  return d.toISOString().slice(0, 10);
 }
 
 // ============================
-// PEGAR VALOR MAIS PRÓXIMO
+// PROCESSAR ESTAÇÃO (HIDROSAT)
 // ============================
 
-function getValorAteHorario(lista, alvo) {
-  const filtrados = lista.filter((m) => m.datetime <= alvo);
+async function processarEstacao(codigo, token) {
 
-  if (filtrados.length === 0) return null;
+  const hoje = new Date();
+  const ontem = new Date();
+  ontem.setDate(hoje.getDate() - 1);
 
-  filtrados.sort((a, b) => b.datetime - a.datetime);
-
-  return filtrados[0];
-}
-
-// ============================
-// GERAR HORÁRIOS
-// ============================
-
-function gerarHorarios(horaRef) {
-  const base = new Date();
-  base.setMinutes(0, 0, 0);
-  base.setHours(parseInt(horaRef));
-
-  return [0, 4, 8, 12].map((h) => {
-    const d = new Date(base);
-    d.setHours(d.getHours() - h);
-    return d;
+  const params = new URLSearchParams({
+    "Código da Estação": codigo,
+    "Tipo Filtro Data": "DATA_LEITURA",
+    "Data Inicial (yyyy-MM-dd)": formatar(ontem),
+    "Data Final (yyyy-MM-dd)": formatar(hoje),
+    "Horário Inicial (00:00:00)": "00:00:00",
+    "Horário Final (23:59:59)": "23:59:59",
   });
-}
-
-// ============================
-// PROCESSAR ESTAÇÃO
-// ============================
-
-async function processarEstacao(codigo, token, horaRef) {
-
-  const dataBusca = formatarDataHoje();
 
   const url =
-    `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
-    `?CodigoDaEstacao=${codigo}` +
-    `&TipoFiltroDados=DATA_LEITURA` +
-    `&DataBusca=${dataBusca}` +
-    `&IntervaloDeBusca=HORA_1`;
+    "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidrosatSerieDados/v1?" +
+    params.toString();
 
   try {
     const resp = await fetch(url, {
@@ -122,48 +87,16 @@ async function processarEstacao(codigo, token, horaRef) {
 
     const json = await resp.json();
 
-    const items = json?.items || [];
-
-    // DEBUG FORTE
-    if (!resp.ok) {
-      return {
-        erro: true,
-        codigo,
-        status: resp.status,
-        url,
-        retorno: json,
-      };
-    }
-
-    if (items.length === 0) return null;
-
-    const medicoes = items.map((m) => ({
-      datetime: new Date(m.Data_Hora_Medicao),
-      nivel: parseFloat(m.Cota_Adotada) / 100,
-    }));
-
-    const horarios = gerarHorarios(horaRef);
-
-    const chaves = ["ref", "h4", "h8", "h12"];
-    const resultado = {};
-
-    horarios.forEach((alvo, i) => {
-      const m = getValorAteHorario(medicoes, alvo);
-
-      resultado[chaves[i]] = m
-        ? {
-            nivel: m.nivel,
-            hora: m.datetime.toTimeString().slice(0, 5),
-          }
-        : null;
-    });
-
-    return resultado;
+    return {
+      status: resp.status,
+      url,
+      total: json?.items?.length || 0,
+      exemplo: json?.items?.[0] || null,
+    };
 
   } catch (err) {
     return {
       erro: true,
-      codigo,
       mensagem: err.message,
     };
   }
@@ -173,18 +106,9 @@ async function processarEstacao(codigo, token, horaRef) {
 // API
 // ============================
 
-export async function GET(request) {
+export async function GET() {
 
-  const { searchParams } = new URL(request.url);
-  const horaRef = searchParams.get("hora") || "08";
-
-  const token = await getTokenANA();
-
-  if (!token) {
-    return NextResponse.json({
-      erro: "TOKEN INVALIDO",
-    });
-  }
+  const token = await getToken();
 
   const { data: estacoes } = await supabase
     .from("estacoes")
@@ -196,19 +120,13 @@ export async function GET(request) {
 
   for (const estacao of estacoes) {
 
-    const dados = await processarEstacao(
+    resultados[estacao.id] = await processarEstacao(
       estacao.codigo_estacao,
-      token,
-      horaRef
+      token
     );
 
-    resultados[estacao.id] = dados;
-
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 300));
   }
 
-  return NextResponse.json({
-    horaRef,
-    resultados,
-  });
+  return NextResponse.json(resultados);
 }
