@@ -28,12 +28,11 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // AJUSTE 1: Mudamos para DIAS_3. 
-  // O DIAS_2 da ANA muitas vezes corta o dia anterior dependendo da hora da requisição.
+  // Voltamos para DIAS_2 porque DIAS_3 está estourando o limite da API
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_3`; 
+              `&Range%20Intervalo%20de%20busca=DIAS_2`;
 
   try {
     const resp = await fetch(url, {
@@ -51,8 +50,11 @@ async function processarEstacao(codigo, token, horaRef) {
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    // --- LÓGICA DE FILTRAGEM ---
+    // Forçamos o fuso de Brasília para o cálculo não "pular" o dia na Vercel
+    const agoraBr = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+
     const extrairDadosPorData = (dataReferencia) => {
+      // Criamos a data base (ex: 08:00) para o dia solicitado
       const base = new Date(
         dataReferencia.getFullYear(),
         dataReferencia.getMonth(),
@@ -68,8 +70,8 @@ async function processarEstacao(codigo, token, horaRef) {
         const alvo = new Date(base);
         alvo.setHours(alvo.getHours() - sub);
         
-        // Mantemos os 90 min de margem para segurança
-        const limiteMinimo = new Date(alvo.getTime() - 90 * 60000);
+        // Margem de 2 horas (120 min) para garantir que pegue o dado mesmo com atraso na ANA
+        const limiteMinimo = new Date(alvo.getTime() - 120 * 60000);
 
         const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
 
@@ -86,13 +88,12 @@ async function processarEstacao(codigo, token, horaRef) {
       return blocos;
     };
 
-    
-    const ontem = new Date(hoje);
-    ontem.setDate(ontem.getDate() - 1);
+    const ontemBr = new Date(agoraBr);
+    ontemBr.setDate(ontemBr.getDate() - 1);
 
     return {
-      hoje: extrairDadosPorData(hoje),
-      ontem: extrairDadosPorData(ontem)
+      hoje: extrairDadosPorData(agoraBr),
+      ontem: extrairDadosPorData(ontemBr)
     };
 
   } catch (err) {
