@@ -32,7 +32,7 @@ async function processarEstacao(codigo, token, horaRef) {
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Range%20Intervalo%20de%20busca=DIAS_2`;
+              `&Range%20Intervalo%20de%20busca=DIAS_3`;
 
   try {
     const resp = await fetch(url, {
