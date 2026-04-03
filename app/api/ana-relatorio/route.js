@@ -1,4 +1,7 @@
+/* app/api/ana-relatorio/route.js */
+
 export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -20,6 +23,7 @@ async function getAuthToken() {
         cache: "no-store",
       }
     );
+
     const json = await resp.json();
     return json?.items?.tokenautenticacao || null;
   } catch (err) {
@@ -28,12 +32,11 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // 1. Pegamos a data de hoje no fuso de Brasília (AAAA-MM-DD)
-  const agoraBr = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+  // 1. Garantir data correta no fuso de Brasília (independente do servidor)
+  const agoraBr = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
   const dataBusca = agoraBr.toISOString().split('T')[0];
 
-  // 2. Montamos a URL exatamente como o seu teste do site mostrou
-  // Chave correta: "Data de Busca (yyyy-MM-dd)"
+  // 2. URL com o parâmetro real descoberto no F12
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
@@ -50,39 +53,50 @@ async function processarEstacao(codigo, token, horaRef) {
     });
 
     if (!resp.ok) return null;
+
     const json = await resp.json();
     const items = json?.items || [];
     if (items.length === 0) return null;
 
+    // Converte e limpa as medições
     const medicoes = items.map((m) => ({
       datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    const extrairParaData = (dataBase) => {
-      const base = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), parseInt(horaRef), 0, 0);
+    // Função auxiliar para extrair dados baseados em uma data específica
+    const extrairParaData = (dataReferencia) => {
+      const base = new Date(
+        dataReferencia.getFullYear(),
+        dataReferencia.getMonth(),
+        dataReferencia.getDate(),
+        parseInt(horaRef),
+        0, 0, 0
+      );
+
       const chaves = ["ref", "h4", "h8", "h12"];
-      const resultado = {};
+      const blocos = {};
 
       [0, 4, 8, 12].forEach((sub, i) => {
         const alvo = new Date(base);
         alvo.setHours(alvo.getHours() - sub);
         
-        // Janela de 120min para capturar dados mesmo com atraso
-        const limiteMinimo = new Date(alvo.getTime() - 120 * 60000);
+        // Janela de 120min para garantir captura mesmo com atraso na transmissão
+        const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
+
         const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
 
         if (filtrados.length > 0) {
           filtrados.sort((a, b) => b.datetime - a.datetime);
-          resultado[chaves[i]] = {
+          blocos[chaves[i]] = {
             nivel: filtrados[0].nivel,
-            hora: filtrados[0].datetime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
+            hora: filtrados[0].datetime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
           };
         } else {
-          resultado[chaves[i]] = null;
+          blocos[chaves[i]] = null;
         }
       });
-      return resultado;
+      return blocos;
     };
 
     const ontemBr = new Date(agoraBr);
@@ -103,25 +117,32 @@ export async function GET(request) {
   const horaRef = searchParams.get("hora") || "08";
 
   const token = await getAuthToken();
-  if (!token) return NextResponse.json({ erro: "Falha na autenticação com ANA" });
+  if (!token) return NextResponse.json({ error: "Erro na autenticação com a ANA" }, { status: 401 });
 
-  const { data: estacoes } = await supabase
+  const { data: estacoes, error } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (!estacoes) return NextResponse.json({ erro: "Nenhuma estação encontrada no banco" });
+  if (error || !estacoes) return NextResponse.json({ error: "Erro ao buscar estações no banco" }, { status: 500 });
 
   const resultados = {};
 
+  // Processamento sequencial para não sobrecarregar a API da ANA
   for (const estacao of estacoes) {
-    const dados = await processarEstacao(estacao.codigo_estacao, token, horaRef);
+    const dados = await processarEstacao(
+      estacao.codigo_estacao,
+      token,
+      horaRef
+    );
+
     if (dados) {
       resultados[estacao.id] = dados;
     }
-    // Pequeno delay para não sobrecarregar a API da ANA
-    await new Promise(r => setTimeout(r, 150));
+
+    // Delay de segurança entre requisições
+    await new Promise(r => setTimeout(r, 300));
   }
 
   return NextResponse.json(resultados);
