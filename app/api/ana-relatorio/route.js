@@ -28,23 +28,11 @@ async function getAuthToken() {
 }
 
 async function processarEstacao(codigo, token, horaRef) {
-  // 1. Gerar as datas no formato AAAA-MM-DD (ISO)
-  const hoje = new Date();
-  const ontem = new Date();
-  ontem.setDate(ontem.getDate() - 1);
-
-  // Função simples para formatar: 2026-04-03
-  const formatarISO = (d) => d.toISOString().split('T')[0];
-
-  const dataInicio = formatarISO(ontem);
-  const dataFim = formatarISO(hoje);
-
-  // 2. Montar a URL com o formato correto (aaaa-MM-dd)
+  // Mantemos a URL que você confirmou que funciona
   const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1` +
               `?C%C3%B3digo%20da%20Esta%C3%A7%C3%A3o=${codigo}` +
               `&Tipo%20Filtro%20Data=DATA_LEITURA` +
-              `&Data%20In%C3%ADcio=${dataInicio}` + 
-              `&Data%20Fim=${dataFim}`;
+              `&Range%20Intervalo%20de%20busca=DIAS_2`;
 
   try {
     const resp = await fetch(url, {
@@ -52,59 +40,64 @@ async function processarEstacao(codigo, token, horaRef) {
       cache: "no-store",
     });
 
-    if (!resp.ok) return { erro: "Erro na resposta da ANA", status: resp.status };
-
+    if (!resp.ok) return null;
     const json = await resp.json();
     const items = json?.items || [];
+    if (items.length === 0) return null;
 
-    if (items.length === 0) return { erro: "Sem dados para este período", data_tentada: dataInicio };
-
-    // 3. Converter os dados recebidos
     const medicoes = items.map((m) => ({
       datetime: new Date(m.Data_Hora_Medicao.replace(" ", "T")),
       nivel: parseFloat(m.Cota_Adotada) / 100,
     })).filter(m => !isNaN(m.nivel));
 
-    // 4. Função para organizar os horários (Ref, H4, H8, H12)
-    const organizarPorDia = (dataBase) => {
-      const base = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate(), parseInt(horaRef), 0, 0);
+    // --- LÓGICA DE FILTRAGEM ---
+    const extrairDadosPorData = (dataReferencia) => {
+      const base = new Date(
+        dataReferencia.getFullYear(),
+        dataReferencia.getMonth(),
+        dataReferencia.getDate(),
+        parseInt(horaRef),
+        0, 0, 0
+      );
+
       const chaves = ["ref", "h4", "h8", "h12"];
-      const obj = {};
+      const blocos = {};
 
       [0, 4, 8, 12].forEach((sub, i) => {
         const alvo = new Date(base);
         alvo.setHours(alvo.getHours() - sub);
         
-        // Margem de 120min (2 horas) para garantir captura
-        const limiteMinimo = new Date(alvo.getTime() - 120 * 60000);
+        // Aumentei a margem para 90 min para garantir que pegue o dado de ontem com segurança
+        const limiteMinimo = new Date(alvo.getTime() - 90 * 60000);
+
         const filtrados = medicoes.filter(m => m.datetime <= alvo && m.datetime >= limiteMinimo);
 
         if (filtrados.length > 0) {
           filtrados.sort((a, b) => b.datetime - a.datetime);
-          obj[chaves[i]] = {
+          blocos[chaves[i]] = {
             nivel: filtrados[0].nivel,
-            hora: filtrados[0].datetime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}),
-            data: filtrados[0].datetime.toLocaleDateString('pt-BR').slice(0, 5)
+            hora: filtrados[0].datetime.toTimeString().slice(0, 5)
           };
         } else {
-          obj[chaves[i]] = null;
+          blocos[chaves[i]] = null;
         }
       });
-      return obj;
+      return blocos;
     };
 
+    // Define as duas datas base
+    const hoje = new Date();
+    const ontem = new Date();
+    ontem.setDate(ontem.getDate() - 1);
+
+    // Retorna os dois blocos processados
     return {
-      hoje: organizarPorDia(hoje),
-      ontem: organizarPorDia(ontem),
-      debug: {
-        total: items.length,
-        inicio_busca: dataInicio,
-        fim_busca: dataFim
-      }
+      hoje: extrairDadosPorData(hoje),
+      ontem: extrairDadosPorData(ontem)
     };
 
   } catch (err) {
-    return { erro: err.message };
+    return null;
   }
 }
 export async function GET(request) {
