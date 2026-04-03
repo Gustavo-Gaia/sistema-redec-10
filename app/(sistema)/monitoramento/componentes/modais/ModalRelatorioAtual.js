@@ -55,7 +55,7 @@ export default function ModalRelatorioAtual({
   return (
     <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[999] p-4 overflow-auto">
 
-      {/* BOTÕES */}
+      {/* BOTÕES DE AÇÃO */}
       <div className="fixed top-4 right-4 flex gap-2 z-[1001]">
         <button onClick={exportarImagem} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-black text-[12px] uppercase shadow-xl">
           📸 Salvar Foto
@@ -65,30 +65,30 @@ export default function ModalRelatorioAtual({
         </button>
       </div>
 
-      {/* ÁREA DA IMAGEM: p-16 cria o espaço branco que você quer para estreitar o conteúdo */}
+      {/* ÁREA DA FOTO (P-16 gera a moldura branca ao redor) */}
       <div ref={reportRef} className="p-16 bg-white flex flex-col items-center">
 
-        {/* CONTAINER DA TABELA: w-fit para não esticar além do necessário */}
+        {/* CONTAINER PRINCIPAL (w-fit para abraçar a tabela estreita) */}
         <div className="bg-white border-[4px] border-black flex flex-col w-fit">
 
-          {/* TÍTULO: whitespace-nowrap impede o título de empurrar a largura das colunas */}
+          {/* TÍTULO */}
           <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
-            <h1 className="text-2xl font-black uppercase italic tracking-tighter whitespace-nowrap px-4">
-              MONITORAMENTO DOS RIOS - REDEC 10 / REDEC 11
+            <h1 className="text-2xl font-black uppercase italic tracking-tighter whitespace-nowrap px-6">
+              MONITORAMENTO DOS RIOS - REDEC 10 Norte / REDEC 11 Noroeste
             </h1>
           </div>
 
-          {/* TABELA: table-fixed + w-auto para respeitar as larguras em pixels abaixo */}
+          {/* TABELA COM LARGURAS FIXAS EM PIXELS */}
           <table className="border-collapse table-fixed w-auto">
             <thead>
               <tr className="bg-[#8db4e2] text-[14px] uppercase font-black text-center">
-                <th className="border-2 border-black p-2 w-[110px]">RIOS</th>
-                <th className="border-2 border-black p-2 w-[180px]">MUNICÍPIOS</th>
+                <th className="border-2 border-black p-2 w-[120px]">RIOS / LAGOAS</th>
+                <th className="border-2 border-black p-2 w-[200px]">MUNICÍPIOS / ESTAÇÃO</th>
                 <th className="border-2 border-black p-2 bg-[#ffffcc] text-red-700 w-[75px]">TRANSB.</th>
                 {cabecalho.map((h, i) => (
                   <th key={i} className="border-2 border-black p-2 w-[70px]">{h}</th>
                 ))}
-                <th className="border-2 border-black p-2 w-[75px]">FONTE</th>
+                <th className="border-2 border-black p-2 w-[80px]">FONTE</th>
               </tr>
             </thead>
 
@@ -108,7 +108,7 @@ export default function ModalRelatorioAtual({
                           {rio}
                         </td>
                       )}
-                      <td className="border-2 border-black text-left px-2 text-[14px] leading-tight truncate">
+                      <td className="border-2 border-black text-left px-2 text-[14px] leading-tight">
                         {estacao.municipio}
                       </td>
                       <td className="border-2 border-black text-red-600 bg-[#ffffcc] text-[15px]">
@@ -129,8 +129,8 @@ export default function ModalRelatorioAtual({
             </tbody>
           </table>
 
-          {/* RODAPÉ */}
-          <div className="p-4 bg-white border-t-[4px] border-black mt-auto">
+          {/* RODAPÉ COM A LEGENDA INTEGRAL SOLICITADA */}
+          <div className="p-4 bg-white border-t-[4px] border-black mt-auto flex flex-col items-center">
             
             {/* Legenda de Cores */}
             <div className="flex gap-10 mb-4 items-center justify-center">
@@ -148,8 +148,8 @@ export default function ModalRelatorioAtual({
               </div>
             </div>
 
-            {/* Caixa de Informações e Siglas */}
-            <div className="border-[2px] border-black p-3 bg-white">
+            {/* Caixa de Informações e Siglas (TEXTO INTEGRAL) */}
+            <div className="border-[2px] border-black p-3 bg-white w-full max-w-[650px]">
               <p className="text-[11px] font-bold leading-tight text-black italic mb-2 text-center">
                 * Última Medição Válida / N/INF - Não Informado / A/R - Abaixo da régua / INOP - Inoperante / 
                 DBM - Destacamento de Bombeiro Militar / COMDEC - Coordenadoria Municipal de Defesa Civil / 
@@ -157,18 +157,17 @@ export default function ModalRelatorioAtual({
                 INEA - Instituto Estadual do Ambiente (Sistema Alerta de Cheias)
               </p>
               
-              {/* Linha Divisória interna */}
               <div className="h-[2px] bg-black mb-2 w-full"></div>
               
-              <p className="text-[11px] font-black协议 leading-tight text-black italic text-center">
+              <p className="text-[11px] font-black leading-tight text-black italic text-center">
                 Obs.: A dinâmica dos níveis dos rios é calculada com os dados disponíveis no momento, 
                 tendo como base as duas últimas cotas, podendo sofrer influência da dificuldade de 
                 comunicação entre os colaboradores ou demora na atualização dos aparelhos automáticos.
               </p>
             </div>
 
-            {/* Crédito Final (Opcional) */}
-            <p className="text-[9px] text-center mt-2 font-black uppercase">
+            {/* Crédito Final */}
+            <p className="text-[10px] text-center mt-3 font-black uppercase tracking-widest">
               REDEC 10 - NORTE - DEFESA CIVIL DO ESTADO DO RIO DE JANEIRO
             </p>
           </div>
