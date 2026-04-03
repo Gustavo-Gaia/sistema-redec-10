@@ -1,5 +1,4 @@
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -9,87 +8,100 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const ANA_BASE_URL = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas";
-const IDENTIFICADOR = process.env.ANA_IDENTIFICADOR;
-const SENHA = process.env.ANA_SENHA;
+// Cache de Token em memória (útil enquanto a instância da Vercel estiver quente)
+let tokenCache = null;
+let tokenExpiraEm = null;
 
-// 1. OBTENÇÃO DO TOKEN (Página 13 do Manual)
-async function obterToken() {
+async function getAuthToken() {
+  const agora = Date.now();
+  if (tokenCache && tokenExpiraEm && agora < tokenExpiraEm) return tokenCache;
+
   try {
-    const resp = await fetch(`${ANA_BASE_URL}/OAUth/v1`, {
-      method: 'GET',
-      headers: {
-        'Identificador': IDENTIFICADOR,
-        'Senha': SENHA
-      },
-      cache: 'no-store'
-    });
+    const resp = await fetch(
+      "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1",
+      {
+        headers: {
+          Identificador: process.env.ANA_IDENTIFICADOR,
+          Senha: process.env.ANA_SENHA,
+        },
+        cache: "no-store",
+      }
+    );
 
-    const data = await resp.json();
-    return data.items?.tokenautenticacao || null;
+    const json = await resp.json();
+    const token = json?.items?.tokenautenticacao;
+
+    if (!token) throw new Error("Token não encontrado na resposta");
+
+    tokenCache = token;
+    tokenExpiraEm = agora + 14 * 60 * 1000; // Token dura 15min, renovamos com 14 por segurança
+    return token;
   } catch (err) {
-    console.error("Erro ao obter Token:", err);
+    console.error("❌ Erro Token ANA:", err);
     return null;
   }
 }
 
-// 2. FILTRAGEM DE HORÁRIOS (Lógica que você prefere)
+function gerarHorariosAlvo(horaRef) {
+  const base = new Date();
+  base.setMinutes(0, 0, 0);
+  base.setHours(parseInt(horaRef));
+
+  return [0, 4, 8, 12].map((sub) => {
+    const d = new Date(base);
+    d.setHours(d.getHours() - sub);
+    return d;
+  });
+}
+
 function getValorAteHorario(lista, alvo) {
-  const limitePassado = new Date(alvo.getTime() - 120 * 60000); // 2h de tolerância
+  // Pega apenas medições que aconteceram ATÉ o horário alvo
+  // Adicionamos uma tolerância de 2 horas para trás (limitePassado)
+  const limitePassado = new Date(alvo.getTime() - 120 * 60000);
   
-  const filtrados = lista.filter(m => 
-    m.datetime <= alvo && m.datetime >= limitePassado
-  );
+  const filtrados = lista.filter((m) => m.datetime <= alvo && m.datetime >= limitePassado);
 
   if (filtrados.length === 0) return null;
 
-  // Ordena para pegar o mais próximo do alvo (o mais recente dentro da janela)
+  // Ordena para pegar o dado mais recente dentro da janela
   filtrados.sort((a, b) => b.datetime - a.datetime);
   return filtrados[0];
 }
 
-// 3. BUSCA DE DADOS NA API NOVA (Página 7 e 10 do Manual)
-async function processarEstacao(token, codigo, horaRef) {
-  // A nova API usa este endpoint para telemetria adotada
-  const url = `${ANA_BASE_URL}/HidroinfoanaSerieTelemetricaAdotada/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_30`;
+async function processarEstacao(codigo, token, horaRef) {
+  // Usando DIAS_30 para garantir que pegamos o histórico necessário para h12
+  const url = `https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1?CodigoDaEstacao=${codigo}&TipoFiltroData=DATA_LEITURA&RangeIntervaloDeBusca=DIAS_30`;
 
   try {
     const resp = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-      },
-      cache: 'no-store'
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
     });
 
     if (!resp.ok) return null;
     const json = await resp.json();
-    const items = json.items || [];
+    const items = json?.items || [];
 
-    // Converte os campos da API nova: Data_Hora_Medicao e Cota_Adotada
-    const medicoes = items.map(item => ({
-      datetime: new Date(item.Data_Hora_Medicao.replace(" ", "T")),
-      nivel: parseFloat(item.Cota_Adotada) / 100 // Converte cm para metros
-    })).filter(m => !isNaN(m.nivel));
+    const medicoes = items.map((m) => {
+      // 🚨 CORREÇÃO CRÍTICA: Substituir espaço por 'T' para formato ISO compatível
+      const dataFormatada = m.Data_Hora_Medicao.replace(" ", "T");
+      return {
+        datetime: new Date(dataFormatada),
+        nivel: parseFloat(m.Cota_Adotada) / 100, // cm para metros
+      };
+    }).filter((m) => !isNaN(m.nivel) && m.datetime.toString() !== "Invalid Date");
 
     if (medicoes.length === 0) return null;
 
-    // Gerar horários alvo (Ref, -4h, -8h, -12h)
-    const base = new Date();
-    base.setMinutes(0, 0, 0);
-    base.setHours(parseInt(horaRef));
-
+    const horarios = gerarHorariosAlvo(horaRef);
     const chaves = ["ref", "h4", "h8", "h12"];
     const resultado = {};
 
-    [0, 4, 8, 12].forEach((sub, i) => {
-      const alvo = new Date(base);
-      alvo.setHours(alvo.getHours() - sub);
-      
+    horarios.forEach((alvo, i) => {
       const m = getValorAteHorario(medicoes, alvo);
-      resultado[chaves[i]] = m ? { 
-        nivel: m.nivel, 
-        hora: m.datetime.toTimeString().slice(0, 5) 
+      resultado[chaves[i]] = m ? {
+        nivel: m.nivel,
+        hora: m.datetime.toTimeString().slice(0, 5),
       } : null;
     });
 
@@ -99,33 +111,30 @@ async function processarEstacao(token, codigo, horaRef) {
   }
 }
 
-// 4. ROUTE HANDLER PRINCIPAL
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
 
-  // Busca estações do Supabase
+  const token = await getAuthToken();
+  if (!token) return NextResponse.json({ error: "Erro de Autenticação" }, { status: 401 });
+
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
     .eq("fonte", "ANA")
     .eq("ativo", true);
 
-  if (!estacoes || estacoes.length === 0) return NextResponse.json({});
-
-  // Pede o token uma única vez para todas as estações
-  const token = await obterToken();
-  if (!token) return NextResponse.json({ error: "Token inválido" }, { status: 401 });
+  if (!estacoes) return NextResponse.json({});
 
   const resultados = {};
 
+  // Processamento sequencial com pequeno delay para respeitar o Rate Limit da ANA
   for (const estacao of estacoes) {
-    const dados = await processarEstacao(token, estacao.codigo_estacao, horaRef);
+    const dados = await processarEstacao(estacao.codigo_estacao, token, horaRef);
     if (dados) {
       resultados[estacao.id] = dados;
     }
-    // Pequena pausa para evitar bloqueio de IP pela ANA
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 150)); // 150ms entre cada estação
   }
 
   return NextResponse.json(resultados);
