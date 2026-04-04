@@ -11,18 +11,16 @@ export default function ModalRelatorioAtual({
   cabecalho,
   onClose
 }) {
+
   const reportRef = useRef(null)
 
-  // ============================
-  // FUNÇÃO DE EXPORTAÇÃO
-  // ============================
   const exportarImagem = async () => {
     if (!reportRef.current) return
     try {
       const dataUrl = await toPng(reportRef.current, {
         cacheBust: true,
         backgroundColor: "#ffffff",
-        pixelRatio: 3, // Aumentado para 3 para máxima nitidez em textos pequenos
+        pixelRatio: 2
       })
       const link = document.createElement("a")
       link.download = `relatorio-redec10-${new Date().toLocaleDateString("pt-BR")}.png`
@@ -33,9 +31,6 @@ export default function ModalRelatorioAtual({
     }
   }
 
-  // ============================
-  // LÓGICA DE CORES
-  // ============================
   function obterCorNivel(nivel, limite) {
     if (!nivel || !limite) return ""
     const n = parseFloat(nivel)
@@ -46,9 +41,6 @@ export default function ModalRelatorioAtual({
     return ""
   }
 
-  // ============================
-  // AGRUPAMENTO
-  // ============================
   const nomesRiosOrdenados = []
   const estacoesAgrupadas = estacoes.reduce((acc, est) => {
     const rio = est.rios?.nome || "OUTROS"
@@ -62,47 +54,41 @@ export default function ModalRelatorioAtual({
 
   return (
     <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[999] p-4 overflow-auto">
-      
-      {/* BOTÕES FLUTUANTES (Não saem na foto) */}
-      <div className="fixed top-6 right-6 flex gap-3 z-[1001]">
-        <button 
-          onClick={exportarImagem} 
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-black text-sm uppercase shadow-2xl transition-all active:scale-95"
-        >
-          📸 Gerar Imagem
+
+      {/* BOTÕES DE AÇÃO */}
+      <div className="fixed top-4 right-4 flex gap-2 z-[1001]">
+        <button onClick={exportarImagem} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-black text-[12px] uppercase shadow-xl">
+          📸 Salvar Foto
         </button>
-        <button 
-          onClick={onClose} 
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-black text-sm uppercase shadow-2xl transition-all active:scale-95"
-        >
+        <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-black text-[12px] uppercase shadow-xl">
           Fechar
         </button>
       </div>
 
-      {/* ÁREA DE CAPTURA */}
-      <div ref={reportRef} className="p-12 bg-white flex flex-col items-center">
-        
-        {/* CONTAINER DA TABELA (w-fit + border grosso) */}
-        <div className="bg-white border-[5px] border-black flex flex-col w-fit shadow-[20px_20px_0px_0px_rgba(0,0,0,0.1)]">
-          
-          {/* CABEÇALHO DO RELATÓRIO */}
-          <div className="bg-[#ffc000] border-b-[5px] border-black p-4 text-center">
-            <h1 className="text-2xl font-black uppercase italic tracking-tighter whitespace-nowrap">
+      {/* ÁREA DA FOTO (P-16 gera a moldura branca ao redor) */}
+      <div ref={reportRef} className="p-16 bg-white flex flex-col items-center">
+
+        {/* CONTAINER PRINCIPAL (w-fit para abraçar a tabela estreita) */}
+        <div className="bg-white border-[4px] border-black flex flex-col w-fit">
+
+          {/* TÍTULO */}
+          <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
+            <h1 className="text-2xl font-black uppercase italic tracking-tighter whitespace-nowrap px-6">
               MONITORAMENTO DOS RIOS - REDEC 10 Norte / REDEC 11 Noroeste
             </h1>
           </div>
 
-          {/* TABELA - table-auto e whitespace-nowrap nas células críticas */}
-          <table className="border-collapse table-auto">
+          {/* TABELA COM LARGURAS FIXAS EM PIXELS */}
+          <table className="border-collapse table-fixed w-auto">
             <thead>
-              <tr className="bg-[#8db4e2] text-[13px] uppercase font-black text-center">
-                <th className="border-[2px] border-black p-2 w-[110px]">RIOS / LAGOAS</th>
-                <th className="border-[2px] border-black p-2">MUNICÍPIOS / ESTAÇÃO</th>
-                <th className="border-[2px] border-black p-2 bg-[#ffffcc] text-red-700 w-[80px]">TRANSB.</th>
+              <tr className="bg-[#8db4e2] text-[14px] uppercase font-black text-center">
+                <th className="border-2 border-black p-2 w-[120px]">RIOS / LAGOAS</th>
+                <th className="border-2 border-black p-2 w-[200px]">MUNICÍPIOS / ESTAÇÃO</th>
+                <th className="border-2 border-black p-2 bg-[#ffffcc] text-red-700 w-[75px]">TRANSB.</th>
                 {cabecalho.map((h, i) => (
-                  <th key={i} className="border-[2px] border-black p-2 w-[75px]">{h}</th>
+                  <th key={i} className="border-2 border-black p-2 w-[70px]">{h}</th>
                 ))}
-                <th className="border-[2px] border-black p-2 w-[85px]">FONTE</th>
+                <th className="border-2 border-black p-2 w-[80px]">FONTE</th>
               </tr>
             </thead>
 
@@ -113,28 +99,29 @@ export default function ModalRelatorioAtual({
                   const d = dados[estacao.id] || {}
                   const limite = estacao.nivel_transbordo
                   const colunas = [d.h12, d.h8, d.h4, d.ref]
+                  const fonte = estacao.fonte || "-"
 
                   return (
-                    <tr key={estacao.id} className="text-center font-black text-[16px] leading-tight">
+                    <tr key={estacao.id} className="text-center font-black text-[16px] leading-none">
                       {idx === 0 && (
-                        <td rowSpan={lista.length} className="border-[2px] border-black bg-[#d9e1f2] text-[12px] px-1 font-bold uppercase">
+                        <td rowSpan={lista.length} className="border-2 border-black bg-[#d9e1f2] text-[13px] px-1 leading-tight">
                           {rio}
                         </td>
                       )}
-                      {/* whitespace-nowrap e text-left para municípios não quebrarem linha */}
-                      <td className="border-[2px] border-black text-left px-3 text-[14px] whitespace-nowrap uppercase tracking-tighter">
+                      {/* Adicionado whitespace-nowrap para evitar quebra de linha */}
+                      <td className="border-2 border-black text-left px-2 text-[14px] leading-tight whitespace-nowrap">
                         {estacao.municipio}
                       </td>
-                      <td className="border-[2px] border-black text-red-600 bg-[#ffffcc] text-[16px]">
+                      <td className="border-2 border-black text-red-600 bg-[#ffffcc] text-[15px]">
                         {limite ? parseFloat(limite).toFixed(2).replace(".", ",") : "—"}
                       </td>
                       {colunas.map((c, i) => (
-                        <td key={i} className={`border-[2px] border-black text-[20px] ${obterCorNivel(c?.nivel, limite)}`}>
+                        <td key={i} className={`border-2 border-black text-[18px] ${obterCorNivel(c?.nivel, limite)}`}>
                           {c?.nivel ? parseFloat(c.nivel).toFixed(2).replace(".", ",") : "—"}
                         </td>
                       ))}
-                      <td className="border-[2px] border-black text-[10px] px-1 uppercase leading-[1.1]">
-                        {estacao.fonte || "-"}
+                      <td className="border-2 border-black text-[11px] uppercase">
+                        {fonte}
                       </td>
                     </tr>
                   )
@@ -143,28 +130,28 @@ export default function ModalRelatorioAtual({
             </tbody>
           </table>
 
-          {/* RODAPÉ E LEGENDA */}
-          <div className="p-5 bg-white border-t-[5px] border-black flex flex-col items-center">
+          {/* RODAPÉ COM A LEGENDA INTEGRAL SOLICITADA */}
+          <div className="p-4 bg-white border-t-[4px] border-black mt-auto flex flex-col items-center">
             
-            {/* Cores */}
-            <div className="flex gap-8 mb-4">
+            {/* Legenda de Cores */}
+            <div className="flex gap-10 mb-4 items-center justify-center">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-[#ffc000] border-2 border-black"></div>
-                <span className="text-[13px] font-black uppercase italic">ALERTA</span>
+                <div className="w-6 h-6 bg-[#ffc000] border-2 border-black"></div> 
+                <span className="text-[13px] font-black uppercase">ALERTA</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-[#ff0000] border-2 border-black"></div>
-                <span className="text-[13px] font-black uppercase italic">TRANSBORDO</span>
+                <div className="w-6 h-6 bg-[#ff0000] border-2 border-black"></div> 
+                <span className="text-[13px] font-black uppercase">TRANSBORDO</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-[#ff00ff] border-2 border-black"></div>
-                <span className="text-[13px] font-black uppercase italic">20% ACIMA</span>
+                <div className="w-6 h-6 bg-[#ff00ff] border-2 border-black"></div> 
+                <span className="text-[13px] font-black uppercase">20% ACIMA</span>
               </div>
             </div>
 
-            {/* Siglas e Observações */}
-            <div className="border-[3px] border-black p-3 bg-white w-full max-w-[680px]">
-              <p className="text-[11px] font-bold leading-tight text-black italic mb-2 text-center uppercase">
+            {/* Caixa de Informações e Siglas (TEXTO INTEGRAL) */}
+            <div className="border-[2px] border-black p-3 bg-white w-full max-w-[650px]">
+              <p className="text-[11px] font-bold leading-tight text-black italic mb-2 text-center">
                 * Última Medição Válida / N/INF - Não Informado / A/R - Abaixo da régua / INOP - Inoperante / 
                 DBM - Destacamento de Bombeiro Militar / COMDEC - Coordenadoria Municipal de Defesa Civil / 
                 CPRM - Serviço Geológico do Brasil / ANA - Agência Nacional de Águas / 
@@ -180,8 +167,8 @@ export default function ModalRelatorioAtual({
               </p>
             </div>
 
-            {/* Crédito Institucional */}
-            <p className="text-[11px] text-center mt-4 font-black uppercase tracking-[0.2em] bg-black text-white px-4 py-1">
+            {/* Crédito Final */}
+            <p className="text-[10px] text-center mt-3 font-black uppercase tracking-widest">
               REDEC 10 - NORTE - DEFESA CIVIL DO ESTADO DO RIO DE JANEIRO
             </p>
           </div>
