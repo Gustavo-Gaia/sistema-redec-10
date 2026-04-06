@@ -1,18 +1,12 @@
-/* app/api/inea-relatorio/route.js */
-
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase"; // ✅ Acesso único centralizado
 import * as cheerio from "cheerio";
 import axios from "axios";
 import https from "https";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
+// Configuração para ignorar erros de certificado SSL do INEA
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false
 });
@@ -24,10 +18,10 @@ function sleep(ms) {
 // ============================
 // GERAR HORÁRIOS ALVO
 // ============================
-
 function gerarHorariosAlvo(horaRef) {
+  // Pega a data atual no fuso do servidor (ajustado para Brasília se necessário)
   const base = new Date();
-  base.setMinutes(0, 0, 0);
+  base.setMinutes(0, 0, 0, 0);
   base.setHours(parseInt(horaRef));
 
   return [0, 4, 8, 12].map((sub) => {
@@ -38,14 +32,18 @@ function gerarHorariosAlvo(horaRef) {
 }
 
 // ============================
-// PEGAR VALOR ATÉ HORÁRIO
+// PEGAR VALOR COM TOLERÂNCIA (60 MIN)
 // ============================
+function getValorComTolerancia(lista, alvo) {
+  // Define o limite de 1 hora atrás (60 minutos)
+  const limiteMinimo = new Date(alvo.getTime() - 60 * 60000);
 
-function getValorAteHorario(lista, alvo) {
-  const filtrados = lista.filter(m => m.dt <= alvo);
+  // Filtra medições que estão dentro da janela de 1h antes do horário alvo
+  const filtrados = lista.filter(m => m.dt <= alvo && m.dt >= limiteMinimo);
 
   if (filtrados.length === 0) return null;
 
+  // Ordena para garantir que pegamos a medição mais próxima do alvo
   filtrados.sort((a, b) => b.dt - a.dt);
 
   return filtrados[0];
@@ -54,33 +52,24 @@ function getValorAteHorario(lista, alvo) {
 // ============================
 // PROCESSAR ESTAÇÃO INEA
 // ============================
-
 async function processarINEA(codigo, horaRef) {
-
-  const url =
-    `https://alertadecheias.inea.rj.gov.br/alertadecheias/${codigo}.html`;
+  const url = `https://alertadecheias.inea.rj.gov.br/alertadecheias/${codigo}.html`;
 
   try {
-
     const response = await axios.get(url, {
-      timeout: 8000,
+      timeout: 10000,
       httpsAgent,
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36"
       }
     });
 
     const $ = cheerio.load(response.data);
-
     const tabela = $("#Table").length ? $("#Table") : $("table");
-
     const registros = [];
 
     tabela.find("tr").each((i, el) => {
-
       const cols = $(el).find("td");
-
       if (cols.length < 8) return;
 
       const dataHoraTxt = $(cols[0]).text().trim();
@@ -89,89 +78,73 @@ async function processarINEA(codigo, horaRef) {
       if (!dataHoraTxt || !nivelTxt || dataHoraTxt.includes("Data")) return;
 
       try {
-
         const [dataPart, horaPart] = dataHoraTxt.split(" ");
         const [dia, mes, ano] = dataPart.split("/");
-
+        
+        // Criar objeto Date robusto
         const dt = new Date(`${ano}-${mes}-${dia}T${horaPart}:00`);
-
         const nivel = parseFloat(nivelTxt.replace(",", "."));
 
         if (!isNaN(dt.getTime()) && !isNaN(nivel)) {
           registros.push({ dt, nivel });
         }
-
-      } catch {}
-
+      } catch (e) {}
     });
 
     if (registros.length === 0) return null;
 
-    const horarios = gerarHorariosAlvo(horaRef);
+    const horariosAlvo = gerarHorariosAlvo(horaRef);
     const chaves = ["ref", "h4", "h8", "h12"];
-
     const resultado = {};
 
-    horarios.forEach((alvo, i) => {
+    horariosAlvo.forEach((alvo, i) => {
+      const m = getValorComTolerancia(registros, alvo);
 
-      const m = getValorAteHorario(registros, alvo);
-
-      resultado[chaves[i]] = m
-        ? {
-            nivel: m.nivel,
-            hora: m.dt.toTimeString().slice(0, 5)
-          }
-        : null;
-
+      resultado[chaves[i]] = m ? {
+        nivel: m.nivel,
+        hora: m.dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        data: m.dt.toISOString().split('T')[0] // Adicionado para consistência com a ANA
+      } : null;
     });
 
     return resultado;
 
   } catch (error) {
-
-    console.log("Erro INEA estação:", codigo, error.message);
-
+    console.error(`❌ Erro scraper INEA (${codigo}):`, error.message);
     return null;
-
   }
-
 }
 
 // ============================
-// API
+// HANDLER GET
 // ============================
-
 export async function GET(request) {
-
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
 
-  const { data: estacoes } = await supabase
+  // Busca estações ativas do INEA no banco via cliente centralizado
+  const { data: estacoes, error } = await supabase
     .from("estacoes")
-    .select("id,codigo_estacao")
-    .eq("fonte","INEA")
-    .eq("ativo",true);
+    .select("id, codigo_estacao")
+    .eq("fonte", "INEA")
+    .eq("ativo", true);
 
-  if (!estacoes) return NextResponse.json({});
+  if (error || !estacoes) {
+    return NextResponse.json({ error: "Erro ao buscar estações" }, { status: 500 });
+  }
 
   const resultados = {};
 
+  // Processamento sequencial com delay para evitar bloqueio por IP (WAF/Firewall do INEA)
   for (const estacao of estacoes) {
-
-    const dados = await processarINEA(
-      estacao.codigo_estacao,
-      horaRef
-    );
-
+    const dados = await processarINEA(estacao.codigo_estacao, horaRef);
+    
     if (dados) {
       resultados[estacao.id] = dados;
     }
 
-    // mantém proteção anti-bloqueio
-    await sleep(600);
-
+    await sleep(600); // Pausa de segurança
   }
 
   return NextResponse.json(resultados);
-
 }
