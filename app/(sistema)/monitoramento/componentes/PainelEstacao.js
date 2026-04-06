@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from "react"
 import { useMonitoramento } from "../MonitoramentoContext"
-import { X } from "lucide-react" // Usando lucide para ícones consistentes
+import { X } from "lucide-react"
 
 import CardEstacao from "./CardEstacao"
 import GraficoEstacao from "./GraficoEstacao"
@@ -13,19 +13,22 @@ import TabelaHistorico from "./TabelaHistorico"
 export default function PainelEstacao() {
   const { estacaoSelecionada, selecionarEstacao } = useMonitoramento()
   const [aba, setAba] = useState("visao")
+  
+  // ✅ Transformamos a presença do objeto em um valor booleano (Aberto ou Fechado)
   const aberto = !!estacaoSelecionada
 
   function fechar() {
     selecionarEstacao(null)
   }
 
+  // ✅ Sempre que mudar de estação, voltamos para a aba de "Visão Geral"
   useEffect(() => {
     if (estacaoSelecionada) setAba("visao")
-  }, [estacaoSelecionada])
+  }, [estacaoSelecionada?.id]) // Usar o ID como dependência é mais seguro que o objeto todo
 
   return (
     <>
-      {/* BACKDROP MAIS SUAVE */}
+      {/* 1. BACKDROP (Fundo escurecido que fecha ao clicar) */}
       <div
         onClick={fechar}
         className={`
@@ -35,16 +38,14 @@ export default function PainelEstacao() {
         `}
       />
 
-      {/* PAINEL COM DESIGN GLASSMORPHISM */}
+      {/* 2. PAINEL PRINCIPAL (Gaveta) */}
       <div
         className={`
           fixed z-[1000] bg-white/95 backdrop-blur-md shadow-2xl flex flex-col
           transition-all duration-500 ease-out border border-white/20
 
-          /* MOBILE */
+          /* Responsividade: No Mobile sobe do fundo, no Desktop centraliza */
           bottom-0 left-0 w-full h-[92%] rounded-t-[2.5rem]
-
-          /* DESKTOP */
           md:top-1/2 md:left-1/2 md:-translate-x-1/2 
           md:w-[950px] md:h-[85vh] md:rounded-3xl
 
@@ -55,7 +56,7 @@ export default function PainelEstacao() {
       >
         {estacaoSelecionada && (
           <>
-            {/* HEADER INTEGRADO */}
+            {/* CABEÇALHO */}
             <div className="flex items-center justify-between p-6 pb-2">
               <div>
                 <h2 className="text-xl font-black text-slate-800 tracking-tight">
@@ -67,53 +68,42 @@ export default function PainelEstacao() {
               </div>
               <button
                 onClick={fechar}
-                className="bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 p-2 rounded-full transition-all duration-200"
+                className="bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 p-2 rounded-full transition-all"
               >
                 <X size={20} strokeWidth={3} />
               </button>
             </div>
 
-            {/* TABS ESTILO PÍLULA (PILL TABS) */}
+            {/* SELETOR DE ABAS (Pills) */}
             <div className="px-6 py-4">
               <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
-                <button
-                  onClick={() => setAba("visao")}
-                  className={`
-                    px-6 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all
-                    ${aba === "visao"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"}
-                  `}
-                >
-                  Visão geral
-                </button>
-
-                <button
-                  onClick={() => setAba("historico")}
-                  className={`
-                    px-6 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all
-                    ${aba === "historico"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"}
-                  `}
-                >
-                  Histórico
-                </button>
+                {["visao", "historico"].map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => setAba(item)}
+                    className={`
+                      px-6 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all
+                      ${aba === item
+                        ? "bg-white text-blue-600 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"}
+                    `}
+                  >
+                    {item === "visao" ? "Visão Geral" : "Histórico"}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* CONTEÚDO COM SCROLL PERSONALIZADO */}
-            <div className="flex-1 overflow-y-auto px-6 pb-8 space-y-6 scrollbar-thin scrollbar-thumb-slate-200">
-              {aba === "visao" && (
+            {/* CONTEÚDO DINÂMICO */}
+            <div className="flex-1 overflow-y-auto px-6 pb-8 space-y-6 scrollbar-hide">
+              {aba === "visao" ? (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <CardEstacao />
                   <div className="mt-6 bg-slate-50/50 rounded-2xl border border-slate-100 p-4">
                      <GraficoEstacao estacao={estacaoSelecionada} />
                   </div>
                 </div>
-              )}
-
-              {aba === "historico" && (
+              ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <TabelaHistorico estacao={estacaoSelecionada} />
                 </div>
