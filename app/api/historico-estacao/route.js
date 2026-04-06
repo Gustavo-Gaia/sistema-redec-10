@@ -26,30 +26,32 @@ export async function GET(req) {
       .eq("estacao_id", estacaoId)
       .order("data_hora", { ascending: false })
 
-    // Aplicamos o filtro de tempo baseado no período selecionado
     const agora = new Date()
     
+    // Filtros de tempo
     if (periodo === "24h") {
       const dataCorte = new Date(agora.getTime() - (24 * 60 * 60 * 1000)).toISOString()
-      query = query.gte("data_hora", dataCorte)
+      query = query.gte("data_hora", dataCorte).limit(200) // Limite de segurança
     } 
     else if (periodo === "7d") {
       const dataCorte = new Date(agora.getTime() - (7 * 24 * 60 * 60 * 1000)).toISOString()
-      query = query.gte("data_hora", dataCorte)
+      query = query.gte("data_hora", dataCorte).limit(400)
     } 
     else if (periodo === "30d") {
       const dataCorte = new Date(agora.getTime() - (30 * 24 * 60 * 60 * 1000)).toISOString()
-      query = query.gte("data_hora", dataCorte)
+      query = query.gte("data_hora", dataCorte).limit(800)
     }
-    // No caso do "total", não adicionamos o .gte(), ele trará tudo o que houver no banco.
+    else {
+      // Caso seja "total", limitamos a 1000 para não quebrar o front-end
+      query = query.limit(1000)
+    }
 
-    const { data, error } = await query
+    let { data, error } = await query
 
     if (error) throw error
 
-    // Fallback: Se não houver dados no período (comum em estações manuais/DBM), 
-    // trazemos as últimas 10 leituras independente da data para o gráfico não morrer.
-    if (data.length === 0) {
+    // Fallback amigável
+    if (!data || data.length === 0) {
       const { data: fallback } = await supabase
         .from("medicoes")
         .select("nivel, data_hora, abaixo_regua")
@@ -64,6 +66,6 @@ export async function GET(req) {
 
   } catch (error) {
     console.error("Erro API Historico:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Erro interno ao buscar dados" }, { status: 500 })
   }
 }
