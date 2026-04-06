@@ -3,13 +3,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase" // ✅ Uso do Cliente Único
 import ModalRelatorio from "../componentes/modais/ModalRelatorio"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
 
 export default function InserirMedicoes() {
   const [estacoes, setEstacoes] = useState([])
@@ -233,6 +228,8 @@ export default function InserirMedicoes() {
               const registro = dados[estacao.id] || {}
               const ehComdec = estacao.fonte === "COMDEC"
               const estaSelecionada = idsSelecionados.includes(estacao.id)
+              // ✅ Validação de Nível: borda vermelha se ultrapassar transbordo
+              const ultrapassouTransbordo = registro.nivel > estacao.nivel_transbordo
 
               return (
                 <tr key={estacao.id} className={`border-b transition-colors ${estaSelecionada ? 'bg-orange-50/30' : ''} ${ehComdec ? 'hover:bg-blue-50' : 'hover:bg-slate-50'}`}>
@@ -265,7 +262,7 @@ export default function InserirMedicoes() {
                       type="number"
                       step="0.01"
                       placeholder="0.00"
-                      className={`border rounded p-1 w-24 text-center font-bold outline-none ${ehComdec ? 'border-blue-400 focus:border-blue-600' : 'focus:border-blue-500'}`}
+                      className={`border rounded p-1 w-24 text-center font-bold outline-none transition-colors ${ultrapassouTransbordo ? 'border-red-500 bg-red-50 text-red-700' : ehComdec ? 'border-blue-400 focus:border-blue-600' : 'focus:border-blue-500'}`}
                       value={registro.nivel || ""}
                       disabled={registro.abaixo_regua}
                       onChange={(e) => atualizarCampo(estacao.id, "nivel", e.target.value)}
