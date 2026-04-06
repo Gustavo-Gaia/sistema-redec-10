@@ -3,12 +3,7 @@
 "use client"
 
 import { useState } from "react"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+import { supabase } from "@/lib/supabase" // ✅ CORRIGIDO: Agora utiliza o acesso centralizado
 
 export default function EstacoesLista({ rios, estacoes }) {
 
