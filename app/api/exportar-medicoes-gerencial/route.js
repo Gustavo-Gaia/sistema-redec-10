@@ -1,10 +1,7 @@
-import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+/* app/api/exportar-medicoes-gerencial/route.js */
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { NextResponse } from "next/server"
+import { supabase } from "@/lib/supabase" // ✅ CORRIGIDO: Agora utiliza o acesso centralizado
 
 export async function GET(req) {
   try {
