@@ -7,6 +7,7 @@ import { Waves, Clock, Database, Activity, ShieldCheck } from "lucide-react"
 export default function CardEstacao() {
   const { estacaoAtual } = useMonitoramento()
 
+  // 1. Estado Vazio: Caso nenhuma estação esteja selecionada
   if (!estacaoAtual) {
     return (
       <div className="bg-white border border-slate-200 rounded-[2.5rem] p-12 text-center text-slate-400">
@@ -28,9 +29,13 @@ export default function CardEstacao() {
 
   const corHex = coresHex[situacao.texto] || "#3b82f6"
   const circunferencia = 471
-  const offset = circunferencia - (Math.min(percentual, 120) / 120 * circunferencia)
+  
+  // ✅ CORREÇÃO LÓGICA: O Gauge deve preencher até 100%. 
+  // Se o rio transbordar (ex: 120%), o círculo deve continuar cheio, não resetar.
+  const valorParaGauge = Math.min(Math.max(percentual, 0), 100)
+  const offset = circunferencia - (valorParaGauge / 100 * circunferencia)
 
-  // Formatação da Data e Hora separadamente
+  // 2. Formatador de Tempo: Transforma o ISO do banco em algo legível
   const formatarDataHora = (isoString) => {
     if (!isoString) return { data: "--/--", hora: "--:--" }
     const d = new Date(isoString)
@@ -45,17 +50,17 @@ export default function CardEstacao() {
   return (
     <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-2xl shadow-slate-200/40 p-6 md:p-10">
       
-      {/* CABEÇALHO */}
+      {/* CABEÇALHO COM STATUS PULSANTE */}
       <div className="flex flex-col md:flex-row justify-between items-start mb-10 gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-[0.2em]">
             <Activity size={14} className="animate-pulse" />
             Dados em Tempo Real
           </div>
-          <h3 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
+          <h3 className="text-4xl font-black text-slate-900 tracking-tight">
             {estacaoAtual.municipio}
           </h3>
-          <p className="text-xl text-slate-400 font-medium italic uppercase tracking-wide">
+          <p className="text-xl text-slate-400 font-medium italic uppercase">
             {estacaoAtual.rios?.nome || "—"}
           </p>
         </div>
@@ -68,7 +73,7 @@ export default function CardEstacao() {
 
       <div className="flex flex-col lg:flex-row gap-12 items-center">
         
-        {/* GAUGE CIRCULAR */}
+        {/* 3. GAUGE CIRCULAR (O "Termômetro" do Rio) */}
         <div className="relative flex items-center justify-center w-44 h-44">
           <div className="absolute inset-0 rounded-full blur-3xl opacity-10" style={{ backgroundColor: corHex }} />
           <svg className="absolute inset-0 w-full h-full transform -rotate-90">
@@ -84,14 +89,14 @@ export default function CardEstacao() {
           </svg>
           <div className="relative z-10 flex flex-col items-center justify-center">
             <div className="flex items-baseline">
-              <span className="text-4xl font-black text-slate-900 leading-none">{percentual > 0 ? percentual.toFixed(0) : "0"}</span>
+              <span className="text-4xl font-black text-slate-900">{percentual > 0 ? percentual.toFixed(0) : "0"}</span>
               <span className="text-lg font-bold text-slate-400 ml-0.5">%</span>
             </div>
             <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest mt-1">Capacidade</span>
           </div>
         </div>
 
-        {/* MÉTRICAS */}
+        {/* 4. GRID DE MÉTRICAS */}
         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <MetricCard 
             label="Nível Atual" 
@@ -105,7 +110,6 @@ export default function CardEstacao() {
             icon={<Database className="text-slate-400" size={16} />}
           />
           
-          {/* ÚLTIMA LEITURA COM DATA E HORA SEPARADOS */}
           <MetricCard 
             label="Última Leitura" 
             value={
@@ -128,6 +132,7 @@ export default function CardEstacao() {
   )
 }
 
+// 5. Sub-componente para os cards menores (Evita repetição de código)
 function MetricCard({ label, value, icon, isMain = false }) {
   return (
     <div className={`p-6 rounded-[1.8rem] border transition-all duration-300 ${isMain ? 'bg-blue-50/40 border-blue-100 shadow-sm' : 'bg-slate-50/50 border-slate-100'}`}>
