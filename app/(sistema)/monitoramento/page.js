@@ -1,18 +1,13 @@
 /* app/(sistema)/monitoramento/page.js */
 
-import { createClient } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase" // ✅ CORRIGIDO: Usa a instância única
 import { MonitoramentoProvider } from "./MonitoramentoContext"
 import TabsMonitoramento from "./TabsMonitoramento"
 import { unstable_noStore as noStore } from "next/cache"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
-
 export default async function Monitoramento() {
 
-  // 🔥 REMOVE QUALQUER CACHE
+  // 🔥 REMOVE QUALQUER CACHE (Garante dado novo a cada acesso)
   noStore()
 
   /* ============================= */
@@ -33,12 +28,12 @@ export default async function Monitoramento() {
     .eq("ativo", true)
 
   /* ============================= */
-  /* ÚLTIMAS MEDIÇÕES */
+  /* ÚLTIMAS MEDIÇÕES (Função no Banco) */
   /* ============================= */
   const { data: ultimasMedicoes } = await supabase
     .rpc("ultimas_medicoes")
 
-  // 🔥 FORÇA RE-RENDER SE DADO MUDAR
+  // 🔥 FORÇA RE-RENDER (Identificador de mudança)
   const lastUpdate = ultimasMedicoes?.[0]?.data_hora || Date.now()
 
   return (
@@ -58,6 +53,7 @@ export default async function Monitoramento() {
           Sistema de acompanhamento das estações hidrológicas da região.
         </p>
 
+        {/* Distribui os dados para as abas (Mapa, Cards, Relatório) */}
         <TabsMonitoramento
           rios={rios || []}
           estacoes={estacoes || []}
