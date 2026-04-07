@@ -128,86 +128,94 @@ export default function ContainerPage() {
   // 🔥 EXPORTAÇÃO PROFISSIONAL
   async function exportarRelatorio(ano) {
     const doc = new jsPDF()
-
+  
     const dados = movimentacoes.filter(
       (m) => new Date(m.data_hora).getFullYear() === ano
     )
-
-    let totalColchoes = 0
-    let totalKits = 0
-
-    dados.forEach((m) => {
-      if (m.tipo === "ENTRADA") {
-        totalColchoes += m.colchao_qtd
-        totalKits += m.kit_dorm_qtd
-      } else {
-        totalColchoes -= m.colchao_qtd
-        totalKits -= m.kit_dorm_qtd
-      }
-    })
-
+  
     // 🔹 LOGO
     const img = new Image()
     img.src = "/logotipo_redec_norte.png"
     await new Promise((r) => (img.onload = r))
-
-    doc.addImage(img, "PNG", 10, 10, 30, 30)
-
-    // 🔹 CABEÇALHO
+  
+    doc.addImage(img, "PNG", 10, 10, 25, 25)
+  
+    // 🔹 CABEÇALHO ORGANIZADO
     doc.setFontSize(10)
-    doc.text("SECRETARIA DE ESTADO DE DEFESA CIVIL", 50, 15)
-    doc.text("DIRETORIA GERAL DE DEFESA CIVIL", 50, 20)
-    doc.text("REGIONAL DE DEFESA CIVIL - REDEC 10 - NORTE", 50, 25)
-
-    // 🔹 TÍTULO
+    doc.setFont("helvetica", "bold")
+    doc.text("SECRETARIA DE ESTADO DE DEFESA CIVIL", 40, 14)
+  
+    doc.setFont("helvetica", "normal")
+    doc.text("DIRETORIA GERAL DE DEFESA CIVIL", 40, 19)
+    doc.text("REGIONAL DE DEFESA CIVIL - REDEC 10 - NORTE", 40, 24)
+  
+    // 🔹 TÍTULO EM 3 LINHAS
+    doc.setFont("helvetica", "bold")
     doc.setFontSize(14)
-    doc.text(
-      `RELATÓRIO GERAL CONTÊINER HUMANITÁRIO C-02 ANO ${ano}`,
-      105,
-      45,
-      { align: "center" }
-    )
-
-    // 🔹 RESUMO
-    doc.setFontSize(11)
-    doc.text(`Saldo Colchões: ${totalColchoes}`, 14, 60)
-    doc.text(`Saldo Kits: ${totalKits}`, 14, 66)
-
-    // 🔹 RELATÓRIO ESTILO TEXTO
-    let y = 75
-
-    dados.forEach((m, i) => {
-      if (y > 270) {
-        doc.addPage()
-        y = 20
-      }
-
-      const linha = `${i + 1}. ${new Date(m.data_hora).toLocaleString()} | ${
-        m.tipo
-      } | ${m.viatura} | ${m.origem_destino} | Colchões: ${
-        m.colchao_qtd
-      } | Kits: ${m.kit_dorm_qtd}`
-
-      doc.setFontSize(9)
-      doc.text(linha, 14, y)
-
-      y += 6
+    doc.text("RELATÓRIO GERAL", 105, 40, { align: "center" })
+  
+    doc.setFontSize(12)
+    doc.setFont("helvetica", "normal")
+    doc.text("Contêiner Humanitário C-02", 105, 47, { align: "center" })
+  
+    doc.text(`Ano ${ano}`, 105, 53, { align: "center" })
+  
+    // 🔹 TABELA
+    const rows = dados.map((m, i) => {
+      const data = new Date(m.data_hora)
+  
+      return [
+        i + 1,
+        m.tipo,
+        data.toLocaleDateString(),
+        data.toLocaleTimeString().slice(0, 5),
+        m.viatura || "-",
+        m.origem_destino || "-",
+        `Colchões: ${m.colchao_qtd} / Kits: ${m.kit_dorm_qtd}`,
+        m.observacao || "-"
+      ]
     })
-
-    // 🔹 PAGINAÇÃO
+  
+    const autoTable = (await import("jspdf-autotable")).default
+  
+    autoTable(doc, {
+      startY: 60,
+      head: [[
+        "Nº",
+        "Situação",
+        "Data",
+        "Hora",
+        "Viatura",
+        "Destino",
+        "Material",
+        "Observação"
+      ]],
+      body: rows,
+      styles: {
+        fontSize: 8,
+        cellPadding: 2
+      },
+      headStyles: {
+        fillColor: [22, 163, 74], // verde institucional
+        textColor: 255
+      }
+    })
+  
+    // 🔹 PAGINAÇÃO + RODAPÉ
     const totalPages = doc.getNumberOfPages()
-
+  
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i)
-
-      doc.setFontSize(10)
+  
+      doc.setFontSize(9)
+  
       doc.text(
         `Página ${i} de ${totalPages}`,
-        180,
+        200,
         290,
         { align: "right" }
       )
-
+  
       doc.text(
         `© ${ano} | REDEC 10 - Norte | Defesa Civil Estadual`,
         105,
@@ -215,7 +223,7 @@ export default function ContainerPage() {
         { align: "center" }
       )
     }
-
+  
     doc.save(`relatorio_${ano}.pdf`)
   }
 
