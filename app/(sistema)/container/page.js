@@ -154,7 +154,7 @@ export default function ContainerPage() {
       )}
 
       <div className="bg-gradient-to-br from-green-600 to-emerald-800 p-6 rounded-2xl text-white">
-        <h1 className="text-2xl font-bold">Contêiner Humanitário</h1>
+        <h1 className="text-2xl font-bold">Contêiner Humanitário C-02</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
