@@ -1,5 +1,7 @@
 /* app/(sistema)/container/page.js */
 
+/* app/(sistema)/container/page.js */
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -124,7 +126,6 @@ export default function ContainerPage() {
     setModalOpen(true)
   }
 
-  // 🔥 EXPORTAÇÃO FINAL PROFISSIONAL
   async function exportarRelatorio(ano) {
     const doc = new jsPDF()
 
@@ -132,7 +133,6 @@ export default function ContainerPage() {
       (m) => new Date(m.data_hora).getFullYear() === ano
     )
 
-    // 🔹 CALCULAR TOTAIS
     let totalColchoes = 0
     let totalKits = 0
 
@@ -146,19 +146,16 @@ export default function ContainerPage() {
       }
     })
 
-    // 🔹 DATA ATUAL
     const agora = new Date()
     const dataFormatada = agora.toLocaleDateString()
     const horaFormatada = agora.toLocaleTimeString().slice(0, 5)
 
-    // 🔹 LOGO
     const img = new Image()
     img.src = "/logotipo_redec_norte.png"
     await new Promise((r) => (img.onload = r))
 
     doc.addImage(img, "PNG", 10, 10, 25, 25)
 
-    // 🔹 CABEÇALHO
     doc.setFontSize(10)
     doc.setFont("helvetica", "bold")
     doc.text("SECRETARIA DE ESTADO DE DEFESA CIVIL", 40, 14)
@@ -167,7 +164,6 @@ export default function ContainerPage() {
     doc.text("DIRETORIA GERAL DE DEFESA CIVIL", 40, 19)
     doc.text("REGIONAL DE DEFESA CIVIL - REDEC 10 - NORTE", 40, 24)
 
-    // 🔹 TÍTULO
     doc.setFont("helvetica", "bold")
     doc.setFontSize(14)
     doc.text("RELATÓRIO GERAL", 105, 40, { align: "center" })
@@ -177,7 +173,6 @@ export default function ContainerPage() {
     doc.text("Contêiner Humanitário C-02", 105, 47, { align: "center" })
     doc.text(`Ano ${ano}`, 105, 53, { align: "center" })
 
-    // 🔹 TABELA
     const rows = dados.map((m, i) => {
       const data = new Date(m.data_hora)
 
@@ -188,7 +183,7 @@ export default function ContainerPage() {
         data.toLocaleTimeString().slice(0, 5),
         m.viatura || "-",
         m.origem_destino || "-",
-        `${m.colchao_qtd} / ${m.kit_dorm_qtd}`,
+        `${m.colchao_qtd} Colchões / ${m.kit_dorm_qtd} Kits`,
         m.observacao || "-"
       ]
     })
@@ -197,7 +192,6 @@ export default function ContainerPage() {
 
     autoTable(doc, {
       startY: 60,
-
       head: [[
         "Nº",
         "Situação",
@@ -205,25 +199,21 @@ export default function ContainerPage() {
         "Hora",
         "Viatura",
         "Destino",
-        "Material (Colchões / Kits)",
+        "Material",
         "Observação"
       ]],
-
       body: rows,
-
       styles: {
         fontSize: 9,
         cellPadding: 2,
         textColor: [31, 41, 55]
       },
-
       headStyles: {
         fillColor: [55, 65, 81],
         textColor: 255,
         fontSize: 11,
         halign: "center"
       },
-
       didParseCell: function (data) {
         if (data.section === "body") {
           const tipo = dados[data.row.index].tipo
@@ -239,39 +229,41 @@ export default function ContainerPage() {
       }
     })
 
-    // 🔹 FINAL DO DOCUMENTO
     const finalY = doc.lastAutoTable.finalY + 10
 
-    // TOTAL (direita)
+    // 🔹 LEGENDA
+    doc.setFontSize(9)
+    doc.setFont("helvetica", "normal")
+
+    doc.text("Kits: São kits dormitórios compostos por:", 14, finalY)
+    doc.text("01 Lençol", 14, finalY + 5)
+    doc.text("01 Fronha", 14, finalY + 10)
+    doc.text("01 Travesseiro", 14, finalY + 15)
+    doc.text("01 Cobertor", 14, finalY + 20)
+
+    // TOTAL
     doc.setFontSize(10)
     doc.setFont("helvetica", "bold")
 
-    doc.text("Total em estoque no ano:", 200, finalY, { align: "right" })
+    doc.text("Total em estoque:", 200, finalY, { align: "right" })
     doc.text(`Colchões: ${totalColchoes}`, 200, finalY + 6, { align: "right" })
-    doc.text(`Kits: ${totalKits}`, 200, finalY + 12, { align: "right" })
+    doc.text(`Kits Dormitórios: ${totalKits}`, 200, finalY + 12, { align: "right" })
 
-    // DATA (esquerda)
     doc.setFontSize(9)
     doc.setFont("helvetica", "normal")
 
     doc.text(
       `Dados obtidos em ${dataFormatada} às ${horaFormatada}h`,
       14,
-      finalY + 12
+      finalY + 28
     )
 
-    // 🔹 PAGINAÇÃO
     const totalPages = doc.getNumberOfPages()
 
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i)
 
-      doc.text(
-        `Página ${i} de ${totalPages}`,
-        200,
-        290,
-        { align: "right" }
-      )
+      doc.text(`Página ${i} de ${totalPages}`, 200, 290, { align: "right" })
 
       doc.text(
         `© ${ano} | REDEC 10 - Norte | Defesa Civil Estadual`,
