@@ -98,7 +98,7 @@ export default function ContainerPage() {
 
       <button
         onClick={() => setModalOpen(true)}
-        className="fixed bottom-6 right-6 bg-green-600 text-white p-4 rounded-full"
+        className="fixed bottom-20 right-6 bg-green-600 hover:bg-green-700 text-white p-4 rounded-full shadow-lg transition z-50"
       >
         <Plus />
       </button>
