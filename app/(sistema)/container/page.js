@@ -195,7 +195,7 @@ export default function ContainerPage() {
       body: rows,
     
       styles: {
-        fontSize: 10,
+        fontSize: 9,
         cellPadding: 2,
         textColor: [31, 41, 55] // cinza escuro elegante
       },
@@ -203,7 +203,7 @@ export default function ContainerPage() {
       headStyles: {
         fillColor: [55, 65, 81], // cinza escuro (header)
         textColor: 255,
-        fontSize: 12, // 🔹 cabeçalho
+        fontSize: 11, // 🔹 cabeçalho
         halign: "center"
       },
     
