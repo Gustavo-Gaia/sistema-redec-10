@@ -10,7 +10,6 @@ import TimelineMovimentacoes from "./componentes/TimelineMovimentacoes"
 import ModalMovimentacao from "./componentes/ModalMovimentacao"
 
 import { Plus } from "lucide-react"
-
 import jsPDF from "jspdf"
 
 export default function ContainerPage() {
@@ -125,45 +124,63 @@ export default function ContainerPage() {
     setModalOpen(true)
   }
 
-  // 🔥 EXPORTAÇÃO PROFISSIONAL
+  // 🔥 EXPORTAÇÃO FINAL PROFISSIONAL
   async function exportarRelatorio(ano) {
     const doc = new jsPDF()
-  
+
     const dados = movimentacoes.filter(
       (m) => new Date(m.data_hora).getFullYear() === ano
     )
-  
+
+    // 🔹 CALCULAR TOTAIS
+    let totalColchoes = 0
+    let totalKits = 0
+
+    dados.forEach((m) => {
+      if (m.tipo === "ENTRADA") {
+        totalColchoes += m.colchao_qtd
+        totalKits += m.kit_dorm_qtd
+      } else {
+        totalColchoes -= m.colchao_qtd
+        totalKits -= m.kit_dorm_qtd
+      }
+    })
+
+    // 🔹 DATA ATUAL
+    const agora = new Date()
+    const dataFormatada = agora.toLocaleDateString()
+    const horaFormatada = agora.toLocaleTimeString().slice(0, 5)
+
     // 🔹 LOGO
     const img = new Image()
     img.src = "/logotipo_redec_norte.png"
     await new Promise((r) => (img.onload = r))
-  
+
     doc.addImage(img, "PNG", 10, 10, 25, 25)
-  
-    // 🔹 CABEÇALHO ORGANIZADO
+
+    // 🔹 CABEÇALHO
     doc.setFontSize(10)
     doc.setFont("helvetica", "bold")
     doc.text("SECRETARIA DE ESTADO DE DEFESA CIVIL", 40, 14)
-  
+
     doc.setFont("helvetica", "normal")
     doc.text("DIRETORIA GERAL DE DEFESA CIVIL", 40, 19)
     doc.text("REGIONAL DE DEFESA CIVIL - REDEC 10 - NORTE", 40, 24)
-  
-    // 🔹 TÍTULO EM 3 LINHAS
+
+    // 🔹 TÍTULO
     doc.setFont("helvetica", "bold")
     doc.setFontSize(14)
     doc.text("RELATÓRIO GERAL", 105, 40, { align: "center" })
-  
+
     doc.setFontSize(12)
     doc.setFont("helvetica", "normal")
     doc.text("Contêiner Humanitário C-02", 105, 47, { align: "center" })
-  
     doc.text(`Ano ${ano}`, 105, 53, { align: "center" })
-  
+
     // 🔹 TABELA
     const rows = dados.map((m, i) => {
       const data = new Date(m.data_hora)
-  
+
       return [
         i + 1,
         m.tipo,
@@ -171,16 +188,16 @@ export default function ContainerPage() {
         data.toLocaleTimeString().slice(0, 5),
         m.viatura || "-",
         m.origem_destino || "-",
-        `Colchões: ${m.colchao_qtd} / Kits: ${m.kit_dorm_qtd}`,
+        `${m.colchao_qtd} / ${m.kit_dorm_qtd}`,
         m.observacao || "-"
       ]
     })
-  
+
     const autoTable = (await import("jspdf-autotable")).default
-  
+
     autoTable(doc, {
       startY: 60,
-    
+
       head: [[
         "Nº",
         "Situação",
@@ -188,59 +205,74 @@ export default function ContainerPage() {
         "Hora",
         "Viatura",
         "Destino",
-        "Material",
+        "Material (Colchões / Kits)",
         "Observação"
       ]],
-    
+
       body: rows,
-    
+
       styles: {
         fontSize: 9,
         cellPadding: 2,
-        textColor: [31, 41, 55] // cinza escuro elegante
+        textColor: [31, 41, 55]
       },
-    
+
       headStyles: {
-        fillColor: [55, 65, 81], // cinza escuro (header)
+        fillColor: [55, 65, 81],
         textColor: 255,
-        fontSize: 11, // 🔹 cabeçalho
+        fontSize: 11,
         halign: "center"
       },
-    
-      alternateRowStyles: {
-        fillColor: [249, 250, 251] // leve cinza alternado
-      },
-    
+
       didParseCell: function (data) {
         if (data.section === "body") {
           const tipo = dados[data.row.index].tipo
-    
+
           if (tipo === "ENTRADA") {
-            data.cell.styles.fillColor = [243, 244, 246] // cinza claro
+            data.cell.styles.fillColor = [243, 244, 246]
           }
-    
+
           if (tipo === "SAÍDA") {
-            data.cell.styles.fillColor = [229, 231, 235] // cinza médio
+            data.cell.styles.fillColor = [229, 231, 235]
           }
         }
       }
     })
-  
-    // 🔹 PAGINAÇÃO + RODAPÉ
+
+    // 🔹 FINAL DO DOCUMENTO
+    const finalY = doc.lastAutoTable.finalY + 10
+
+    // TOTAL (direita)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "bold")
+
+    doc.text("Total em estoque no ano:", 200, finalY, { align: "right" })
+    doc.text(`Colchões: ${totalColchoes}`, 200, finalY + 6, { align: "right" })
+    doc.text(`Kits: ${totalKits}`, 200, finalY + 12, { align: "right" })
+
+    // DATA (esquerda)
+    doc.setFontSize(9)
+    doc.setFont("helvetica", "normal")
+
+    doc.text(
+      `Dados obtidos em ${dataFormatada} às ${horaFormatada}h`,
+      14,
+      finalY + 12
+    )
+
+    // 🔹 PAGINAÇÃO
     const totalPages = doc.getNumberOfPages()
-  
+
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i)
-  
-      doc.setFontSize(9)
-  
+
       doc.text(
         `Página ${i} de ${totalPages}`,
         200,
         290,
         { align: "right" }
       )
-  
+
       doc.text(
         `© ${ano} | REDEC 10 - Norte | Defesa Civil Estadual`,
         105,
@@ -248,7 +280,7 @@ export default function ContainerPage() {
         { align: "center" }
       )
     }
-  
+
     doc.save(`relatorio_${ano}.pdf`)
   }
 
@@ -260,7 +292,6 @@ export default function ContainerPage() {
   return (
     <div className="p-6 space-y-6">
 
-      {/* TOAST */}
       {toast && (
         <div className={`fixed top-6 right-6 px-4 py-2 rounded-lg text-white z-50 ${
           toast.type === "error" ? "bg-red-500" : "bg-green-600"
