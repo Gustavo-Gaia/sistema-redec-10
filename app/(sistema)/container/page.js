@@ -180,6 +180,7 @@ export default function ContainerPage() {
   
     autoTable(doc, {
       startY: 60,
+    
       head: [[
         "Nº",
         "Situação",
@@ -190,14 +191,37 @@ export default function ContainerPage() {
         "Material",
         "Observação"
       ]],
+    
       body: rows,
+    
       styles: {
         fontSize: 8,
-        cellPadding: 2
+        cellPadding: 2,
+        textColor: [31, 41, 55] // cinza escuro elegante
       },
+    
       headStyles: {
-        fillColor: [22, 163, 74], // verde institucional
-        textColor: 255
+        fillColor: [55, 65, 81], // cinza escuro (header)
+        textColor: 255,
+        halign: "center"
+      },
+    
+      alternateRowStyles: {
+        fillColor: [249, 250, 251] // leve cinza alternado
+      },
+    
+      didParseCell: function (data) {
+        if (data.section === "body") {
+          const tipo = dados[data.row.index].tipo
+    
+          if (tipo === "ENTRADA") {
+            data.cell.styles.fillColor = [243, 244, 246] // cinza claro
+          }
+    
+          if (tipo === "SAÍDA") {
+            data.cell.styles.fillColor = [229, 231, 235] // cinza médio
+          }
+        }
       }
     })
   
