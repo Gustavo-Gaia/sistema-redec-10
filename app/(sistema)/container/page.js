@@ -11,6 +11,8 @@ import ModalMovimentacao from "./componentes/ModalMovimentacao"
 
 import { Plus } from "lucide-react"
 
+import jsPDF from "jspdf"
+
 export default function ContainerPage() {
   const [movimentacoes, setMovimentacoes] = useState([])
   const [saldo, setSaldo] = useState({ colchoes: 0, kits: 0 })
@@ -20,7 +22,6 @@ export default function ContainerPage() {
 
   const [toast, setToast] = useState(null)
 
-  // 🔥 TOAST
   function showToast(msg, type = "success") {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
@@ -54,7 +55,6 @@ export default function ContainerPage() {
       .upload(fileName, file)
 
     if (error) {
-      console.error(error)
       showToast("Erro ao enviar arquivo", "error")
       return null
     }
@@ -66,7 +66,6 @@ export default function ContainerPage() {
     return data.signedUrl
   }
 
-  // 🔥 CREATE + UPDATE
   async function salvarMovimentacao(form, file, id = null) {
     const { data: user } = await supabase.auth.getUser()
 
@@ -78,18 +77,13 @@ export default function ContainerPage() {
 
     try {
       if (id) {
-        // UPDATE
         await supabase
           .from("movimentacoes_humanitarias")
-          .update({
-            ...form,
-            arquivo_url
-          })
+          .update({ ...form, arquivo_url })
           .eq("id", id)
 
-        showToast("Movimentação atualizada com sucesso")
+        showToast("Movimentação atualizada")
       } else {
-        // INSERT
         await supabase.from("movimentacoes_humanitarias").insert([
           {
             ...form,
@@ -98,7 +92,7 @@ export default function ContainerPage() {
           }
         ])
 
-        showToast("Movimentação registrada com sucesso")
+        showToast("Movimentação registrada")
       }
 
       await buscarMovimentacoes()
@@ -107,33 +101,122 @@ export default function ContainerPage() {
       setModalOpen(false)
       setMovimentacaoEditando(null)
 
-    } catch (err) {
-      console.error(err)
+    } catch {
       showToast("Erro ao salvar", "error")
     }
   }
 
-  // 🔥 DELETE
   async function deletarMovimentacao(id) {
-    const confirmar = confirm("Deseja realmente excluir?")
-
-    if (!confirmar) return
+    if (!confirm("Deseja excluir?")) return
 
     await supabase
       .from("movimentacoes_humanitarias")
       .delete()
       .eq("id", id)
 
-    showToast("Movimentação excluída")
+    showToast("Excluído")
 
     await buscarMovimentacoes()
     await buscarSaldo()
   }
 
-  // 🔥 EDITAR
   function editarMovimentacao(mov) {
     setMovimentacaoEditando(mov)
     setModalOpen(true)
+  }
+
+  // 🔥 EXPORTAÇÃO PROFISSIONAL
+  async function exportarRelatorio(ano) {
+    const doc = new jsPDF()
+
+    const dados = movimentacoes.filter(
+      (m) => new Date(m.data_hora).getFullYear() === ano
+    )
+
+    let totalColchoes = 0
+    let totalKits = 0
+
+    dados.forEach((m) => {
+      if (m.tipo === "ENTRADA") {
+        totalColchoes += m.colchao_qtd
+        totalKits += m.kit_dorm_qtd
+      } else {
+        totalColchoes -= m.colchao_qtd
+        totalKits -= m.kit_dorm_qtd
+      }
+    })
+
+    // 🔹 LOGO
+    const img = new Image()
+    img.src = "/logotipo_redec_norte.png"
+    await new Promise((r) => (img.onload = r))
+
+    doc.addImage(img, "PNG", 10, 10, 30, 30)
+
+    // 🔹 CABEÇALHO
+    doc.setFontSize(10)
+    doc.text("SECRETARIA DE ESTADO DE DEFESA CIVIL", 50, 15)
+    doc.text("DIRETORIA GERAL DE DEFESA CIVIL", 50, 20)
+    doc.text("REGIONAL DE DEFESA CIVIL - REDEC 10 - NORTE", 50, 25)
+
+    // 🔹 TÍTULO
+    doc.setFontSize(14)
+    doc.text(
+      `RELATÓRIO GERAL CONTÊINER HUMANITÁRIO C-02 ANO ${ano}`,
+      105,
+      45,
+      { align: "center" }
+    )
+
+    // 🔹 RESUMO
+    doc.setFontSize(11)
+    doc.text(`Saldo Colchões: ${totalColchoes}`, 14, 60)
+    doc.text(`Saldo Kits: ${totalKits}`, 14, 66)
+
+    // 🔹 RELATÓRIO ESTILO TEXTO
+    let y = 75
+
+    dados.forEach((m, i) => {
+      if (y > 270) {
+        doc.addPage()
+        y = 20
+      }
+
+      const linha = `${i + 1}. ${new Date(m.data_hora).toLocaleString()} | ${
+        m.tipo
+      } | ${m.viatura} | ${m.origem_destino} | Colchões: ${
+        m.colchao_qtd
+      } | Kits: ${m.kit_dorm_qtd}`
+
+      doc.setFontSize(9)
+      doc.text(linha, 14, y)
+
+      y += 6
+    })
+
+    // 🔹 PAGINAÇÃO
+    const totalPages = doc.getNumberOfPages()
+
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+
+      doc.setFontSize(10)
+      doc.text(
+        `Página ${i} de ${totalPages}`,
+        180,
+        290,
+        { align: "right" }
+      )
+
+      doc.text(
+        `© ${ano} | REDEC 10 - Norte | Defesa Civil Estadual`,
+        105,
+        290,
+        { align: "center" }
+      )
+    }
+
+    doc.save(`relatorio_${ano}.pdf`)
   }
 
   useEffect(() => {
@@ -146,7 +229,7 @@ export default function ContainerPage() {
 
       {/* TOAST */}
       {toast && (
-        <div className={`fixed top-6 right-6 px-4 py-2 rounded-lg text-white z-50 shadow-lg ${
+        <div className={`fixed top-6 right-6 px-4 py-2 rounded-lg text-white z-50 ${
           toast.type === "error" ? "bg-red-500" : "bg-green-600"
         }`}>
           {toast.msg}
@@ -154,7 +237,21 @@ export default function ContainerPage() {
       )}
 
       <div className="bg-gradient-to-br from-green-600 to-emerald-800 p-6 rounded-2xl text-white">
-        <h1 className="text-2xl font-bold">Contêiner Humanitário C-02</h1>
+        <h1 className="text-2xl font-bold">
+          Contêiner Humanitário C-02
+        </h1>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={() => {
+            const ano = prompt("Digite o ano:", new Date().getFullYear())
+            if (ano) exportarRelatorio(Number(ano))
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+        >
+          Exportar Relatório
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -173,7 +270,7 @@ export default function ContainerPage() {
           setMovimentacaoEditando(null)
           setModalOpen(true)
         }}
-        className="fixed bottom-20 right-6 bg-green-600 hover:bg-green-700 text-white p-4 rounded-full shadow-lg transition z-50"
+        className="fixed bottom-20 right-6 bg-green-600 text-white p-4 rounded-full shadow-lg z-50"
       >
         <Plus />
       </button>
