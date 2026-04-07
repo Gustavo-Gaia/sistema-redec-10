@@ -14,7 +14,17 @@ import { Plus } from "lucide-react"
 export default function ContainerPage() {
   const [movimentacoes, setMovimentacoes] = useState([])
   const [saldo, setSaldo] = useState({ colchoes: 0, kits: 0 })
+
   const [modalOpen, setModalOpen] = useState(false)
+  const [movimentacaoEditando, setMovimentacaoEditando] = useState(null)
+
+  const [toast, setToast] = useState(null)
+
+  // 🔥 TOAST
+  function showToast(msg, type = "success") {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   async function buscarMovimentacoes() {
     const { data } = await supabase
@@ -45,6 +55,7 @@ export default function ContainerPage() {
 
     if (error) {
       console.error(error)
+      showToast("Erro ao enviar arquivo", "error")
       return null
     }
 
@@ -55,26 +66,74 @@ export default function ContainerPage() {
     return data.signedUrl
   }
 
-  async function inserirMovimentacao(form, file) {
+  // 🔥 CREATE + UPDATE
+  async function salvarMovimentacao(form, file, id = null) {
     const { data: user } = await supabase.auth.getUser()
 
-    let arquivo_url = null
+    let arquivo_url = form.arquivo_url || null
 
     if (file) {
       arquivo_url = await uploadArquivo(file)
     }
 
-    await supabase.from("movimentacoes_humanitarias").insert([
-      {
-        ...form,
-        arquivo_url,
-        usuario_id: user.user.id
+    try {
+      if (id) {
+        // UPDATE
+        await supabase
+          .from("movimentacoes_humanitarias")
+          .update({
+            ...form,
+            arquivo_url
+          })
+          .eq("id", id)
+
+        showToast("Movimentação atualizada com sucesso")
+      } else {
+        // INSERT
+        await supabase.from("movimentacoes_humanitarias").insert([
+          {
+            ...form,
+            arquivo_url,
+            usuario_id: user.user.id
+          }
+        ])
+
+        showToast("Movimentação registrada com sucesso")
       }
-    ])
+
+      await buscarMovimentacoes()
+      await buscarSaldo()
+
+      setModalOpen(false)
+      setMovimentacaoEditando(null)
+
+    } catch (err) {
+      console.error(err)
+      showToast("Erro ao salvar", "error")
+    }
+  }
+
+  // 🔥 DELETE
+  async function deletarMovimentacao(id) {
+    const confirmar = confirm("Deseja realmente excluir?")
+
+    if (!confirmar) return
+
+    await supabase
+      .from("movimentacoes_humanitarias")
+      .delete()
+      .eq("id", id)
+
+    showToast("Movimentação excluída")
 
     await buscarMovimentacoes()
     await buscarSaldo()
-    setModalOpen(false)
+  }
+
+  // 🔥 EDITAR
+  function editarMovimentacao(mov) {
+    setMovimentacaoEditando(mov)
+    setModalOpen(true)
   }
 
   useEffect(() => {
@@ -85,6 +144,15 @@ export default function ContainerPage() {
   return (
     <div className="p-6 space-y-6">
 
+      {/* TOAST */}
+      {toast && (
+        <div className={`fixed top-6 right-6 px-4 py-2 rounded-lg text-white z-50 shadow-lg ${
+          toast.type === "error" ? "bg-red-500" : "bg-green-600"
+        }`}>
+          {toast.msg}
+        </div>
+      )}
+
       <div className="bg-gradient-to-br from-green-600 to-emerald-800 p-6 rounded-2xl text-white">
         <h1 className="text-2xl font-bold">Contêiner Humanitário</h1>
       </div>
@@ -94,10 +162,17 @@ export default function ContainerPage() {
         <CardResumo titulo="Kits" quantidade={saldo.kits} capacidade={102} />
       </div>
 
-      <TimelineMovimentacoes movimentacoes={movimentacoes} />
+      <TimelineMovimentacoes
+        movimentacoes={movimentacoes}
+        onDelete={deletarMovimentacao}
+        onEdit={editarMovimentacao}
+      />
 
       <button
-        onClick={() => setModalOpen(true)}
+        onClick={() => {
+          setMovimentacaoEditando(null)
+          setModalOpen(true)
+        }}
         className="fixed bottom-20 right-6 bg-green-600 hover:bg-green-700 text-white p-4 rounded-full shadow-lg transition z-50"
       >
         <Plus />
@@ -105,8 +180,12 @@ export default function ContainerPage() {
 
       {modalOpen && (
         <ModalMovimentacao
-          onClose={() => setModalOpen(false)}
-          onSave={inserirMovimentacao}
+          onClose={() => {
+            setModalOpen(false)
+            setMovimentacaoEditando(null)
+          }}
+          onSave={salvarMovimentacao}
+          movimentacao={movimentacaoEditando}
         />
       )}
     </div>
