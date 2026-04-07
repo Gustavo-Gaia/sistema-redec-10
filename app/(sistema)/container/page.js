@@ -1,7 +1,5 @@
 /* app/(sistema)/container/page.js */
 
-/* app/(sistema)/container/page.js */
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -23,6 +21,10 @@ export default function ContainerPage() {
 
   const [toast, setToast] = useState(null)
 
+  // 🔥 NOVO: controle do select
+  const [anoSelecionado, setAnoSelecionado] = useState("total")
+  const [anosDisponiveis, setAnosDisponiveis] = useState([])
+
   function showToast(msg, type = "success") {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
@@ -35,6 +37,17 @@ export default function ContainerPage() {
       .order("data_hora", { ascending: false })
 
     setMovimentacoes(data || [])
+
+    // 🔥 EXTRAIR ANOS AUTOMATICAMENTE
+    const anos = [
+      ...new Set(
+        (data || []).map((m) =>
+          new Date(m.data_hora).getFullYear()
+        )
+      )
+    ].sort((a, b) => b - a)
+
+    setAnosDisponiveis(anos)
   }
 
   async function buscarSaldo() {
@@ -126,12 +139,16 @@ export default function ContainerPage() {
     setModalOpen(true)
   }
 
+  // 🔥 EXPORTAÇÃO COM SUPORTE A "TOTAL"
   async function exportarRelatorio(ano) {
     const doc = new jsPDF()
 
-    const dados = movimentacoes.filter(
-      (m) => new Date(m.data_hora).getFullYear() === ano
-    )
+    const dados =
+      ano === "total"
+        ? movimentacoes
+        : movimentacoes.filter(
+            (m) => new Date(m.data_hora).getFullYear() === ano
+          )
 
     let totalColchoes = 0
     let totalKits = 0
@@ -171,7 +188,13 @@ export default function ContainerPage() {
     doc.setFontSize(12)
     doc.setFont("helvetica", "normal")
     doc.text("Contêiner Humanitário C-02", 105, 47, { align: "center" })
-    doc.text(`Ano ${ano}`, 105, 53, { align: "center" })
+
+    doc.text(
+      ano === "total" ? "Período: Geral" : `Ano ${ano}`,
+      105,
+      53,
+      { align: "center" }
+    )
 
     const rows = dados.map((m, i) => {
       const data = new Date(m.data_hora)
@@ -193,87 +216,31 @@ export default function ContainerPage() {
     autoTable(doc, {
       startY: 60,
       head: [[
-        "Nº",
-        "Situação",
-        "Data",
-        "Hora",
-        "Viatura",
-        "Destino",
-        "Material",
-        "Observação"
+        "Nº","Situação","Data","Hora","Viatura","Destino","Material","Observação"
       ]],
       body: rows,
-      styles: {
-        fontSize: 9,
-        cellPadding: 2,
-        textColor: [31, 41, 55]
-      },
-      headStyles: {
-        fillColor: [55, 65, 81],
-        textColor: 255,
-        fontSize: 11,
-        halign: "center"
-      },
-      didParseCell: function (data) {
-        if (data.section === "body") {
-          const tipo = dados[data.row.index].tipo
-
-          if (tipo === "ENTRADA") {
-            data.cell.styles.fillColor = [243, 244, 246]
-          }
-
-          if (tipo === "SAÍDA") {
-            data.cell.styles.fillColor = [229, 231, 235]
-          }
-        }
-      }
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [55,65,81], textColor: 255 }
     })
 
     const finalY = doc.lastAutoTable.finalY + 10
 
-    // 🔹 LEGENDA
     doc.setFontSize(9)
-    doc.setFont("helvetica", "normal")
-
     doc.text("Kits: São kits dormitórios compostos por:", 14, finalY)
     doc.text("01 Lençol", 14, finalY + 5)
     doc.text("01 Fronha", 14, finalY + 10)
     doc.text("01 Travesseiro", 14, finalY + 15)
     doc.text("01 Cobertor", 14, finalY + 20)
 
-    // TOTAL
     doc.setFontSize(10)
     doc.setFont("helvetica", "bold")
-
-    doc.text("Total em estoque:", 200, finalY, { align: "right" })
     doc.text(`Colchões: ${totalColchoes}`, 200, finalY + 6, { align: "right" })
-    doc.text(`Kits Dormitórios: ${totalKits}`, 200, finalY + 12, { align: "right" })
+    doc.text(`Kits: ${totalKits}`, 200, finalY + 12, { align: "right" })
 
     doc.setFontSize(9)
-    doc.setFont("helvetica", "normal")
+    doc.text(`Dados obtidos em ${dataFormatada} às ${horaFormatada}h`, 14, finalY + 28)
 
-    doc.text(
-      `Dados obtidos em ${dataFormatada} às ${horaFormatada}h`,
-      14,
-      finalY + 28
-    )
-
-    const totalPages = doc.getNumberOfPages()
-
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i)
-
-      doc.text(`Página ${i} de ${totalPages}`, 200, 290, { align: "right" })
-
-      doc.text(
-        `© ${ano} | REDEC 10 - Norte | Defesa Civil Estadual`,
-        105,
-        290,
-        { align: "center" }
-      )
-    }
-
-    doc.save(`relatorio_${ano}.pdf`)
+    doc.save(ano === "total" ? "relatorio_geral.pdf" : `relatorio_${ano}.pdf`)
   }
 
   useEffect(() => {
@@ -298,15 +265,32 @@ export default function ContainerPage() {
         </h1>
       </div>
 
-      <div className="flex justify-end">
+      {/* 🔥 NOVO SELECT BONITO */}
+      <div className="flex justify-end gap-2 items-center">
+        <select
+          value={anoSelecionado}
+          onChange={(e) => setAnoSelecionado(e.target.value)}
+          className="border rounded-lg px-3 py-2 shadow-sm"
+        >
+          <option value="total">Relatório Geral</option>
+          {anosDisponiveis.map((ano) => (
+            <option key={ano} value={ano}>
+              {ano}
+            </option>
+          ))}
+        </select>
+
         <button
-          onClick={() => {
-            const ano = prompt("Digite o ano:", new Date().getFullYear())
-            if (ano) exportarRelatorio(Number(ano))
-          }}
+          onClick={() =>
+            exportarRelatorio(
+              anoSelecionado === "total"
+                ? "total"
+                : Number(anoSelecionado)
+            )
+          }
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
         >
-          Exportar Relatório
+          Exportar
         </button>
       </div>
 
