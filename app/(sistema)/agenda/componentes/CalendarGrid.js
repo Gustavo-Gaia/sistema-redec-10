@@ -1,6 +1,12 @@
 /* app/(sistema)/agenda/componentes/CalendarGrid.js */
 
-export default function CalendarGrid({ dataAtual, eventos = [], onSelectEvento }) {
+/* app/(sistema)/agenda/componentes/CalendarGrid.js */
+
+export default function CalendarGrid({
+  dataAtual,
+  eventos = [],
+  onSelectEvento
+}) {
 
   const diasSemana = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"]
 
@@ -12,7 +18,7 @@ export default function CalendarGrid({ dataAtual, eventos = [], onSelectEvento }
   const primeiroDiaMes = new Date(ano, mes, 1)
   const ultimoDiaMes = new Date(ano, mes + 1, 0)
 
-  // Começando na segunda
+  // 🔥 COMEÇANDO NA SEGUNDA
   let inicioSemana = primeiroDiaMes.getDay()
   inicioSemana = inicioSemana === 0 ? 6 : inicioSemana - 1
 
@@ -44,7 +50,7 @@ export default function CalendarGrid({ dataAtual, eventos = [], onSelectEvento }
   return (
     <div className="bg-white rounded-2xl shadow overflow-hidden">
 
-      {/* DIAS DA SEMANA */}
+      {/* HEADER DIAS */}
       <div className="grid grid-cols-7 border-b text-sm font-medium text-gray-500">
         {diasSemana.map((d) => (
           <div key={d} className="p-2 text-center">
@@ -58,17 +64,17 @@ export default function CalendarGrid({ dataAtual, eventos = [], onSelectEvento }
 
         {celulas.map((item, i) => {
 
-          // 🔥 EVENTOS DO DIA
+          const isHoje = item.data.toDateString() === hoje
+
+          // 🔥 FILTRAR EVENTOS DO DIA
           const eventosDoDia = eventos.filter(ev =>
             new Date(ev.data_inicio).toDateString() === item.data.toDateString()
           )
 
-          const isHoje = item.data.toDateString() === hoje
-
           return (
             <div
               key={i}
-              className={`h-28 border p-2 flex flex-col transition ${
+              className={`h-28 border p-2 flex flex-col transition relative ${
                 item.atual
                   ? "bg-white"
                   : "bg-gray-50 text-gray-400"
@@ -76,7 +82,9 @@ export default function CalendarGrid({ dataAtual, eventos = [], onSelectEvento }
             >
 
               {/* DIA */}
-              <div className={`text-sm font-semibold ${isHoje ? "text-blue-600" : ""}`}>
+              <div className={`text-sm font-semibold ${
+                isHoje ? "text-blue-600" : ""
+              }`}>
                 {item.data.getDate()}
               </div>
 
@@ -86,7 +94,10 @@ export default function CalendarGrid({ dataAtual, eventos = [], onSelectEvento }
                 {eventosDoDia.slice(0, 3).map(ev => (
                   <div
                     key={ev.id}
-                    onClick={() => onSelectEvento(ev)}
+                    onClick={(e) => {
+                      e.stopPropagation() // 🔥 IMPEDIR clique no dia
+                      onSelectEvento(ev)
+                    }}
                     className="text-[10px] md:text-xs p-1.5 rounded-lg cursor-pointer truncate font-medium border-l-4 transition-all hover:scale-[1.02]"
                     style={{
                       backgroundColor: `${ev.cor || "#3b82f6"}20`,
@@ -98,7 +109,7 @@ export default function CalendarGrid({ dataAtual, eventos = [], onSelectEvento }
                   </div>
                 ))}
 
-                {/* +X MAIS */}
+                {/* + MAIS */}
                 {eventosDoDia.length > 3 && (
                   <div className="text-xs text-gray-500">
                     +{eventosDoDia.length - 3} mais
