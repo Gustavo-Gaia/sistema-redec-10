@@ -1,7 +1,5 @@
 /* app/(sistema)/monitoramento/abas/RelatorioAtual.js */
 
-/* app/(sistema)/monitoramento/abas/RelatorioAtual.js */
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -153,7 +151,7 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // 🔥 BUSCAR ANA LEGADO (NOVO)
+  // 🔥 BUSCAR ANA LEGADO (CORRIGIDO)
   // ============================
 
   async function buscarANALegado() {
@@ -164,7 +162,7 @@ export default function RelatorioAtual() {
     try {
       const json = await fetchSeguro(`/api/ana-relatorio-legado?hora=${horaRef}`)
 
-      console.log("🟡 ANA LEGADO:", json)
+      console.log("🟡 ANA LEGADO RETORNO:", json)
 
       if (!json || Object.keys(json).length === 0) {
         alert("ANA Legado não retornou dados")
@@ -174,13 +172,16 @@ export default function RelatorioAtual() {
       setDados(prev => {
         const novo = { ...prev }
 
-        Object.entries(json).forEach(([id, valores]) => {
+        Object.entries(json).forEach(([id, periodos]) => {
           const idNum = Number(id)
 
-          novo[idNum] = {
-            ...novo[idNum],
-            ...valores,
-            fonte: "ANA (Legado)"
+          // Verificamos se existe o objeto "hoje" (que é o padrão da sua nova API)
+          if (periodos.hoje) {
+            novo[idNum] = {
+              ...novo[idNum],
+              ...periodos.hoje, // Aqui entram ref, h4, h8 e h12
+              fonte: "ANA (Legado)"
+            }
           }
         })
 
@@ -188,6 +189,7 @@ export default function RelatorioAtual() {
       })
 
     } catch (err) {
+      console.error(err)
       alert("Erro ao buscar ANA Legado")
     } finally {
       setLoadingAnaLegado(false)
