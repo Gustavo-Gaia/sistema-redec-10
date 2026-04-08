@@ -18,11 +18,14 @@ export default function AgendaPage() {
 
   const [eventos, setEventos] = useState([])
 
-  // 🔥 MODAL (CRIAR/EDITAR)
+  // 🔥 NOVO: MODO (mes | semana)
+  const [modo, setModo] = useState("mes")
+
+  // MODAL
   const [modalOpen, setModalOpen] = useState(false)
   const [eventoSelecionado, setEventoSelecionado] = useState(null)
 
-  // 🔥 DETALHE (CARD BONITO)
+  // DETALHE
   const [eventoDetalhe, setEventoDetalhe] = useState(null)
 
   const [toast, setToast] = useState(null)
@@ -64,30 +67,32 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {/* HEADER PADRÃO */}
+      {/* HEADER */}
       <div className="bg-gradient-to-br from-blue-600 to-indigo-800 p-6 rounded-2xl text-white">
         <h1 className="text-2xl font-bold">
           Agenda Operacional
         </h1>
       </div>
 
-      {/* HEADER DO CALENDÁRIO */}
+      {/* 🔥 HEADER COM MODO */}
       <HeaderAgenda
         dataAtual={dataAtual}
         setDataAtual={setDataAtual}
+        modo={modo}
+        setModo={setModo}
       />
 
-      {/* CALENDÁRIO */}
+      {/* 🔥 CALENDÁRIO (AGORA DINÂMICO) */}
       <CalendarGrid
         dataAtual={dataAtual}
         eventos={eventos}
+        modo={modo}
         onSelectEvento={(ev) => {
-          // 🔥 AGORA ABRE O DETALHE (NÃO O MODAL)
           setEventoDetalhe(ev)
         }}
       />
 
-      {/* BOTÃO FLUTUANTE */}
+      {/* BOTÃO NOVO EVENTO */}
       <button
         onClick={() => {
           setEventoSelecionado(null)
@@ -98,7 +103,7 @@ export default function AgendaPage() {
         <Plus />
       </button>
 
-      {/* 🔥 CARD DE DETALHE (NOVO) */}
+      {/* 🔥 DETALHE DO EVENTO */}
       {eventoDetalhe && (
         <EventoDetalhe
           evento={eventoDetalhe}
