@@ -4,9 +4,8 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
 // ============================
-// FORMATAR DATA
+// FORMATAR DATA PARA A URL
 // ============================
-
 function formatarData(d) {
   const dia = String(d.getDate()).padStart(2, "0");
   const mes = String(d.getMonth() + 1).padStart(2, "0");
@@ -15,9 +14,8 @@ function formatarData(d) {
 }
 
 // ============================
-// PARSE XML → ARRAY
+// PARSE XML → ARRAY DE OBJETOS
 // ============================
-
 function parseXML(xml) {
   const blocos = xml.split("<DadosHidrometereologicos>");
   const medicoes = [];
@@ -28,56 +26,51 @@ function parseXML(xml) {
 
     if (!dataMatch || !nivelMatch) continue;
 
-    const dataHora = dataMatch[1].trim();
+    const dataHoraRaw = dataMatch[1].trim();
     const nivel = parseFloat(nivelMatch[1]);
 
-    if (!dataHora || isNaN(nivel)) continue;
+    if (!dataHoraRaw || isNaN(nivel)) continue;
 
-    const dt = new Date(dataHora.replace(" ", "T"));
+    // Criamos a data usando o formato ISO simples (sem fuso forçado)
+    const dt = new Date(dataHoraRaw.replace(" ", "T"));
 
     medicoes.push({
       datetime: dt,
-      nivel: nivel / 100,
+      nivel: nivel / 100, // Converte cm para m
     });
   }
-
   return medicoes;
 }
 
 // ============================
-// EXTRAIR BLOCOS (REGRA CORRETA)
+// LOGICA DE FILTRAGEM (JANELAS)
 // ============================
-
 function extrairBlocos(medicoes, horaRef, dataBase) {
-  const base = new Date(
-    dataBase.getFullYear(),
-    dataBase.getMonth(),
-    dataBase.getDate(),
-    parseInt(horaRef),
-    0,
-    0,
-    0
-  );
+  // Define a hora de referência no dia atual
+  const base = new Date(dataBase);
+  base.setHours(parseInt(horaRef), 0, 0, 0);
 
   const chaves = ["ref", "h4", "h8", "h12"];
-  const blocos = {};
+  const intervalos = [0, 4, 8, 12];
+  const resultado = {};
 
-  [0, 4, 8, 12].forEach((sub, i) => {
-    const alvo = new Date(base);
-    alvo.setHours(alvo.getHours() - sub);
+  intervalos.forEach((atraso, i) => {
+    const alvo = new Date(base.getTime());
+    alvo.setHours(alvo.getHours() - atraso);
 
-    const inicioJanela = new Date(alvo.getTime() - 60 * 60000); // -1h
+    // Janela: [Alvo - 1 hora] até [Alvo]
+    const inicioJanela = new Date(alvo.getTime() - 60 * 60000);
 
-    const dentroDaJanela = medicoes.filter(
+    const candidatos = medicoes.filter(
       (m) => m.datetime >= inicioJanela && m.datetime <= alvo
     );
 
-    if (dentroDaJanela.length > 0) {
-      dentroDaJanela.sort((a, b) => b.datetime - a.datetime);
+    if (candidatos.length > 0) {
+      // Ordena para pegar o mais próximo do limite superior da janela (o mais recente)
+      candidatos.sort((a, b) => b.datetime - a.datetime);
+      const melhor = candidatos[0];
 
-      const melhor = dentroDaJanela[0];
-
-      blocos[chaves[i]] = {
+      resultado[chaves[i]] = {
         nivel: melhor.nivel,
         hora: melhor.datetime.toLocaleTimeString("pt-BR", {
           hour: "2-digit",
@@ -85,62 +78,51 @@ function extrairBlocos(medicoes, horaRef, dataBase) {
         }),
       };
     } else {
-      blocos[chaves[i]] = null;
+      resultado[chaves[i]] = null;
     }
   });
 
-  return blocos;
+  return resultado;
 }
 
 // ============================
-// PROCESSAR ESTAÇÃO
+// PROCESSAR CADA ESTAÇÃO
 // ============================
-
 async function processarEstacao(codigo, horaRef) {
-  const agoraBr = new Date(
-    new Date().toLocaleString("en-US", {
-      timeZone: "America/Sao_Paulo",
-    })
-  );
+  const agora = new Date();
+  
+  // Retrocedemos 3 dias para garantir que pegamos os dados de ontem (H12)
+  const inicio = new Date();
+  inicio.setDate(agora.getDate() - 3);
 
-  const inicio = new Date(agoraBr);
-  inicio.setDate(agoraBr.getDate() - 2);
-
-  const url =
-    `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos` +
-    `?codEstacao=${codigo}` +
-    `&dataInicio=${formatarData(inicio)}` +
-    `&dataFim=${formatarData(agoraBr)}`;
+  const url = `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos?codEstacao=${codigo}&dataInicio=${formatarData(inicio)}&dataFim=${formatarData(agora)}`;
 
   try {
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      cache: "no-store",
-    });
-
+    const resp = await fetch(url, { cache: "no-store" });
     if (!resp.ok) return null;
 
     const xml = await resp.text();
-
     const medicoes = parseXML(xml);
 
     if (medicoes.length === 0) return null;
 
-    const blocos = extrairBlocos(medicoes, horaRef, agoraBr);
+    // Se a hora digitada ainda não chegou hoje, a base vira "ontem"
+    let dataBase = new Date(agora);
+    if (parseInt(horaRef) > agora.getHours()) {
+      dataBase.setDate(agora.getDate() - 1);
+    }
 
-    return {
-      hoje: blocos,
-    };
+    const blocos = extrairBlocos(medicoes, horaRef, dataBase);
+
+    return { hoje: blocos };
   } catch (err) {
-    console.log("Erro ANA:", codigo);
     return null;
   }
 }
 
 // ============================
-// API
+// ROTA PRINCIPAL (GET)
 // ============================
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
@@ -156,16 +138,12 @@ export async function GET(request) {
   const resultados = {};
 
   for (const estacao of estacoes) {
-    const dados = await processarEstacao(
-      estacao.codigo_estacao,
-      horaRef
-    );
-
+    const dados = await processarEstacao(estacao.codigo_estacao, horaRef);
     if (dados) {
       resultados[estacao.id] = dados;
     }
-
-    await new Promise((r) => setTimeout(r, 200));
+    // Pequeno delay para evitar bloqueio por excesso de requisições
+    await new Promise((r) => setTimeout(r, 150));
   }
 
   return NextResponse.json(resultados);
