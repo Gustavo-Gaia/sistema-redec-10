@@ -15,22 +15,23 @@ function formatarData(d) {
 }
 
 // ============================
-// CAPTURAR DADOS ANA LEGADO
+// BUSCAR E PROCESSAR DADOS
 // ============================
 
-async function capturarANA(codigo) {
-  const hoje = new Date();
-  const inicio = new Date();
-  inicio.setDate(hoje.getDate() - 5);
+async function processarEstacao(codigo, horaRef) {
 
-  const dataInicio = formatarData(inicio);
-  const dataFim = formatarData(hoje);
+  const agoraBr = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
+  );
+
+  const inicio = new Date(agoraBr);
+  inicio.setDate(agoraBr.getDate() - 2);
 
   const url =
     `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos` +
     `?codEstacao=${codigo}` +
-    `&dataInicio=${dataInicio}` +
-    `&dataFim=${dataFim}`;
+    `&dataInicio=${formatarData(inicio)}` +
+    `&dataFim=${formatarData(agoraBr)}`;
 
   try {
     const resp = await fetch(url, {
@@ -40,24 +41,80 @@ async function capturarANA(codigo) {
 
     if (!resp.ok) return null;
 
-    let xml = await resp.text();
+    const xml = await resp.text();
 
-    const match = xml.match(
-      /<DadosHidrometereologicos[\s\S]*?<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/
-    );
+    // 🔥 PEGA TODAS AS MEDIÇÕES (não só a primeira)
+    const regex = /<DadosHidrometereologicos>[\s\S]*?<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/g;
 
-    if (!match) return null;
+    const medicoes = [];
+    let match;
 
-    const dataHora = match[1].trim();
-    const nivel = parseFloat(match[2]);
+    while ((match = regex.exec(xml)) !== null) {
+      const dataHora = match[1];
+      const nivel = parseFloat(match[2]);
 
-    if (!dataHora || isNaN(nivel)) return null;
+      if (!dataHora || isNaN(nivel)) continue;
 
-    const dt = new Date(dataHora.replace(" ", "T"));
+      const dt = new Date(dataHora.replace(" ", "T"));
+
+      medicoes.push({
+        datetime: dt,
+        nivel: nivel / 100
+      });
+    }
+
+    if (medicoes.length === 0) return null;
+
+    // ============================
+    // LÓGICA IGUAL À API NOVA
+    // ============================
+
+    const extrair = () => {
+
+      const base = new Date(
+        agoraBr.getFullYear(),
+        agoraBr.getMonth(),
+        agoraBr.getDate(),
+        parseInt(horaRef),
+        0, 0, 0
+      );
+
+      const chaves = ["ref", "h4", "h8", "h12"];
+      const blocos = {};
+
+      [0, 4, 8, 12].forEach((sub, i) => {
+
+        const alvo = new Date(base);
+        alvo.setHours(alvo.getHours() - sub);
+
+        const limiteMin = new Date(alvo.getTime() - 60 * 60000); // -1h
+
+        const filtrados = medicoes.filter(m =>
+          m.datetime <= alvo && // NÃO pode passar da hora
+          m.datetime >= limiteMin // tolerância de 1h
+        );
+
+        if (filtrados.length > 0) {
+          filtrados.sort((a, b) => b.datetime - a.datetime);
+
+          blocos[chaves[i]] = {
+            nivel: filtrados[0].nivel,
+            hora: filtrados[0].datetime.toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit"
+            })
+          };
+        } else {
+          blocos[chaves[i]] = null;
+        }
+
+      });
+
+      return blocos;
+    };
 
     return {
-      nivel: nivel / 100,
-      hora: dt.toTimeString().slice(0, 5)
+      hoje: extrair()
     };
 
   } catch (err) {
@@ -72,6 +129,9 @@ async function capturarANA(codigo) {
 
 export async function GET(request) {
 
+  const { searchParams } = new URL(request.url);
+  const horaRef = searchParams.get("hora") || "08";
+
   const { data: estacoes } = await supabase
     .from("estacoes")
     .select("id, codigo_estacao")
@@ -84,21 +144,16 @@ export async function GET(request) {
 
   for (const estacao of estacoes) {
 
-    const dados = await capturarANA(estacao.codigo_estacao);
+    const dados = await processarEstacao(
+      estacao.codigo_estacao,
+      horaRef
+    );
 
     if (dados) {
-
-      resultados[estacao.id] = {
-        hoje: {
-          ref: { nivel: dados.nivel, hora: dados.hora },
-          h4: { nivel: dados.nivel, hora: dados.hora },
-          h8: { nivel: dados.nivel, hora: dados.hora },
-          h12: { nivel: dados.nivel, hora: dados.hora }
-        }
-      };
-
+      resultados[estacao.id] = dados;
     }
 
+    await new Promise(r => setTimeout(r, 200));
   }
 
   return NextResponse.json(resultados);
