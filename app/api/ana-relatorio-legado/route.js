@@ -43,15 +43,23 @@ async function processarEstacao(codigo, horaRef) {
 
     const xml = await resp.text();
 
-    // 🔥 PEGA TODAS AS MEDIÇÕES (não só a primeira)
-    const regex = /<DadosHidrometereologicos>[\s\S]*?<DataHora>(.*?)<\/DataHora>[\s\S]*?<Nivel>(.*?)<\/Nivel>/g;
+    // ============================
+    // 🔥 PARSE ROBUSTO
+    // ============================
+
+    const blocosXml = xml.split("<DadosHidrometereologicos>");
 
     const medicoes = [];
-    let match;
 
-    while ((match = regex.exec(xml)) !== null) {
-      const dataHora = match[1];
-      const nivel = parseFloat(match[2]);
+    for (const bloco of blocosXml) {
+
+      const dataMatch = bloco.match(/<DataHora>(.*?)<\/DataHora>/);
+      const nivelMatch = bloco.match(/<Nivel>(.*?)<\/Nivel>/);
+
+      if (!dataMatch || !nivelMatch) continue;
+
+      const dataHora = dataMatch[1].trim();
+      const nivel = parseFloat(nivelMatch[1]);
 
       if (!dataHora || isNaN(nivel)) continue;
 
@@ -63,59 +71,55 @@ async function processarEstacao(codigo, horaRef) {
       });
     }
 
+    // ⚠️ DEBUG IMPORTANTE
+    console.log(`Estação ${codigo} → ${medicoes.length} medições`);
+
     if (medicoes.length === 0) return null;
 
     // ============================
-    // LÓGICA IGUAL À API NOVA
+    // LÓGICA DE HORÁRIOS (IGUAL ANA NOVA)
     // ============================
 
-    const extrair = () => {
+    const base = new Date(
+      agoraBr.getFullYear(),
+      agoraBr.getMonth(),
+      agoraBr.getDate(),
+      parseInt(horaRef),
+      0, 0, 0
+    );
 
-      const base = new Date(
-        agoraBr.getFullYear(),
-        agoraBr.getMonth(),
-        agoraBr.getDate(),
-        parseInt(horaRef),
-        0, 0, 0
+    const chaves = ["ref", "h4", "h8", "h12"];
+    const blocos = {};
+
+    [0, 4, 8, 12].forEach((sub, i) => {
+
+      const alvo = new Date(base);
+      alvo.setHours(alvo.getHours() - sub);
+
+      const limiteMin = new Date(alvo.getTime() - 60 * 60000);
+
+      const filtrados = medicoes.filter(m =>
+        m.datetime <= alvo &&
+        m.datetime >= limiteMin
       );
 
-      const chaves = ["ref", "h4", "h8", "h12"];
-      const blocos = {};
+      if (filtrados.length > 0) {
+        filtrados.sort((a, b) => b.datetime - a.datetime);
 
-      [0, 4, 8, 12].forEach((sub, i) => {
+        blocos[chaves[i]] = {
+          nivel: filtrados[0].nivel,
+          hora: filtrados[0].datetime.toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit"
+          })
+        };
+      } else {
+        blocos[chaves[i]] = null;
+      }
 
-        const alvo = new Date(base);
-        alvo.setHours(alvo.getHours() - sub);
+    });
 
-        const limiteMin = new Date(alvo.getTime() - 60 * 60000); // -1h
-
-        const filtrados = medicoes.filter(m =>
-          m.datetime <= alvo && // NÃO pode passar da hora
-          m.datetime >= limiteMin // tolerância de 1h
-        );
-
-        if (filtrados.length > 0) {
-          filtrados.sort((a, b) => b.datetime - a.datetime);
-
-          blocos[chaves[i]] = {
-            nivel: filtrados[0].nivel,
-            hora: filtrados[0].datetime.toLocaleTimeString("pt-BR", {
-              hour: "2-digit",
-              minute: "2-digit"
-            })
-          };
-        } else {
-          blocos[chaves[i]] = null;
-        }
-
-      });
-
-      return blocos;
-    };
-
-    return {
-      hoje: extrair()
-    };
+    return { hoje: blocos };
 
   } catch (err) {
     console.log("Erro ANA:", codigo);
