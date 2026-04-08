@@ -1,4 +1,4 @@
-/*  app/(sistema)/agenda/page.js */
+/* app/(sistema)/agenda/page.js */
 
 "use client"
 
@@ -8,16 +8,22 @@ import { supabase } from "@/lib/supabase"
 import HeaderAgenda from "./componentes/HeaderAgenda"
 import CalendarGrid from "./componentes/CalendarGrid"
 import ModalEvento from "./componentes/ModalEvento"
+import EventoDetalhe from "./componentes/EventoDetalhe"
 
 import { Plus } from "lucide-react"
 
 export default function AgendaPage() {
+
   const [dataAtual, setDataAtual] = useState(new Date())
 
   const [eventos, setEventos] = useState([])
 
+  // 🔥 MODAL (CRIAR/EDITAR)
   const [modalOpen, setModalOpen] = useState(false)
   const [eventoSelecionado, setEventoSelecionado] = useState(null)
+
+  // 🔥 DETALHE (CARD BONITO)
+  const [eventoDetalhe, setEventoDetalhe] = useState(null)
 
   const [toast, setToast] = useState(null)
 
@@ -65,7 +71,7 @@ export default function AgendaPage() {
         </h1>
       </div>
 
-      {/* HEADER CALENDÁRIO */}
+      {/* HEADER DO CALENDÁRIO */}
       <HeaderAgenda
         dataAtual={dataAtual}
         setDataAtual={setDataAtual}
@@ -76,21 +82,53 @@ export default function AgendaPage() {
         dataAtual={dataAtual}
         eventos={eventos}
         onSelectEvento={(ev) => {
-          setEventoSelecionado(ev)
-          setModalOpen(true)
+          // 🔥 AGORA ABRE O DETALHE (NÃO O MODAL)
+          setEventoDetalhe(ev)
         }}
       />
 
       {/* BOTÃO FLUTUANTE */}
       <button
         onClick={() => {
-          setEventoSelecionado(null) // novo evento
+          setEventoSelecionado(null)
           setModalOpen(true)
         }}
         className="fixed bottom-20 right-6 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg z-50 transition"
       >
         <Plus />
       </button>
+
+      {/* 🔥 CARD DE DETALHE (NOVO) */}
+      {eventoDetalhe && (
+        <EventoDetalhe
+          evento={eventoDetalhe}
+          onClose={() => setEventoDetalhe(null)}
+
+          onEdit={() => {
+            setEventoSelecionado(eventoDetalhe)
+            setEventoDetalhe(null)
+            setModalOpen(true)
+          }}
+
+          onDelete={async () => {
+            if (!confirm("Deseja excluir este evento?")) return
+
+            const { error } = await supabase
+              .from("agenda_eventos")
+              .delete()
+              .eq("id", eventoDetalhe.id)
+
+            if (error) {
+              showToast("Erro ao excluir", "error")
+              return
+            }
+
+            showToast("Evento excluído")
+            setEventoDetalhe(null)
+            buscarEventos()
+          }}
+        />
+      )}
 
       {/* MODAL */}
       {modalOpen && (
@@ -101,7 +139,7 @@ export default function AgendaPage() {
             setEventoSelecionado(null)
           }}
           onSaved={() => {
-            buscarEventos() // 🔥 ATUALIZA AUTOMÁTICO
+            buscarEventos()
             showToast("Evento salvo com sucesso")
           }}
         />
