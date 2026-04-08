@@ -12,6 +12,18 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
 
   const [loading, setLoading] = useState(false)
 
+  // 🎨 CORES PADRÃO
+  const coresPadrao = [
+    "#3b82f6", // azul
+    "#10b981", // verde
+    "#f59e0b", // amarelo
+    "#ef4444", // vermelho
+    "#8b5cf6", // roxo
+    "#ec4899", // rosa
+    "#14b8a6", // teal
+    "#f97316"  // laranja
+  ]
+
   const [form, setForm] = useState({
     titulo: evento?.titulo || "",
     descricao: evento?.descricao || "",
@@ -29,7 +41,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  // 🔥 SALVAR (CRIAR OU EDITAR)
+  // 🔥 SALVAR
   async function handleSave() {
     if (!form.titulo || !form.data_inicio) {
       alert("Preencha título e data")
@@ -157,14 +169,24 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             className="w-full border rounded-lg px-3 py-2"
           />
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm">Cor:</span>
-            <input
-              type="color"
-              name="cor"
-              value={form.cor}
-              onChange={handleChange}
-            />
+          {/* 🎨 SELETOR DE CORES PADRÃO */}
+          <div>
+            <p className="text-sm mb-1">Cor</p>
+
+            <div className="flex gap-2 flex-wrap">
+              {coresPadrao.map((c) => (
+                <div
+                  key={c}
+                  onClick={() => setForm({ ...form, cor: c })}
+                  className={`w-7 h-7 rounded-full cursor-pointer border-2 transition ${
+                    form.cor === c
+                      ? "border-black scale-110"
+                      : "border-white"
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
           </div>
 
         </div>
