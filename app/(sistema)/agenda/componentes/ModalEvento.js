@@ -2,11 +2,11 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { X, Trash } from "lucide-react"
 
-// 🔥 CONVERTER DATA PARA INPUT LOCAL (SEM BUG DE FUSO)
+// 🔥 FORMATA DATA SEM QUEBRAR FUSO
 function formatarParaInputLocal(data) {
   if (!data) return ""
 
@@ -25,6 +25,9 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
 
   const isEdit = !!evento
   const [loading, setLoading] = useState(false)
+
+  // 🔥 CONTROLAR SE USUÁRIO ALTEROU FIM MANUALMENTE
+  const [fimManual, setFimManual] = useState(false)
 
   const coresPadrao = [
     "#3b82f6",
@@ -49,18 +52,32 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
   function handleChange(e) {
     const { name, value } = e.target
 
-    // 🔥 AUTO PREENCHER DATA FIM
-    if (name === "data_inicio" && !form.data_fim) {
-      setForm({
-        ...form,
-        data_inicio: value,
-        data_fim: value
-      })
+    // 🔥 SE ALTERAR INÍCIO → ATUALIZA FIM (SE NÃO FOI EDITADO MANUALMENTE)
+    if (name === "data_inicio") {
+      if (!fimManual) {
+        setForm({
+          ...form,
+          data_inicio: value,
+          data_fim: value
+        })
+      } else {
+        setForm({ ...form, data_inicio: value })
+      }
       return
+    }
+
+    // 🔥 MARCA QUE FIM FOI ALTERADO
+    if (name === "data_fim") {
+      setFimManual(true)
     }
 
     setForm({ ...form, [name]: value })
   }
+
+  // 🔥 RESET AO ABRIR
+  useEffect(() => {
+    setFimManual(false)
+  }, [evento])
 
   // 🔥 SALVAR
   async function handleSave() {
@@ -157,7 +174,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
           />
 
-          {/* 🔥 DATAS COM LABEL */}
+          {/* DATAS */}
           <div className="grid grid-cols-2 gap-3">
 
             <div className="flex flex-col">
