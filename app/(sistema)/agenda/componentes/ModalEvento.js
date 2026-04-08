@@ -6,12 +6,26 @@ import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { X, Trash } from "lucide-react"
 
+// 🔥 CONVERTER DATA PARA INPUT LOCAL (SEM BUG DE FUSO)
+function formatarParaInputLocal(data) {
+  if (!data) return ""
+
+  const d = new Date(data)
+
+  const ano = d.getFullYear()
+  const mes = String(d.getMonth() + 1).padStart(2, "0")
+  const dia = String(d.getDate()).padStart(2, "0")
+  const hora = String(d.getHours()).padStart(2, "0")
+  const minuto = String(d.getMinutes()).padStart(2, "0")
+
+  return `${ano}-${mes}-${dia}T${hora}:${minuto}`
+}
+
 export default function ModalEvento({ evento, onClose, onSaved }) {
 
   const isEdit = !!evento
   const [loading, setLoading] = useState(false)
 
-  // 🎨 CORES PADRÃO
   const coresPadrao = [
     "#3b82f6",
     "#10b981",
@@ -26,21 +40,29 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
   const [form, setForm] = useState({
     titulo: evento?.titulo || "",
     descricao: evento?.descricao || "",
-    data_inicio: evento?.data_inicio
-      ? new Date(evento.data_inicio).toISOString().slice(0, 16)
-      : "",
-    data_fim: evento?.data_fim
-      ? new Date(evento.data_fim).toISOString().slice(0, 16)
-      : "",
+    data_inicio: formatarParaInputLocal(evento?.data_inicio),
+    data_fim: formatarParaInputLocal(evento?.data_fim),
     tipo: evento?.tipo || "",
     cor: evento?.cor || "#3b82f6"
   })
 
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+
+    // 🔥 AUTO PREENCHER DATA FIM
+    if (name === "data_inicio" && !form.data_fim) {
+      setForm({
+        ...form,
+        data_inicio: value,
+        data_fim: value
+      })
+      return
+    }
+
+    setForm({ ...form, [name]: value })
   }
 
-  // 🔥 SALVAR (SEM criado_por)
+  // 🔥 SALVAR
   async function handleSave() {
     if (!form.titulo || !form.data_inicio) {
       alert("Preencha título e data")
@@ -124,7 +146,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             placeholder="Título"
             value={form.titulo}
             onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
           />
 
           <textarea
@@ -132,25 +154,36 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             placeholder="Descrição"
             value={form.descricao}
             onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
           />
 
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="datetime-local"
-              name="data_inicio"
-              value={form.data_inicio}
-              onChange={handleChange}
-              className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          {/* 🔥 DATAS COM LABEL */}
+          <div className="grid grid-cols-2 gap-3">
 
-            <input
-              type="datetime-local"
-              name="data_fim"
-              value={form.data_fim}
-              onChange={handleChange}
-              className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-500 mb-1">Início</label>
+              <input
+                type="datetime-local"
+                step="300"
+                name="data_inicio"
+                value={form.data_inicio}
+                onChange={handleChange}
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-500 mb-1">Fim</label>
+              <input
+                type="datetime-local"
+                step="300"
+                name="data_fim"
+                value={form.data_fim}
+                onChange={handleChange}
+                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
           </div>
 
           <input
@@ -158,10 +191,10 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             placeholder="Tipo (ex: reunião)"
             value={form.tipo}
             onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
           />
 
-          {/* 🎨 CORES */}
+          {/* CORES */}
           <div>
             <p className="text-sm mb-1">Cor</p>
 
@@ -207,7 +240,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
             >
               {loading ? "Salvando..." : "Salvar"}
             </button>
