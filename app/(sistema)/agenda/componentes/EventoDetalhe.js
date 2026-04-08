@@ -8,16 +8,15 @@ export default function EventoDetalhe({ evento, onClose, onEdit, onDelete }) {
 
   if (!evento) return null
 
-  // FUNÇÃO CORRIGIDA: Trata a data como texto para ignorar o fuso horário (UTC)
+  // FUNÇÃO REVISADA: Trata a data como texto e evita quebra se vier nulo/indefinido
   function formatarDataSemFuso(dataISO) {
-    if (!dataISO) return ""
+    if (!dataISO) return "Data não informada"
 
     try {
-      // Exemplo de dataISO: "2026-04-15T10:06:00+00:00" ou "2026-04-15 10:06:00"
-      // Vamos separar o "T" ou o espaço para pegar a data e a hora
+      // Divide por 'T' ou espaço para isolar a data da hora
       const partes = dataISO.includes("T") ? dataISO.split("T") : dataISO.split(" ")
-      const dataParte = partes[0] // "2026-04-15"
-      const horaParte = partes[1] // "10:06:00..."
+      const dataParte = partes[0] 
+      const horaParte = partes[1] || "00:00"
 
       const [ano, mes, dia] = dataParte.split("-")
       const [hora, minuto] = horaParte.split(":")
@@ -29,25 +28,24 @@ export default function EventoDetalhe({ evento, onClose, onEdit, onDelete }) {
 
       return `${dia} de ${meses[parseInt(mes) - 1]} de ${ano} às ${hora}:${minuto}`
     } catch (error) {
-      console.error("Erro ao formatar data:", error)
-      return dataISO
+      return "Formato de data inválido"
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
       
       <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
-        {/* HEADER COM COR DO EVENTO */}
+        {/* HEADER COM A COR DO EVENTO */}
         <div 
-          className="p-6 text-white relative"
+          className="p-6 text-white"
           style={{ backgroundColor: evento.cor || "#3b82f6" }}
         >
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <span className="text-xs uppercase tracking-widest opacity-80 font-bold">
-                Detalhes da Atividade
+                Monitoramento REDEC 10
               </span>
               <h2 className="text-2xl font-bold leading-tight">
                 {evento.titulo}
@@ -67,53 +65,53 @@ export default function EventoDetalhe({ evento, onClose, onEdit, onDelete }) {
         <div className="p-8 space-y-6">
           
           {/* DESCRIÇÃO */}
-          {evento.descricao ? (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Descrição</label>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Descrição</label>
+            {evento.descricao ? (
               <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-2xl border border-gray-100">
                 {evento.descricao}
               </p>
-            </div>
-          ) : (
-            <p className="text-gray-400 italic">Sem descrição informada.</p>
-          )}
+            ) : (
+              <p className="text-gray-400 italic bg-gray-50/50 p-4 rounded-2xl border border-dashed text-sm">
+                Nenhum detalhe adicional para esta atividade.
+              </p>
+            )}
+          </div>
 
           {/* INFORMAÇÕES DE TEMPO */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3 text-gray-700">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="flex items-center gap-3 text-gray-700 bg-blue-50/50 p-3 rounded-2xl border border-blue-100">
+              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                 <Calendar size={18} />
               </div>
-              <span className="text-sm">
-                <strong className="block text-xs text-gray-400 uppercase">Início</strong>
-                {formatarDataSemFuso(evento.data_inicio)}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-blue-400 uppercase">Início</span>
+                <span className="text-sm font-medium">{formatarDataSemFuso(evento.data_inicio)}</span>
+              </div>
             </div>
 
             {evento.data_fim && (
-              <div className="flex items-center gap-3 text-gray-700 border-t pt-3">
-                <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+              <div className="flex items-center gap-3 text-gray-700 bg-orange-50/50 p-3 rounded-2xl border border-orange-100">
+                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
                   <Clock size={18} />
                 </div>
-                <span className="text-sm">
-                  <strong className="block text-xs text-gray-400 uppercase">Previsão de Término</strong>
-                  {formatarDataSemFuso(evento.data_fim)}
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-orange-400 uppercase">Término Previsto</span>
+                  <span className="text-sm font-medium">{formatarDataSemFuso(evento.data_fim)}</span>
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* AÇÕES (FOOTER) */}
-        <div className="flex justify-between items-center p-6 border-t bg-gray-50/50">
+        {/* AÇÕES (FOOTER) - TROCADO PRETO POR AZUL */}
+        <div className="flex justify-between items-center p-6 border-t bg-gray-50/80">
           
           <button 
             onClick={onDelete}
-            className="group flex items-center gap-2 text-red-500 font-semibold hover:text-red-700 transition-colors"
+            className="group flex items-center gap-2 text-red-500 font-bold hover:text-red-700 transition-colors"
           >
-            <div className="p-2 group-hover:bg-red-50 rounded-lg transition-colors">
-              <Trash size={18} />
-            </div>
+            <Trash size={18} />
             Excluir
           </button>
 
@@ -122,12 +120,13 @@ export default function EventoDetalhe({ evento, onClose, onEdit, onDelete }) {
               onClick={onClose}
               className="px-6 py-2.5 rounded-xl font-medium text-gray-600 hover:bg-gray-200 transition-all"
             >
-              Fechar
+              Voltar
             </button>
             
+            {/* BOTÃO AGORA EM AZUL VIBRANTE (Destaque correto) */}
             <button 
               onClick={onEdit}
-              className="bg-gray-900 hover:bg-black text-white px-6 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-gray-200 transition-all active:scale-95"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-200 transition-all active:scale-95 font-bold"
             >
               <Pencil size={18} />
               Editar Atividade
