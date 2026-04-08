@@ -1,11 +1,7 @@
 export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// ============================
-// FORMATAR DATA PARA A URL
-// ============================
 function formatarData(d) {
   const dia = String(d.getDate()).padStart(2, "0");
   const mes = String(d.getMonth() + 1).padStart(2, "0");
@@ -14,68 +10,70 @@ function formatarData(d) {
 }
 
 // ============================
-// PARSE XML → ARRAY DE OBJETOS
+// PARSE XML (VERSÃO REFEITA)
 // ============================
 function parseXML(xml) {
-  const blocos = xml.split("<DadosHidrometereologicos>");
+  // Dividimos pelo fechamento da tag para garantir que cada "pedaço" tenha os dados
+  const blocos = xml.split("</DadosHidrometereologicos>");
   const medicoes = [];
 
   for (const bloco of blocos) {
-    const dataMatch = bloco.match(/<DataHora>(.*?)<\/DataHora>/);
-    const nivelMatch = bloco.match(/<Nivel>(.*?)<\/Nivel>/);
+    if (!bloco.includes("<DataHora>")) continue;
 
-    if (!dataMatch || !nivelMatch) continue;
+    try {
+      // Extração manual mais robusta que o .match global
+      const dataHora = bloco.split("<DataHora>")[1].split("</DataHora>")[0].trim();
+      const nivelStr = bloco.split("<Nivel>")[1].split("</Nivel>")[0].trim();
+      const nivel = parseFloat(nivelStr);
 
-    const dataHoraRaw = dataMatch[1].trim();
-    const nivel = parseFloat(nivelMatch[1]);
-
-    if (!dataHoraRaw || isNaN(nivel)) continue;
-
-    // Criamos a data usando o formato ISO simples (sem fuso forçado)
-    const dt = new Date(dataHoraRaw.replace(" ", "T"));
-
-    medicoes.push({
-      datetime: dt,
-      nivel: nivel / 100, // Converte cm para m
-    });
+      if (dataHora && !isNaN(nivel)) {
+        // Criamos o objeto de data. Ex: 2026-04-08T12:00:00
+        const dt = new Date(dataHora.replace(" ", "T"));
+        
+        medicoes.push({
+          datetime: dt,
+          nivel: nivel / 100
+        });
+      }
+    } catch (e) {
+      continue; // Pula blocos malformados
+    }
   }
   return medicoes;
 }
 
 // ============================
-// LOGICA DE FILTRAGEM (JANELAS)
+// EXTRAIR BLOCOS (JANELAS)
 // ============================
 function extrairBlocos(medicoes, horaRef, dataBase) {
-  // Define a hora de referência no dia atual
+  const resultado = {};
+  const chaves = ["ref", "h4", "h8", "h12"];
+  const atrasos = [0, 4, 8, 12];
+
+  // Criamos a base (ex: 08:00:00)
   const base = new Date(dataBase);
   base.setHours(parseInt(horaRef), 0, 0, 0);
 
-  const chaves = ["ref", "h4", "h8", "h12"];
-  const intervalos = [0, 4, 8, 12];
-  const resultado = {};
-
-  intervalos.forEach((atraso, i) => {
+  atrasos.forEach((horasAtras, i) => {
     const alvo = new Date(base.getTime());
-    alvo.setHours(alvo.getHours() - atraso);
+    alvo.setHours(alvo.getHours() - horasAtras);
 
-    // Janela: [Alvo - 1 hora] até [Alvo]
-    const inicioJanela = new Date(alvo.getTime() - 60 * 60000);
+    const inicioJanela = new Date(alvo.getTime() - (60 * 60000)); // 1 hora antes
 
-    const candidatos = medicoes.filter(
-      (m) => m.datetime >= inicioJanela && m.datetime <= alvo
+    // Filtro: encontrar medições que encaixam na janela
+    const naJanela = medicoes.filter(m => 
+      m.datetime.getTime() > inicioJanela.getTime() && 
+      m.datetime.getTime() <= alvo.getTime()
     );
 
-    if (candidatos.length > 0) {
-      // Ordena para pegar o mais próximo do limite superior da janela (o mais recente)
-      candidatos.sort((a, b) => b.datetime - a.datetime);
-      const melhor = candidatos[0];
-
+    if (naJanela.length > 0) {
+      // Pegar a mais recente da janela
+      naJanela.sort((a, b) => b.datetime - a.datetime);
+      const m = naJanela[0];
       resultado[chaves[i]] = {
-        nivel: melhor.nivel,
-        hora: melhor.datetime.toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        nivel: m.nivel.toFixed(2),
+        hora: m.datetime.getHours().toString().padStart(2, "0") + ":" + 
+              m.datetime.getMinutes().toString().padStart(2, "0")
       };
     } else {
       resultado[chaves[i]] = null;
@@ -85,44 +83,34 @@ function extrairBlocos(medicoes, horaRef, dataBase) {
   return resultado;
 }
 
-// ============================
-// PROCESSAR CADA ESTAÇÃO
-// ============================
 async function processarEstacao(codigo, horaRef) {
   const agora = new Date();
   
-  // Retrocedemos 3 dias para garantir que pegamos os dados de ontem (H12)
-  const inicio = new Date();
-  inicio.setDate(agora.getDate() - 3);
+  // Define se a base é hoje ou ontem
+  let dataBase = new Date(agora);
+  if (parseInt(horaRef) > agora.getHours()) {
+    dataBase.setDate(agora.getDate() - 1);
+  }
+
+  // Busca dados de 3 dias para ter margem
+  const inicio = new Date(dataBase);
+  inicio.setDate(dataBase.getDate() - 3);
 
   const url = `https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos?codEstacao=${codigo}&dataInicio=${formatarData(inicio)}&dataFim=${formatarData(agora)}`;
 
   try {
     const resp = await fetch(url, { cache: "no-store" });
-    if (!resp.ok) return null;
-
     const xml = await resp.text();
     const medicoes = parseXML(xml);
 
     if (medicoes.length === 0) return null;
 
-    // Se a hora digitada ainda não chegou hoje, a base vira "ontem"
-    let dataBase = new Date(agora);
-    if (parseInt(horaRef) > agora.getHours()) {
-      dataBase.setDate(agora.getDate() - 1);
-    }
-
-    const blocos = extrairBlocos(medicoes, horaRef, dataBase);
-
-    return { hoje: blocos };
+    return { hoje: extrairBlocos(medicoes, horaRef, dataBase) };
   } catch (err) {
     return null;
   }
 }
 
-// ============================
-// ROTA PRINCIPAL (GET)
-// ============================
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
@@ -136,14 +124,10 @@ export async function GET(request) {
   if (!estacoes) return NextResponse.json({});
 
   const resultados = {};
-
   for (const estacao of estacoes) {
     const dados = await processarEstacao(estacao.codigo_estacao, horaRef);
-    if (dados) {
-      resultados[estacao.id] = dados;
-    }
-    // Pequeno delay para evitar bloqueio por excesso de requisições
-    await new Promise((r) => setTimeout(r, 150));
+    if (dados) resultados[estacao.id] = dados;
+    await new Promise(r => setTimeout(r, 150));
   }
 
   return NextResponse.json(resultados);
