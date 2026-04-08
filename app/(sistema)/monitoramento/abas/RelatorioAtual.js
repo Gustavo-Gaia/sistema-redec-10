@@ -1,5 +1,7 @@
 /* app/(sistema)/monitoramento/abas/RelatorioAtual.js */
 
+/* app/(sistema)/monitoramento/abas/RelatorioAtual.js */
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -17,6 +19,9 @@ export default function RelatorioAtual() {
 
   const [loadingAna, setLoadingAna] = useState(false)
   const [loadingInea, setLoadingInea] = useState(false)
+
+  // 🔥 NOVO
+  const [loadingAnaLegado, setLoadingAnaLegado] = useState(false)
 
   // ============================
   // INIT
@@ -81,7 +86,7 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // FETCH GENÉRICO (🔥 NOVO)
+  // FETCH GENÉRICO
   // ============================
 
   async function fetchSeguro(url) {
@@ -106,8 +111,9 @@ export default function RelatorioAtual() {
   }
 
   // ============================
-  // BUSCAR ANA (Ajustado para Nova Estrutura)
+  // BUSCAR ANA (NOVA)
   // ============================
+
   async function buscarANA() {
     if (!horaRef) return
     setLoadingAna(true)
@@ -126,13 +132,11 @@ export default function RelatorioAtual() {
 
         Object.entries(json).forEach(([id, periodos]) => {
           const idNum = Number(id)
-          
-          // O segredo está aqui: pegamos apenas o bloco 'hoje' 
-          // que contém o ref, h4, h8, h12 que a sua tabela exibe.
+
           if (periodos.hoje) {
             novo[idNum] = {
               ...novo[idNum],
-              ...periodos.hoje, // Espalha ref, h4, h8, h12
+              ...periodos.hoje,
               fonte: "ANA"
             }
           }
@@ -147,6 +151,49 @@ export default function RelatorioAtual() {
       setLoadingAna(false)
     }
   }
+
+  // ============================
+  // 🔥 BUSCAR ANA LEGADO (NOVO)
+  // ============================
+
+  async function buscarANALegado() {
+    if (!horaRef) return
+
+    setLoadingAnaLegado(true)
+
+    try {
+      const json = await fetchSeguro(`/api/ana-relatorio-legado?hora=${horaRef}`)
+
+      console.log("🟡 ANA LEGADO:", json)
+
+      if (!json || Object.keys(json).length === 0) {
+        alert("ANA Legado não retornou dados")
+        return
+      }
+
+      setDados(prev => {
+        const novo = { ...prev }
+
+        Object.entries(json).forEach(([id, valores]) => {
+          const idNum = Number(id)
+
+          novo[idNum] = {
+            ...novo[idNum],
+            ...valores,
+            fonte: "ANA (Legado)"
+          }
+        })
+
+        return { ...novo }
+      })
+
+    } catch (err) {
+      alert("Erro ao buscar ANA Legado")
+    } finally {
+      setLoadingAnaLegado(false)
+    }
+  }
+
   // ============================
   // BUSCAR INEA
   // ============================
@@ -170,7 +217,6 @@ export default function RelatorioAtual() {
         const novo = { ...prev }
 
         Object.entries(json).forEach(([id, valores]) => {
-
           const idNum = Number(id)
 
           novo[idNum] = {
@@ -252,6 +298,15 @@ export default function RelatorioAtual() {
             className="bg-green-600 text-white px-3 py-2 rounded-lg"
           >
             {loadingAna ? "Buscando..." : "Buscar ANA"}
+          </button>
+
+          {/* 🔥 NOVO BOTÃO */}
+          <button
+            onClick={buscarANALegado}
+            disabled={loadingAnaLegado}
+            className="bg-yellow-600 text-white px-3 py-2 rounded-lg"
+          >
+            {loadingAnaLegado ? "Buscando..." : "ANA Antiga"}
           </button>
 
           <button
