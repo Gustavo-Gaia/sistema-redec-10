@@ -11,15 +11,18 @@ export default function EventoDetalhe({ evento, onClose, onEdit, onDelete }) {
   function formatarData(data) {
     const d = new Date(data)
 
-    return d.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric"
-    }) + " às " +
-    d.toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit"
-    })
+    return (
+      d.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+      }) +
+      " às " +
+      d.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+    )
   }
 
   return (
@@ -29,31 +32,15 @@ export default function EventoDetalhe({ evento, onClose, onEdit, onDelete }) {
 
         {/* HEADER */}
         <div
-          className="p-5 text-white space-y-2"
+          className="p-5 text-white"
           style={{ backgroundColor: evento.cor || "#3b82f6" }}
         >
-
           <div className="flex justify-between items-start">
 
-            <div className="space-y-2">
-
-              {/* BADGES */}
-              <div className="flex gap-2 flex-wrap">
-                <span className="bg-white/20 px-2 py-1 rounded-md text-xs font-medium">
-                  {evento.tipo || "ATIVIDADE"}
-                </span>
-
-                <span className="bg-white/20 px-2 py-1 rounded-md text-xs">
-                  em andamento
-                </span>
-              </div>
-
-              {/* TÍTULO */}
-              <h2 className="text-xl font-bold leading-tight">
-                {evento.titulo}
-              </h2>
-
-            </div>
+            {/* TÍTULO */}
+            <h2 className="text-xl font-bold leading-tight">
+              {evento.titulo}
+            </h2>
 
             <button
               onClick={onClose}
@@ -63,7 +50,6 @@ export default function EventoDetalhe({ evento, onClose, onEdit, onDelete }) {
             </button>
 
           </div>
-
         </div>
 
         {/* CONTEÚDO */}
@@ -80,7 +66,7 @@ export default function EventoDetalhe({ evento, onClose, onEdit, onDelete }) {
           <div className="flex items-center gap-2 text-gray-700">
             <Calendar size={16} />
             <span>
-              <strong>Prazo:</strong> {formatarData(evento.data_inicio)}
+              <strong>Dia(s):</strong> {formatarData(evento.data_inicio)}
             </span>
           </div>
 
