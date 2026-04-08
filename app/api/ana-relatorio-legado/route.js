@@ -15,13 +15,92 @@ function formatarData(d) {
 }
 
 // ============================
-// BUSCAR E PROCESSAR DADOS
+// PARSE XML → ARRAY
+// ============================
+
+function parseXML(xml) {
+  const blocos = xml.split("<DadosHidrometereologicos>");
+  const medicoes = [];
+
+  for (const bloco of blocos) {
+    const dataMatch = bloco.match(/<DataHora>(.*?)<\/DataHora>/);
+    const nivelMatch = bloco.match(/<Nivel>(.*?)<\/Nivel>/);
+
+    if (!dataMatch || !nivelMatch) continue;
+
+    const dataHora = dataMatch[1].trim();
+    const nivel = parseFloat(nivelMatch[1]);
+
+    if (!dataHora || isNaN(nivel)) continue;
+
+    const dt = new Date(dataHora.replace(" ", "T"));
+
+    medicoes.push({
+      datetime: dt,
+      nivel: nivel / 100,
+    });
+  }
+
+  return medicoes;
+}
+
+// ============================
+// EXTRAIR BLOCOS (REGRA CORRETA)
+// ============================
+
+function extrairBlocos(medicoes, horaRef, dataBase) {
+  const base = new Date(
+    dataBase.getFullYear(),
+    dataBase.getMonth(),
+    dataBase.getDate(),
+    parseInt(horaRef),
+    0,
+    0,
+    0
+  );
+
+  const chaves = ["ref", "h4", "h8", "h12"];
+  const blocos = {};
+
+  [0, 4, 8, 12].forEach((sub, i) => {
+    const alvo = new Date(base);
+    alvo.setHours(alvo.getHours() - sub);
+
+    const inicioJanela = new Date(alvo.getTime() - 60 * 60000); // -1h
+
+    const dentroDaJanela = medicoes.filter(
+      (m) => m.datetime >= inicioJanela && m.datetime <= alvo
+    );
+
+    if (dentroDaJanela.length > 0) {
+      dentroDaJanela.sort((a, b) => b.datetime - a.datetime);
+
+      const melhor = dentroDaJanela[0];
+
+      blocos[chaves[i]] = {
+        nivel: melhor.nivel,
+        hora: melhor.datetime.toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+    } else {
+      blocos[chaves[i]] = null;
+    }
+  });
+
+  return blocos;
+}
+
+// ============================
+// PROCESSAR ESTAÇÃO
 // ============================
 
 async function processarEstacao(codigo, horaRef) {
-
   const agoraBr = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
+    new Date().toLocaleString("en-US", {
+      timeZone: "America/Sao_Paulo",
+    })
   );
 
   const inicio = new Date(agoraBr);
@@ -36,91 +115,22 @@ async function processarEstacao(codigo, horaRef) {
   try {
     const resp = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0" },
-      cache: "no-store"
+      cache: "no-store",
     });
 
     if (!resp.ok) return null;
 
     const xml = await resp.text();
 
-    // ============================
-    // 🔥 PARSE ROBUSTO
-    // ============================
-
-    const blocosXml = xml.split("<DadosHidrometereologicos>");
-
-    const medicoes = [];
-
-    for (const bloco of blocosXml) {
-
-      const dataMatch = bloco.match(/<DataHora>(.*?)<\/DataHora>/);
-      const nivelMatch = bloco.match(/<Nivel>(.*?)<\/Nivel>/);
-
-      if (!dataMatch || !nivelMatch) continue;
-
-      const dataHora = dataMatch[1].trim();
-      const nivel = parseFloat(nivelMatch[1]);
-
-      if (!dataHora || isNaN(nivel)) continue;
-
-      const dt = new Date(dataHora.replace(" ", "T"));
-
-      medicoes.push({
-        datetime: dt,
-        nivel: nivel / 100
-      });
-    }
-
-    // ⚠️ DEBUG IMPORTANTE
-    console.log(`Estação ${codigo} → ${medicoes.length} medições`);
+    const medicoes = parseXML(xml);
 
     if (medicoes.length === 0) return null;
 
-    // ============================
-    // LÓGICA DE HORÁRIOS (IGUAL ANA NOVA)
-    // ============================
+    const blocos = extrairBlocos(medicoes, horaRef, agoraBr);
 
-    const base = new Date(
-      agoraBr.getFullYear(),
-      agoraBr.getMonth(),
-      agoraBr.getDate(),
-      parseInt(horaRef),
-      0, 0, 0
-    );
-
-    const chaves = ["ref", "h4", "h8", "h12"];
-    const blocos = {};
-
-    [0, 4, 8, 12].forEach((sub, i) => {
-
-      const alvo = new Date(base);
-      alvo.setHours(alvo.getHours() - sub);
-
-      const limiteMin = new Date(alvo.getTime() - 60 * 60000);
-
-      const filtrados = medicoes.filter(m =>
-        m.datetime <= alvo &&
-        m.datetime >= limiteMin
-      );
-
-      if (filtrados.length > 0) {
-        filtrados.sort((a, b) => b.datetime - a.datetime);
-
-        blocos[chaves[i]] = {
-          nivel: filtrados[0].nivel,
-          hora: filtrados[0].datetime.toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit"
-          })
-        };
-      } else {
-        blocos[chaves[i]] = null;
-      }
-
-    });
-
-    return { hoje: blocos };
-
+    return {
+      hoje: blocos,
+    };
   } catch (err) {
     console.log("Erro ANA:", codigo);
     return null;
@@ -132,7 +142,6 @@ async function processarEstacao(codigo, horaRef) {
 // ============================
 
 export async function GET(request) {
-
   const { searchParams } = new URL(request.url);
   const horaRef = searchParams.get("hora") || "08";
 
@@ -147,7 +156,6 @@ export async function GET(request) {
   const resultados = {};
 
   for (const estacao of estacoes) {
-
     const dados = await processarEstacao(
       estacao.codigo_estacao,
       horaRef
@@ -157,7 +165,7 @@ export async function GET(request) {
       resultados[estacao.id] = dados;
     }
 
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
   }
 
   return NextResponse.json(resultados);
