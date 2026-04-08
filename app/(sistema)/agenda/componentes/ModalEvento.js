@@ -9,19 +9,18 @@ import { X, Trash } from "lucide-react"
 export default function ModalEvento({ evento, onClose, onSaved }) {
 
   const isEdit = !!evento
-
   const [loading, setLoading] = useState(false)
 
   // 🎨 CORES PADRÃO
   const coresPadrao = [
-    "#3b82f6", // azul
-    "#10b981", // verde
-    "#f59e0b", // amarelo
-    "#ef4444", // vermelho
-    "#8b5cf6", // roxo
-    "#ec4899", // rosa
-    "#14b8a6", // teal
-    "#f97316"  // laranja
+    "#3b82f6",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#ec4899",
+    "#14b8a6",
+    "#f97316"
   ]
 
   const [form, setForm] = useState({
@@ -41,7 +40,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  // 🔥 SALVAR
+  // 🔥 SALVAR (SEM criado_por)
   async function handleSave() {
     if (!form.titulo || !form.data_inicio) {
       alert("Preencha título e data")
@@ -50,28 +49,21 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
 
     setLoading(true)
 
-    const { data: user } = await supabase.auth.getUser()
-
-    const payload = {
-      ...form,
-      criado_por: user?.user?.id
-    }
-
     let error
 
     if (isEdit) {
-      const res = await supabase
+      const { error: err } = await supabase
         .from("agenda_eventos")
-        .update(payload)
+        .update(form)
         .eq("id", evento.id)
 
-      error = res.error
+      error = err
     } else {
-      const res = await supabase
+      const { error: err } = await supabase
         .from("agenda_eventos")
-        .insert([payload])
+        .insert([form])
 
-      error = res.error
+      error = err
     }
 
     setLoading(false)
@@ -109,9 +101,9 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
 
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-lg p-6 space-y-4">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-6 space-y-4 animate-in fade-in zoom-in-95">
 
         {/* HEADER */}
         <div className="flex justify-between items-center">
@@ -119,7 +111,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             {isEdit ? "Editar Evento" : "Novo Evento"}
           </h2>
 
-          <button onClick={onClose}>
+          <button onClick={onClose} className="hover:opacity-70">
             <X />
           </button>
         </div>
@@ -132,7 +124,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             placeholder="Título"
             value={form.titulo}
             onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2"
+            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
 
           <textarea
@@ -140,7 +132,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             placeholder="Descrição"
             value={form.descricao}
             onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2"
+            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
 
           <div className="grid grid-cols-2 gap-2">
@@ -149,7 +141,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
               name="data_inicio"
               value={form.data_inicio}
               onChange={handleChange}
-              className="border rounded-lg px-3 py-2"
+              className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
             <input
@@ -157,7 +149,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
               name="data_fim"
               value={form.data_fim}
               onChange={handleChange}
-              className="border rounded-lg px-3 py-2"
+              className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -166,10 +158,10 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             placeholder="Tipo (ex: reunião)"
             value={form.tipo}
             onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-2"
+            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
 
-          {/* 🎨 SELETOR DE CORES PADRÃO */}
+          {/* 🎨 CORES */}
           <div>
             <p className="text-sm mb-1">Cor</p>
 
@@ -197,7 +189,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
           {isEdit && (
             <button
               onClick={handleDelete}
-              className="text-red-600 flex items-center gap-1"
+              className="text-red-600 flex items-center gap-1 hover:opacity-80"
             >
               <Trash size={16} />
               Excluir
@@ -207,7 +199,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
           <div className="flex gap-2 ml-auto">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border"
+              className="px-4 py-2 rounded-lg border hover:bg-gray-100"
             >
               Cancelar
             </button>
@@ -215,7 +207,7 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
             >
               {loading ? "Salvando..." : "Salvar"}
             </button>
