@@ -17,7 +17,7 @@ import { ordenarLista } from "./componentes/utils"
 export default function BoletinsPage() {
   // 1. ESTADOS PRINCIPAIS
   const [abaAtiva, setAbaAtiva] = useState("boletins") // 'sei' ou 'boletins'
-  const [orgaoAtivo, setOrgaoAtivo] = useState("SEDEC") // 'SEDEC' ou 'DGDEC' (relevante apenas para boletins)
+  const [orgaoAtivo, setOrgaoAtivo] = useState("SEDEC") // 'SEDEC' ou 'DGDEC'
   const [dados, setDados] = useState([])
   const [loading, setLoading] = useState(true)
   
@@ -39,7 +39,7 @@ export default function BoletinsPage() {
         .select("*")
         .eq("categoria", abaAtiva)
 
-      // Se estiver na aba de boletins, filtra também pelo órgão selecionado
+      // Se estiver na aba de boletins, filtra também pelo órgão selecionado no banco
       if (abaAtiva === "boletins") {
         query = query.eq("tipo_orgao", orgaoAtivo)
       }
@@ -57,12 +57,12 @@ export default function BoletinsPage() {
     }
   }
 
-  // Recarregar sempre que trocar a aba principal OU o órgão
+  // Recarregar sempre que trocar a aba principal OU o órgão (sub-aba)
   useEffect(() => {
     carregarDados()
   }, [abaAtiva, orgaoAtivo])
 
-  // 3. FILTRAGEM EM TEMPO REAL
+  // 3. FILTRAGEM EM TEMPO REAL (Busca e Ano)
   const dadosFiltrados = dados.filter(item => {
     const assunto = item.assunto?.toLowerCase() || ""
     const numero = item.numero?.toLowerCase() || ""
@@ -89,13 +89,14 @@ export default function BoletinsPage() {
   return (
     <div className="p-6 pb-20 max-w-[1600px] mx-auto space-y-6">
       
-      {/* Topo com Título e Visto Até */}
+      {/* Topo: Agora passamos o orgaoAtivo para evitar o erro de 'undefined' */}
       <HeaderBoletins 
         abaAtiva={abaAtiva} 
+        orgaoAtivo={orgaoAtivo}
         onNovo={handleNovo} 
       />
 
-      {/* Seletor de Abas (Agora enviamos também o controle de órgão) */}
+      {/* Seletor de Abas Principal e Sub-abas de Órgãos */}
       <AbasBoletins 
         abaAtiva={abaAtiva} 
         setAbaAtiva={setAbaAtiva} 
@@ -115,7 +116,7 @@ export default function BoletinsPage() {
           dados={dadosFiltrados} 
           loading={loading} 
           abaAtiva={abaAtiva} 
-          orgaoAtivo={orgaoAtivo} // Passamos o órgão para a tabela saber o que esconder
+          orgaoAtivo={orgaoAtivo}
           onEdit={handleEditar}
           onRefresh={carregarDados}
         />
@@ -128,12 +129,12 @@ export default function BoletinsPage() {
           onClose={() => setModalOpen(false)}
           item={itemParaEditar}
           abaAtiva={abaAtiva}
-          orgaoPadrao={orgaoAtivo} // Para já vir marcado SEDEC ou DGDEC no novo cadastro
+          orgaoPadrao={orgaoAtivo} // Define se o novo registro vem como SEDEC ou DGDEC
           onSuccess={carregarDados}
         />
       )}
 
-      {/* Botão Flutuante */}
+      {/* Botão Flutuante de Acesso Rápido */}
       <button
         onClick={handleNovo}
         className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center group z-40"
