@@ -97,7 +97,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
         // Título formatado: PRAZO: Bol-061-SEDEC ou PRAZO: SEI 123456
         const tituloAgenda = abaAtiva === "boletins"
           ? `PRAZO: ${numeroFinal}-${formData.tipo_orgao}`
-          : `PRAZO: SEI ${numeroFinal}`
+          : `PRAZO: ${numeroFinal}`
 
         const payloadAgenda = {
           titulo: tituloAgenda,
