@@ -5,9 +5,8 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { Plus } from "lucide-react"
-import { toast } from "react-hot-toast" // Assumindo que você usa react-hot-toast
+import { toast } from "react-hot-toast"
 
-// Componentes que vamos criar nos próximos passos
 import AbasBoletins from "./componentes/AbasBoletins"
 import HeaderBoletins from "./componentes/HeaderBoletins"
 import Filtros from "./componentes/Filtros"
@@ -17,28 +16,32 @@ import { ordenarLista } from "./componentes/utils"
 
 export default function BoletinsPage() {
   // 1. ESTADOS PRINCIPAIS
-  const [abaAtiva, setAbaAtiva] = useState("sei") // 'sei' ou 'boletins'
+  // Iniciamos com 'boletins' para você já ver os dados que subimos agora
+  const [abaAtiva, setAbaAtiva] = useState("boletins") 
   const [dados, setDados] = useState([])
   const [loading, setLoading] = useState(true)
   
   // Estados de Controle
   const [modalOpen, setModalOpen] = useState(false)
   const [itemParaEditar, setItemParaEditar] = useState(null)
-  const [filtros, setFiltros] = useState({ busca: "", ano: new Date().getFullYear().toString(), especial: false })
+  const [filtros, setFiltros] = useState({ 
+    busca: "", 
+    ano: "2026", // Já inicia em 2026 que é onde estão os novos dados
+    especial: false 
+  })
 
   // 2. BUSCAR DADOS DO SUPABASE
   async function carregarDados() {
     setLoading(true)
     try {
-      // Buscamos da tabela única que criamos
+      // CORREÇÃO AQUI: 'boletins' no plural para bater com o banco de dados
       const { data, error } = await supabase
         .from("documentos_administrativos")
         .select("*")
-        .eq("categoria", abaAtiva === "sei" ? "sei" : "boletim")
+        .eq("categoria", abaAtiva) 
 
       if (error) throw error
       
-      // Aplicamos a ordenação inteligente do utils.js
       setDados(ordenarLista(data || []))
     } catch (error) {
       console.error("Erro ao carregar:", error)
@@ -53,11 +56,14 @@ export default function BoletinsPage() {
     carregarDados()
   }, [abaAtiva])
 
-  // 3. FILTRAGEM EM TEMPO REAL (No Front-end para agilidade)
+  // 3. FILTRAGEM EM TEMPO REAL
   const dadosFiltrados = dados.filter(item => {
-    const matchesBusca = item.assunto.toLowerCase().includes(filtros.busca.toLowerCase()) || 
-                         item.numero.toLowerCase().includes(filtros.busca.toLowerCase())
-    const matchesAno = item.data_registro.startsWith(filtros.ano)
+    const assunto = item.assunto?.toLowerCase() || ""
+    const numero = item.numero?.toLowerCase() || ""
+    const busca = filtros.busca.toLowerCase()
+
+    const matchesBusca = assunto.includes(busca) || numero.includes(busca)
+    const matchesAno = item.data_registro?.startsWith(filtros.ano)
     const matchesEspecial = filtros.especial ? item.acompanhamento_especial === true : true
 
     return matchesBusca && matchesAno && matchesEspecial
@@ -117,7 +123,7 @@ export default function BoletinsPage() {
         />
       )}
 
-      {/* Botão Flutuante (estilo que você gostou) */}
+      {/* Botão Flutuante */}
       <button
         onClick={handleNovo}
         className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center group z-40"
