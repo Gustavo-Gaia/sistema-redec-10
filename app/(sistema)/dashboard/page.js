@@ -90,8 +90,13 @@ export default function Dashboard() {
       color: "from-slate-600 to-slate-900", 
       link: "/agenda", 
       info: [
-        `Mês atual: ${statsAgenda.mes} atividades`, 
-        `Nesta semana: ${statsAgenda.semana}`
+        statsAgenda.mes === 0 ? "Nenhuma atividade no mês" : 
+        statsAgenda.mes === 1 ? "1 atividade este mês" : 
+        `${statsAgenda.mes} atividades no mês`,
+        
+        statsAgenda.semana === 0 ? "Nada agendado esta semana" :
+        statsAgenda.semana === 1 ? "1 compromisso esta semana" :
+        `${statsAgenda.semana} compromissos na semana`
       ] 
     },
     { 
@@ -144,8 +149,12 @@ export default function Dashboard() {
                     (line.includes("Colchões") && saldoContainer.colchoes < 102) || 
                     (line.includes("Kits") && saldoContainer.kits < 102)
                   );
-                  // Ponto azul se houver compromisso na semana
-                  const isDestaqueAgenda = isAgenda && line.includes("semana") && statsAgenda.semana > 0;
+                  
+                  // Se for agenda e tiver compromisso na semana, destaca em azul
+                  const isDestaqueAgenda = isAgenda && 
+                                          !line.includes("Nada agendado") && 
+                                          !line.includes("atividades no mês") && 
+                                          !line.includes("atividade este mês");
 
                   return (
                     <div key={j} className="flex items-center gap-2">
