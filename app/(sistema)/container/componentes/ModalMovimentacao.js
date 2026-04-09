@@ -3,7 +3,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { X, FileText, Truck, Users, Hash, MapPin, ClipboardList, Package, Calendar, Clock } from "lucide-react"
+import { X, FileText, Truck, Users, Hash, MapPin, ClipboardList, Package, CalendarClock } from "lucide-react"
 
 export default function ModalMovimentacao({
   onClose,
@@ -14,12 +14,9 @@ export default function ModalMovimentacao({
   const [previewUrl, setPreviewUrl] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  // Estados separados para Data e Hora (como na Agenda)
-  const [dataPart, setDataPart] = useState(new Date().toISOString().split('T')[0])
-  const [horaPart, setHoraPart] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
-
   const [form, setForm] = useState({
     tipo: "ENTRADA",
+    data_hora: new Date().toISOString().slice(0, 16),
     viatura: "",
     guarnicao: "",
     lacre: "",
@@ -31,13 +28,11 @@ export default function ModalMovimentacao({
   })
 
   useEffect(() => {
-    if (movimentacao && movimentacao.data_hora) {
+    if (movimentacao) {
       setForm({
-        ...movimentacao
+        ...movimentacao,
+        data_hora: movimentacao.data_hora?.slice(0, 16)
       })
-      const dt = new Date(movimentacao.data_hora)
-      setDataPart(dt.toISOString().split('T')[0])
-      setHoraPart(dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
       setPreviewUrl(movimentacao.arquivo_url || null)
     }
   }, [movimentacao])
@@ -59,14 +54,9 @@ export default function ModalMovimentacao({
   async function handleSubmit() {
     if (loading) return
     setLoading(true)
-
-    // Recompõe a data e hora para o formato ISO antes de enviar
-    const dataHoraComposta = `${dataPart}T${horaPart}:00`
-
     await onSave(
       {
         ...form,
-        data_hora: dataHoraComposta,
         colchao_qtd: Number(form.colchao_qtd),
         kit_dorm_qtd: Number(form.kit_dorm_qtd)
       },
@@ -99,46 +89,33 @@ export default function ModalMovimentacao({
         </div>
 
         {/* CORPO DO FORMULÁRIO */}
-        <div className="p-6 overflow-y-auto space-y-5 custom-scrollbar">
+        <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Tipo de Operação */}
-            <div className="md:col-span-2 bg-slate-100/50 p-1 rounded-2xl flex gap-1">
-              <button 
-                onClick={() => setForm({...form, tipo: 'ENTRADA'})}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${form.tipo === 'ENTRADA' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'}`}
+            {/* Tipo */}
+            <div>
+              <label className={labelStyle}>Tipo de Operação</label>
+              <select
+                name="tipo"
+                value={form.tipo}
+                onChange={handleChange}
+                className={`${inputStyle} font-bold ${form.tipo === 'ENTRADA' ? 'text-emerald-600' : 'text-orange-600'}`}
               >
-                🟢 ENTRADA
-              </button>
-              <button 
-                onClick={() => setForm({...form, tipo: 'SAÍDA'})}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${form.tipo === 'SAÍDA' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'}`}
-              >
-                🟠 SAÍDA
-              </button>
+                <option value="ENTRADA">🟢 ENTRADA</option>
+                <option value="SAÍDA">🟠 SAÍDA</option>
+              </select>
             </div>
 
-            {/* Data e Hora Separadas */}
+            {/* Data e Hora (Mantido datetime-local conforme solicitado) */}
             <div>
-              <label className={labelStyle}>Data</label>
+              <label className={labelStyle}>Data e Hora do Registro</label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-3 text-slate-400" size={18} />
+                <CalendarClock className="absolute left-3 top-3 text-slate-400" size={18} />
                 <input
-                  type="date"
-                  value={dataPart}
-                  onChange={(e) => setDataPart(e.target.value)}
-                  className={`${inputStyle} pl-10`}
-                />
-              </div>
-            </div>
-            <div>
-              <label className={labelStyle}>Hora</label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-3 text-slate-400" size={18} />
-                <input
-                  type="time"
-                  value={horaPart}
-                  onChange={(e) => setHoraPart(e.target.value)}
+                  type="datetime-local"
+                  name="data_hora"
+                  value={form.data_hora}
+                  onChange={handleChange}
                   className={`${inputStyle} pl-10`}
                 />
               </div>
@@ -182,11 +159,11 @@ export default function ModalMovimentacao({
             <label className={labelStyle}>Origem ou Destino Final</label>
             <div className="relative">
               <MapPin className="absolute left-3 top-3 text-slate-400" size={18} />
-              <input name="origem_destino" value={form.origem_destino} onChange={handleChange} className={`${inputStyle} pl-10`} placeholder="Ex: COMDEC Natividade" />
+              <input name="origem_destino" value={form.origem_destino} onChange={handleChange} className={`${inputStyle} pl-10`} placeholder="Ex: Almoxarifado Central / Natividade" />
             </div>
           </div>
 
-          {/* Quantidades */}
+          {/* Quantidades - Destaque Azul */}
           <div className="grid grid-cols-2 gap-4 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
             <div>
               <label className={`${labelStyle} text-blue-600`}>Qtd. Colchões</label>
@@ -198,52 +175,59 @@ export default function ModalMovimentacao({
             </div>
           </div>
 
-          {/* Documento PDF */}
+          {/* Upload PDF */}
           <div className="space-y-2">
             <label className={labelStyle}>Documento Comprobatório (PDF)</label>
             <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 rounded-2xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-all">
               <div className="flex flex-col items-center justify-center">
                 <FileText size={24} className="mb-1 text-slate-400" />
-                <p className="text-xs text-slate-500">Clique para anexar a Guia Digitalizada</p>
+                <p className="text-xs text-slate-500 font-medium">Clique para anexar a Guia Digitalizada</p>
               </div>
               <input type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" />
             </label>
           </div>
 
+          {/* PREVIEW PDF */}
           {previewUrl && (
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-inner bg-slate-50">
               <div className="bg-slate-200/50 px-4 py-1.5 text-[10px] font-bold text-slate-500 flex justify-between">
-                PRÉ-VISUALIZAÇÃO
-                <button onClick={() => {setFile(null); setPreviewUrl(null)}} className="text-red-500">Remover</button>
+                PRÉ-VISUALIZAÇÃO DO ANEXO
+                <button onClick={() => {setFile(null); setPreviewUrl(null)}} className="text-red-500 hover:underline">Remover</button>
               </div>
-              <iframe src={previewUrl} className="w-full h-40" />
+              <iframe src={previewUrl} className="w-full h-48" title="Preview" />
             </div>
           )}
 
           {/* Observação */}
           <div>
-            <label className={labelStyle}>Observações</label>
+            <label className={labelStyle}>Observações Adicionais</label>
             <textarea
-              rows="2"
+              rows="3"
               name="observacao"
               value={form.observacao}
               onChange={handleChange}
               className={`${inputStyle} resize-none`}
-              placeholder="Notas adicionais..."
+              placeholder="Descreva detalhes relevantes..."
             />
           </div>
         </div>
 
         {/* RODAPÉ */}
         <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2.5 rounded-xl text-slate-600 font-semibold hover:bg-slate-200 transition-all">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 rounded-xl text-slate-600 font-semibold hover:bg-slate-200 transition-all"
+          >
             Cancelar
           </button>
+
           <button
             onClick={handleSubmit}
             disabled={loading}
             className={`px-8 py-2.5 rounded-xl text-white font-bold shadow-lg shadow-blue-500/30 transition-all ${
-              loading ? "bg-slate-400" : "bg-blue-600 hover:bg-blue-700 active:scale-95"
+              loading
+                ? "bg-slate-400"
+                : "bg-blue-600 hover:bg-blue-700 active:scale-95"
             }`}
           >
             {loading ? "Processando..." : movimentacao ? "Atualizar Registro" : "Salvar Movimentação"}
