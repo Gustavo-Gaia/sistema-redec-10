@@ -16,8 +16,8 @@ import { ordenarLista } from "./componentes/utils"
 
 export default function BoletinsPage() {
   // 1. ESTADOS PRINCIPAIS
-  // Iniciamos com 'boletins' para você já ver os dados que subimos agora
-  const [abaAtiva, setAbaAtiva] = useState("boletins") 
+  const [abaAtiva, setAbaAtiva] = useState("boletins") // 'sei' ou 'boletins'
+  const [orgaoAtivo, setOrgaoAtivo] = useState("SEDEC") // 'SEDEC' ou 'DGDEC' (relevante apenas para boletins)
   const [dados, setDados] = useState([])
   const [loading, setLoading] = useState(true)
   
@@ -26,7 +26,7 @@ export default function BoletinsPage() {
   const [itemParaEditar, setItemParaEditar] = useState(null)
   const [filtros, setFiltros] = useState({ 
     busca: "", 
-    ano: "2026", // Já inicia em 2026 que é onde estão os novos dados
+    ano: "2026", 
     especial: false 
   })
 
@@ -34,11 +34,17 @@ export default function BoletinsPage() {
   async function carregarDados() {
     setLoading(true)
     try {
-      // CORREÇÃO AQUI: 'boletins' no plural para bater com o banco de dados
-      const { data, error } = await supabase
+      let query = supabase
         .from("documentos_administrativos")
         .select("*")
-        .eq("categoria", abaAtiva) 
+        .eq("categoria", abaAtiva)
+
+      // Se estiver na aba de boletins, filtra também pelo órgão selecionado
+      if (abaAtiva === "boletins") {
+        query = query.eq("tipo_orgao", orgaoAtivo)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       
@@ -51,10 +57,10 @@ export default function BoletinsPage() {
     }
   }
 
-  // Recarregar sempre que trocar a aba
+  // Recarregar sempre que trocar a aba principal OU o órgão
   useEffect(() => {
     carregarDados()
-  }, [abaAtiva])
+  }, [abaAtiva, orgaoAtivo])
 
   // 3. FILTRAGEM EM TEMPO REAL
   const dadosFiltrados = dados.filter(item => {
@@ -89,10 +95,12 @@ export default function BoletinsPage() {
         onNovo={handleNovo} 
       />
 
-      {/* Seletor de Abas */}
+      {/* Seletor de Abas (Agora enviamos também o controle de órgão) */}
       <AbasBoletins 
         abaAtiva={abaAtiva} 
         setAbaAtiva={setAbaAtiva} 
+        orgaoAtivo={orgaoAtivo}
+        setOrgaoAtivo={setOrgaoAtivo}
       />
 
       {/* Área de Filtros e Tabela */}
@@ -107,6 +115,7 @@ export default function BoletinsPage() {
           dados={dadosFiltrados} 
           loading={loading} 
           abaAtiva={abaAtiva} 
+          orgaoAtivo={orgaoAtivo} // Passamos o órgão para a tabela saber o que esconder
           onEdit={handleEditar}
           onRefresh={carregarDados}
         />
@@ -119,6 +128,7 @@ export default function BoletinsPage() {
           onClose={() => setModalOpen(false)}
           item={itemParaEditar}
           abaAtiva={abaAtiva}
+          orgaoPadrao={orgaoAtivo} // Para já vir marcado SEDEC ou DGDEC no novo cadastro
           onSuccess={carregarDados}
         />
       )}
