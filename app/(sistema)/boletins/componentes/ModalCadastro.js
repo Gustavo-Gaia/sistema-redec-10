@@ -22,13 +22,19 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
 
   useEffect(() => {
     if (item) {
-      setFormData(item)
+      // Se for edição de boletim, removemos o "Bol-" apenas para exibição no input numérico
+      if (abaAtiva === "boletins" && item.numero?.startsWith("Bol-")) {
+        setFormData({ ...item, numero: item.numero.replace("Bol-", "") })
+      } else {
+        setFormData(item)
+      }
     } else {
       prepararSugestaoData()
     }
   }, [item, abaAtiva, orgaoPadrao])
 
   async function prepararSugestaoData() {
+    const hoje = new Date().toISOString().split("T")[0]
     if (abaAtiva === "boletins") {
       const orgaoReferencia = orgaoPadrao || "SEDEC"
       const { data } = await supabase
@@ -37,26 +43,25 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
         .eq("tipo_orgao", orgaoReferencia)
         .single()
 
+      let dataSugerida = hoje
       if (data?.visto_ate) {
         const d = new Date(data.visto_ate)
         d.setDate(d.getDate() + 1)
-        setFormData(prev => ({ 
-          ...prev, 
-          tipo_orgao: orgaoReferencia,
-          data_registro: d.toISOString().split("T")[0] 
-        }))
-      } else {
-        setFormData(prev => ({ 
-          ...prev, 
-          tipo_orgao: orgaoReferencia,
-          data_registro: new Date().toISOString().split("T")[0] 
-        }))
+        dataSugerida = d.toISOString().split("T")[0]
       }
+
+      setFormData(prev => ({ 
+        ...prev, 
+        tipo_orgao: orgaoReferencia,
+        data_registro: dataSugerida,
+        numero: "" // Limpa para o novo input numérico
+      }))
     } else {
       setFormData(prev => ({ 
         ...prev, 
-        data_registro: new Date().toISOString().split("T")[0],
-        destino_remetente: "" 
+        data_registro: hoje,
+        destino_remetente: "",
+        numero: ""
       }))
     }
   }
@@ -65,34 +70,41 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
     e.preventDefault()
     setLoading(true)
 
+    // 🔹 CORREÇÃO 2: Formata o número antes de salvar
+    const numeroFinal = abaAtiva === "boletins" 
+      ? `Bol-${formData.numero.padStart(3, '0')}` // Ex: Bol-012
+      : formData.numero
+
     try {
-      // 1. Salva ou Atualiza o Documento Administrativo
-      const { data: docSalvo, error: errorDoc } = await supabase
+      const payloadDoc = {
+        ...formData,
+        numero: numeroFinal,
+        tipo_orgao: abaAtiva === "boletins" ? formData.tipo_orgao : null,
+        destino_remetente: abaAtiva === "sei" ? formData.destino_remetente : null,
+        prazo: formData.prazo || null,
+      }
+
+      const { error: errorDoc } = await supabase
         .from("documentos_administrativos")
-        .upsert({
-          ...formData,
-          tipo_orgao: abaAtiva === "boletins" ? formData.tipo_orgao : null,
-          destino_remetente: abaAtiva === "sei" ? formData.destino_remetente : null,
-          prazo: formData.prazo || null,
-        })
-        .select()
-        .single()
+        .upsert(payloadDoc)
 
       if (errorDoc) throw errorDoc
 
-      // 2. Lógica de Integração com a Agenda (Se houver prazo)
+      // 🔹 CORREÇÃO 1: Título da Agenda formatado (Ex: PRAZO: Bol-061-SEDEC)
       if (formData.prazo) {
+        const tituloAgenda = abaAtiva === "boletins"
+          ? `PRAZO: ${numeroFinal}-${formData.tipo_orgao}`
+          : `PRAZO: SEI ${numeroFinal}`
+
         const payloadAgenda = {
-          titulo: `PRAZO: ${abaAtiva.toUpperCase()} ${formData.numero}`,
-          descricao: `Assunto: ${formData.assunto}\nOrigem/Destino: ${formData.tipo_orgao || formData.destino_remetente}`,
-          data_inicio: `${formData.prazo} 17:00:00`, // Prazo final às 17h
+          titulo: tituloAgenda,
+          descricao: `Assunto: ${formData.assunto}\nRef: ${numeroFinal}`,
+          data_inicio: `${formData.prazo} 17:00:00`,
           data_fim: `${formData.prazo} 18:00:00`,
-          cor: "#78350f", // Marrom automático para prazos
+          cor: "#78350f",
           tipo: "Administrativo"
         }
 
-        // Se estiver editando, tentamos atualizar o evento existente, senão criamos um novo
-        // Nota: Idealmente você teria uma coluna 'documento_id' na agenda_eventos para linkar
         await supabase.from("agenda_eventos").insert([payloadAgenda])
       }
 
@@ -100,24 +112,10 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
       onSuccess()
       onClose()
     } catch (error) {
-      console.error(error)
       toast.error("Erro ao salvar dados")
     } finally {
       setLoading(false)
     }
-  }
-
-  async function handleExcluir() {
-    if (!confirm("Deseja realmente excluir este registro?")) return
-    setLoading(true)
-    try {
-      const { error } = await supabase.from("documentos_administrativos").delete().eq("id", item.id)
-      if (error) throw error
-      toast.success("Excluído!")
-      onSuccess()
-      onClose()
-    } catch (error) { toast.error("Erro ao excluir") }
-    finally { setLoading(false) }
   }
 
   if (!isOpen) return null
@@ -154,14 +152,32 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
             )}
 
             <div className="space-y-2">
-              <label className="text-xs font-black text-slate-400 uppercase ml-1">Nº do {abaAtiva === "sei" ? "SEI" : "Boletim"}</label>
-              <input 
-                required
-                placeholder={abaAtiva === "sei" ? "000000/0000/0000" : "Bol-000"}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.numero}
-                onChange={e => setFormData({...formData, numero: e.target.value})}
-              />
+              <label className="text-xs font-black text-slate-400 uppercase ml-1">
+                Nº do {abaAtiva === "sei" ? "SEI" : "Boletim"}
+              </label>
+              
+              {abaAtiva === "boletins" ? (
+                /* 🔹 INPUT COM PREFIXO FIXO "Bol-" */
+                <div className="relative flex items-center">
+                  <span className="absolute left-4 font-bold text-slate-400 select-none">Bol-</span>
+                  <input 
+                    type="number"
+                    required
+                    placeholder="000"
+                    className="w-full p-3 pl-12 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.numero}
+                    onChange={e => setFormData({...formData, numero: e.target.value})}
+                  />
+                </div>
+              ) : (
+                <input 
+                  required
+                  placeholder="000000/0000/00"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.numero}
+                  onChange={e => setFormData({...formData, numero: e.target.value})}
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -175,7 +191,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-black text-slate-400 uppercase ml-1 text-amber-600">Prazo Final (Gera Evento na Agenda)</label>
+              <label className="text-xs font-black text-slate-400 uppercase ml-1 text-amber-600">Prazo Final</label>
               <input 
                 type="date"
                 className="w-full p-3 bg-amber-50/50 border border-amber-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-amber-500"
@@ -204,16 +220,6 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
                 onChange={e => setFormData({...formData, assunto: e.target.value})}
               />
             </div>
-          </div>
-
-          <div 
-            onClick={() => setFormData({...formData, acompanhamento_especial: !formData.acompanhamento_especial})}
-            className="flex items-center gap-3 cursor-pointer p-3 rounded-2xl bg-amber-50/50 border border-amber-100 w-fit mt-6"
-          >
-            <div className={`w-10 h-6 rounded-full relative transition-colors ${formData.acompanhamento_especial ? 'bg-amber-400' : 'bg-slate-200'}`}>
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.acompanhamento_especial ? 'left-5' : 'left-1'}`} />
-            </div>
-            <span className="text-sm font-bold text-amber-700">Acompanhamento Especial</span>
           </div>
         </form>
 
