@@ -1,5 +1,9 @@
 /* app/(sistema)/agenda/componentes/CalendarGrid.js */
 
+"use client"
+
+import { useEffect, useRef } from "react"
+
 export default function CalendarGrid({
   dataAtual,
   eventos = [],
@@ -7,16 +11,27 @@ export default function CalendarGrid({
   modo = "mes"
 }) {
 
+  const scrollContainerRef = useRef(null) // Referência para o scroll
   const diasSemana = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"]
   const hoje = new Date().toDateString()
 
-  // FUNÇÃO AUXILIAR: Extrai a data (YYYY-MM-DD) sem sofrer com fuso horário
+  // 🔹 EFEITO PARA SCROLL AUTOMÁTICO (Inicia nas 07:00)
+  useEffect(() => {
+    if (modo === "semana" && scrollContainerRef.current) {
+      // Cada bloco de hora tem min-h-[64px] no seu código
+      // 7 horas * 64px = 448px de deslocamento
+      scrollContainerRef.current.scrollTo({
+        top: 448,
+        behavior: "smooth"
+      })
+    }
+  }, [modo])
+
   function extrairDataTexto(dataISO) {
     if (!dataISO) return ""
     return dataISO.includes("T") ? dataISO.split("T")[0] : dataISO.split(" ")[0]
   }
 
-  // FUNÇÃO AUXILIAR: Extrai apenas a hora (HH) para o modo semana
   function extrairHoraTexto(dataISO) {
     if (!dataISO) return null
     const horaParte = dataISO.includes("T") ? dataISO.split("T")[1] : dataISO.split(" ")[1]
@@ -24,12 +39,11 @@ export default function CalendarGrid({
   }
 
   // =====================================================
-  // 🟢 MODO MENSAL
+  // 🟢 MODO MENSAL (Mantido Original)
   // =====================================================
   if (modo === "mes") {
     const ano = dataAtual.getFullYear()
     const mes = dataAtual.getMonth()
-
     const primeiroDiaMes = new Date(ano, mes, 1)
     const ultimoDiaMes = new Date(ano, mes + 1, 0)
 
@@ -67,20 +81,17 @@ export default function CalendarGrid({
         <div className="grid grid-cols-7">
           {celulas.map((item, i) => {
             const isHoje = item.data.toDateString() === hoje
-            
-            // FILTRO CORRIGIDO: Compara strings YYYY-MM-DD para evitar erro de fuso
             const dataStringCelula = item.data.toISOString().split('T')[0]
             const eventosDoDia = eventos.filter(ev => extrairDataTexto(ev.data_inicio) === dataStringCelula)
 
             return (
               <div
                 key={i}
-                onClick={() => {/* Opcional: abrir modal novo evento neste dia */}}
                 className={`h-32 border-b border-r p-2 flex flex-col transition relative group ${
                   item.atual ? "bg-white" : "bg-gray-50 text-gray-300"
                 } ${isHoje ? "bg-blue-50/30" : ""}`}
               >
-                <div className={`text-sm font-bold mb-1 ${isHoje ? "bg-blue-600 text-white w-6 h-6 flex items-center justify-center rounded-full" : ""}`}>
+                <div className={`text-sm font-bold mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isHoje ? "bg-blue-600 text-white" : ""}`}>
                   {item.data.getDate()}
                 </div>
 
@@ -117,7 +128,7 @@ export default function CalendarGrid({
   }
 
   // =====================================================
-  // 🔵 MODO SEMANA
+  // 🔵 MODO SEMANA (Com Scroll Automático)
   // =====================================================
   if (modo === "semana") {
     const inicioSemana = new Date(dataAtual)
@@ -136,6 +147,7 @@ export default function CalendarGrid({
 
     return (
       <div className="bg-white rounded-2xl shadow overflow-hidden border">
+        {/* CABEÇALHO FIXO DA SEMANA */}
         <div className="grid grid-cols-8 border-b bg-gray-50">
           <div className="p-2 border-r" /> 
           {dias.map((d, i) => (
@@ -146,7 +158,11 @@ export default function CalendarGrid({
           ))}
         </div>
 
-        <div className="flex flex-col h-[600px] overflow-y-auto">
+        {/* CONTAINER COM SCROLL CONTROLADO */}
+        <div 
+          ref={scrollContainerRef}
+          className="flex flex-col h-[600px] overflow-y-auto custom-scrollbar"
+        >
           {horas.map((hora) => (
             <div key={hora} className="grid grid-cols-8 border-b min-h-[64px] group">
               <div className="text-[10px] text-gray-400 flex items-start justify-end pr-3 pt-2 bg-gray-50 border-r font-medium">
@@ -168,7 +184,7 @@ export default function CalendarGrid({
                         onClick={() => onSelectEvento(ev)}
                         className="absolute inset-x-1 top-1 z-10 text-[10px] p-1.5 rounded-lg cursor-pointer truncate font-bold border-l-4 shadow-sm"
                         style={{
-                          backgroundColor: `${ev.cor || "#3b82f6"}ee`, // ee = quase opaco
+                          backgroundColor: `${ev.cor || "#3b82f6"}ee`,
                           borderColor: ev.cor || "#3b82f6",
                           color: "#fff"
                         }}
