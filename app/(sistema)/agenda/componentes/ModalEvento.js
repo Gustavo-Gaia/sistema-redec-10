@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-import { X, Trash, Calendar, Clock, Tag } from "lucide-react"
+import { X, Trash, Calendar, Clock, Tag, Pencil, Plus } from "lucide-react"
 
 // 🔹 FORMATAÇÃO BLINDADA: Aceita formatos com "T" ou Espaço
 function formatarDataInput(dataISO) {
@@ -188,11 +188,19 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
               {coresPadrao.map(c => (
                 <button
                   key={c}
+                  type="button"
                   onClick={() => setForm({ ...form, cor: c })}
                   className={`w-8 h-8 rounded-full border-4 transition-all ${form.cor === c ? "border-gray-300 scale-125 shadow-lg" : "border-transparent"}`}
                   style={{ backgroundColor: c }}
                 />
               ))}
+              {/* Mostra o marrom APENAS se o evento já for marrom (vindo do Boletim) */}
+              {!coresPadrao.includes(form.cor) && (
+                <div 
+                  className="w-8 h-8 rounded-full border-4 border-gray-300 scale-125 shadow-lg"
+                  style={{ backgroundColor: form.cor }}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -214,5 +222,3 @@ export default function ModalEvento({ evento, onClose, onSaved }) {
     </div>
   )
 }
-
-import { Pencil, Plus } from "lucide-react"
