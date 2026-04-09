@@ -169,7 +169,8 @@ export default function CalendarGrid({
           <div className="grid grid-cols-8">
             {horas.map((hora) => (
               <div key={hora} className="contents">
-                <div className="h-16 border-b border-r border-gray-100 text-[10px] text-gray-400 flex items-start justify-end pr-2 pt-1 bg-gray-50/30 font-medium">
+                {/* COLUNA HORA - Ajustada para maior legibilidade */}
+                <div className="h-16 border-b border-r border-gray-100 text-sm font-bold text-gray-600 flex items-start justify-end pr-3 pt-2 bg-gray-50/50">
                   {String(hora).padStart(2, '0')}:00
                 </div>
 
