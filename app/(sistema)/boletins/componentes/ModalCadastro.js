@@ -20,7 +20,6 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
     acompanhamento_especial: false,
   })
 
-  // 1. Lógica de Sugestão e Edição
   useEffect(() => {
     if (item) {
       setFormData(item)
@@ -62,13 +61,13 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
     }
   }
 
-  // 2. Salvar / Atualizar
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
 
     try {
-      const { error } = await supabase
+      // 1. Salva ou Atualiza o Documento Administrativo
+      const { data: docSalvo, error: errorDoc } = await supabase
         .from("documentos_administrativos")
         .upsert({
           ...formData,
@@ -76,19 +75,38 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
           destino_remetente: abaAtiva === "sei" ? formData.destino_remetente : null,
           prazo: formData.prazo || null,
         })
+        .select()
+        .single()
 
-      if (error) throw error
+      if (errorDoc) throw errorDoc
+
+      // 2. Lógica de Integração com a Agenda (Se houver prazo)
+      if (formData.prazo) {
+        const payloadAgenda = {
+          titulo: `PRAZO: ${abaAtiva.toUpperCase()} ${formData.numero}`,
+          descricao: `Assunto: ${formData.assunto}\nOrigem/Destino: ${formData.tipo_orgao || formData.destino_remetente}`,
+          data_inicio: `${formData.prazo} 17:00:00`, // Prazo final às 17h
+          data_fim: `${formData.prazo} 18:00:00`,
+          cor: "#78350f", // Marrom automático para prazos
+          tipo: "Administrativo"
+        }
+
+        // Se estiver editando, tentamos atualizar o evento existente, senão criamos um novo
+        // Nota: Idealmente você teria uma coluna 'documento_id' na agenda_eventos para linkar
+        await supabase.from("agenda_eventos").insert([payloadAgenda])
+      }
+
       toast.success(item ? "Atualizado!" : "Cadastrado com sucesso!")
       onSuccess()
       onClose()
     } catch (error) {
+      console.error(error)
       toast.error("Erro ao salvar dados")
     } finally {
       setLoading(false)
     }
   }
 
-  // 3. Excluir
   async function handleExcluir() {
     if (!confirm("Deseja realmente excluir este registro?")) return
     setLoading(true)
@@ -108,7 +126,6 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 md:p-6">
       <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
         
-        {/* Header Fixo */}
         <div className="bg-slate-50 px-8 py-6 border-b border-slate-100 flex justify-between items-center shrink-0">
           <div>
             <h2 className="text-xl font-black text-slate-800 tracking-tight">
@@ -119,7 +136,6 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"><X size={20} /></button>
         </div>
 
-        {/* Corpo com Scroll */}
         <form onSubmit={handleSubmit} className="p-8 overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
@@ -159,10 +175,10 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-black text-slate-400 uppercase ml-1">Prazo Final (Se houver)</label>
+              <label className="text-xs font-black text-slate-400 uppercase ml-1 text-amber-600">Prazo Final (Gera Evento na Agenda)</label>
               <input 
                 type="date"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 bg-amber-50/50 border border-amber-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-amber-500"
                 value={formData.prazo || ""}
                 onChange={e => setFormData({...formData, prazo: e.target.value})}
               />
@@ -201,7 +217,6 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
           </div>
         </form>
 
-        {/* Footer Fixo */}
         <div className="bg-slate-50 px-8 py-6 border-t border-slate-100 flex items-center justify-between shrink-0">
           {item && (
             <button type="button" onClick={handleExcluir} className="text-red-500 hover:text-red-700 flex items-center gap-1 text-sm font-bold transition-colors">
