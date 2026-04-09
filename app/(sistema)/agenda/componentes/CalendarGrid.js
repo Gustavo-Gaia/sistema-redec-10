@@ -10,23 +10,24 @@ export default function CalendarGrid({
   onSelectEvento,
   modo = "mes"
 }) {
-
-  const scrollContainerRef = useRef(null) // Referência para o scroll
+  const scrollContainerRef = useRef(null)
   const diasSemana = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"]
-  const hoje = new Date().toDateString()
 
-  // 🔹 EFEITO PARA SCROLL AUTOMÁTICO (Inicia nas 07:00)
+  // 🔹 DATA DE HOJE (estática e segura)
+  const hojeObj = new Date()
+  const hojeString = `${hojeObj.getFullYear()}-${String(hojeObj.getMonth() + 1).padStart(2, '0')}-${String(hojeObj.getDate()).padStart(2, '0')}`
+
+  // 🔹 SCROLL AUTOMÁTICO (Opção 1: Foco às 07h)
   useEffect(() => {
     if (modo === "semana" && scrollContainerRef.current) {
-      // Cada bloco de hora tem min-h-[64px] no seu código
-      // 7 horas * 64px = 448px de deslocamento
       scrollContainerRef.current.scrollTo({
-        top: 448,
+        top: 448, // 7 horas * 64px de altura
         behavior: "smooth"
       })
     }
   }, [modo])
 
+  // Helpers de extração de texto para evitar erros de fuso
   function extrairDataTexto(dataISO) {
     if (!dataISO) return ""
     return dataISO.includes("T") ? dataISO.split("T")[0] : dataISO.split(" ")[0]
@@ -34,16 +35,17 @@ export default function CalendarGrid({
 
   function extrairHoraTexto(dataISO) {
     if (!dataISO) return null
-    const horaParte = dataISO.includes("T") ? dataISO.split("T")[1] : dataISO.split(" ")[1]
-    return parseInt(horaParte.split(":")[0])
+    const parte = dataISO.includes("T") ? dataISO.split("T")[1] : dataISO.split(" ")[1]
+    return parseInt(parte.split(":")[0])
   }
 
   // =====================================================
-  // 🟢 MODO MENSAL (Mantido Original)
+  // 🟢 MODO MENSAL (Restaurado o seu Estilo de Borda)
   // =====================================================
   if (modo === "mes") {
     const ano = dataAtual.getFullYear()
     const mes = dataAtual.getMonth()
+
     const primeiroDiaMes = new Date(ano, mes, 1)
     const ultimoDiaMes = new Date(ano, mes + 1, 0)
 
@@ -72,40 +74,40 @@ export default function CalendarGrid({
 
     return (
       <div className="bg-white rounded-2xl shadow overflow-hidden">
-        <div className="grid grid-cols-7 border-b text-sm font-medium text-gray-500 bg-gray-50/50">
+        <div className="grid grid-cols-7 border-b text-sm font-medium text-gray-500 bg-gray-50/30">
           {diasSemana.map((d) => (
-            <div key={d} className="p-3 text-center">{d}</div>
+            <div key={d} className="p-2 text-center">{d}</div>
           ))}
         </div>
 
         <div className="grid grid-cols-7">
           {celulas.map((item, i) => {
-            const isHoje = item.data.toDateString() === hoje
-            const dataStringCelula = item.data.toISOString().split('T')[0]
-            const eventosDoDia = eventos.filter(ev => extrairDataTexto(ev.data_inicio) === dataStringCelula)
+            const dataStr = `${item.data.getFullYear()}-${String(item.data.getMonth() + 1).padStart(2, '0')}-${String(item.data.getDate()).padStart(2, '0')}`
+            const isHoje = dataStr === hojeString
+            const eventosDoDia = eventos.filter(ev => extrairDataTexto(ev.data_inicio) === dataStr)
 
             return (
               <div
                 key={i}
-                className={`h-32 border-b border-r p-2 flex flex-col transition relative group ${
-                  item.atual ? "bg-white" : "bg-gray-50 text-gray-300"
-                } ${isHoje ? "bg-blue-50/30" : ""}`}
+                className={`h-28 border p-2 flex flex-col transition relative ${
+                  item.atual ? "bg-white" : "bg-gray-50/50 text-gray-400"
+                } ${isHoje ? "border-blue-500 border-2 z-10 shadow-inner bg-blue-50/20" : "border-gray-100"}`}
               >
-                <div className={`text-sm font-bold mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isHoje ? "bg-blue-600 text-white" : ""}`}>
+                <div className={`text-sm font-bold ${isHoje ? "text-blue-600" : "text-gray-700"}`}>
                   {item.data.getDate()}
                 </div>
 
-                <div className="space-y-1 overflow-y-auto custom-scrollbar">
-                  {eventosDoDia.slice(0, 4).map(ev => (
+                <div className="mt-1 space-y-1 overflow-y-auto custom-scrollbar flex-1">
+                  {eventosDoDia.slice(0, 3).map(ev => (
                     <div
                       key={ev.id}
                       onClick={(e) => {
                         e.stopPropagation()
                         onSelectEvento(ev)
                       }}
-                      className="text-[10px] p-1.5 rounded-lg cursor-pointer truncate font-semibold border-l-4 shadow-sm hover:brightness-95 transition-all"
+                      className="text-[10px] md:text-xs p-1 rounded-md cursor-pointer truncate font-bold border-l-4 shadow-sm"
                       style={{
-                        backgroundColor: `${ev.cor || "#3b82f6"}15`,
+                        backgroundColor: `${ev.cor || "#3b82f6"}20`,
                         borderColor: ev.cor || "#3b82f6",
                         color: ev.cor || "#3b82f6"
                       }}
@@ -113,9 +115,9 @@ export default function CalendarGrid({
                       {ev.titulo}
                     </div>
                   ))}
-                  {eventosDoDia.length > 4 && (
-                    <div className="text-[9px] text-gray-400 font-bold px-1">
-                      + {eventosDoDia.length - 4} atividades
+                  {eventosDoDia.length > 3 && (
+                    <div className="text-[10px] text-gray-400 font-bold italic px-1">
+                      + {eventosDoDia.length - 3} mais
                     </div>
                   )}
                 </div>
@@ -128,7 +130,7 @@ export default function CalendarGrid({
   }
 
   // =====================================================
-  // 🔵 MODO SEMANA (Com Scroll Automático)
+  // 🔵 MODO SEMANA (Com Scroll e Correção de Marcação)
   // =====================================================
   if (modo === "semana") {
     const inicioSemana = new Date(dataAtual)
@@ -146,57 +148,60 @@ export default function CalendarGrid({
     const horas = Array.from({ length: 24 }, (_, i) => i)
 
     return (
-      <div className="bg-white rounded-2xl shadow overflow-hidden border">
-        {/* CABEÇALHO FIXO DA SEMANA */}
-        <div className="grid grid-cols-8 border-b bg-gray-50">
-          <div className="p-2 border-r" /> 
-          {dias.map((d, i) => (
-            <div key={i} className={`p-3 text-center border-r last:border-0 ${d.toDateString() === hoje ? "bg-blue-50" : ""}`}>
-              <div className="text-xs font-bold text-gray-400">{diasSemana[i]}</div>
-              <div className={`text-lg font-black ${d.toDateString() === hoje ? "text-blue-600" : "text-gray-700"}`}>{d.getDate()}</div>
-            </div>
-          ))}
+      <div className="bg-white rounded-2xl shadow overflow-hidden border border-gray-100 flex flex-col h-[700px]">
+        {/* HEADER FIXO */}
+        <div className="grid grid-cols-8 border-b bg-gray-50/50">
+          <div className="p-2 border-r border-gray-100" />
+          {dias.map((d, i) => {
+            const dataStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+            const isHoje = dataStr === hojeString
+            return (
+              <div key={i} className={`p-2 text-center border-r border-gray-100 last:border-0 ${isHoje ? "bg-blue-50/50" : ""}`}>
+                <div className={`text-[10px] font-bold ${isHoje ? "text-blue-600" : "text-gray-400"}`}>{diasSemana[i]}</div>
+                <div className={`text-sm font-black ${isHoje ? "text-blue-600" : "text-gray-700"}`}>{d.getDate()}</div>
+              </div>
+            )
+          })}
         </div>
 
-        {/* CONTAINER COM SCROLL CONTROLADO */}
-        <div 
-          ref={scrollContainerRef}
-          className="flex flex-col h-[600px] overflow-y-auto custom-scrollbar"
-        >
-          {horas.map((hora) => (
-            <div key={hora} className="grid grid-cols-8 border-b min-h-[64px] group">
-              <div className="text-[10px] text-gray-400 flex items-start justify-end pr-3 pt-2 bg-gray-50 border-r font-medium">
-                {String(hora).padStart(2, '0')}:00
+        {/* ÁREA DE SCROLL */}
+        <div ref={scrollContainerRef} className="overflow-y-auto custom-scrollbar flex-1">
+          <div className="grid grid-cols-8">
+            {horas.map((hora) => (
+              <div key={hora} className="contents">
+                <div className="h-16 border-b border-r border-gray-100 text-[10px] text-gray-400 flex items-start justify-end pr-2 pt-1 bg-gray-50/30 font-medium">
+                  {String(hora).padStart(2, '0')}:00
+                </div>
+
+                {dias.map((d, i) => {
+                  const dataStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+                  const eventosHora = eventos.filter(ev => 
+                    extrairDataTexto(ev.data_inicio) === dataStr && 
+                    extrairHoraTexto(ev.data_inicio) === hora
+                  )
+
+                  return (
+                    <div key={`${hora}-${i}`} className={`h-16 border-b border-r border-gray-100 last:border-0 relative hover:bg-gray-50/50 transition-colors ${dataStr === hojeString ? "bg-blue-50/10" : ""}`}>
+                      {eventosHora.map(ev => (
+                        <div
+                          key={ev.id}
+                          onClick={() => onSelectEvento(ev)}
+                          className="absolute inset-x-1 top-1 z-10 text-[10px] p-1 rounded-md cursor-pointer truncate font-bold border-l-4 shadow-sm"
+                          style={{
+                            backgroundColor: `${ev.cor || "#3b82f6"}25`,
+                            borderColor: ev.cor || "#3b82f6",
+                            color: ev.cor || "#3b82f6"
+                          }}
+                        >
+                          {ev.titulo}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
               </div>
-
-              {dias.map((d, i) => {
-                const dataStr = d.toISOString().split('T')[0]
-                const eventosHora = eventos.filter(ev => 
-                  extrairDataTexto(ev.data_inicio) === dataStr && 
-                  extrairHoraTexto(ev.data_inicio) === hora
-                )
-
-                return (
-                  <div key={`${hora}-${i}`} className="border-r last:border-0 relative group-hover:bg-gray-50/30 transition-colors">
-                    {eventosHora.map(ev => (
-                      <div
-                        key={ev.id}
-                        onClick={() => onSelectEvento(ev)}
-                        className="absolute inset-x-1 top-1 z-10 text-[10px] p-1.5 rounded-lg cursor-pointer truncate font-bold border-l-4 shadow-sm"
-                        style={{
-                          backgroundColor: `${ev.cor || "#3b82f6"}ee`,
-                          borderColor: ev.cor || "#3b82f6",
-                          color: "#fff"
-                        }}
-                      >
-                        {ev.titulo}
-                      </div>
-                    ))}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     )
