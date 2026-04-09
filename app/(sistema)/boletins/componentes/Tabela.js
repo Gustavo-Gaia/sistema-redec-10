@@ -2,7 +2,7 @@
 
 "use client"
 
-import { Star, Clock, Pencil, Trash2, Copy, ExternalLink } from "lucide-react"
+import { Star, Clock, Pencil, Copy } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { supabase } from "@/lib/supabase"
 import { calcularStatusPrazo, exibirDataFormatada } from "./utils"
@@ -67,20 +67,20 @@ export default function Tabela({ dados, loading, abaAtiva, onEdit, onRefresh }) 
                 {/* Número + Copiar */}
                 <td className="px-6 py-4 font-mono text-sm font-bold text-slate-700">
                   <div className="flex items-center gap-2">
-                    {abaAtiva === "boletins" && (
-                      <span className={`px-2 py-0.5 rounded text-[10px] ${item.tipo_orgao === 'SEDEC' ? 'bg-blue-100 text-blue-700' : 'bg-slate-700 text-white'}`}>
-                        {item.tipo_orgao}
-                      </span>
-                    )}
+                    {/* Removido o seletor visual de órgão aqui para limpar a lista */}
                     {item.numero}
-                    <button onClick={() => handleCopiar(item.numero)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded transition-all text-slate-400">
+                    <button 
+                      onClick={() => handleCopiar(item.numero)} 
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded transition-all text-slate-400"
+                      title="Copiar número"
+                    >
                       <Copy size={14} />
                     </button>
                   </div>
                 </td>
 
                 {/* Data */}
-                <td className="px-6 py-4 text-sm text-slate-500">
+                <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
                   {exibirDataFormatada(item.data_registro)}
                 </td>
 
@@ -99,7 +99,7 @@ export default function Tabela({ dados, loading, abaAtiva, onEdit, onRefresh }) 
                 )}
 
                 {/* Prazo com Status */}
-                <td className="px-6 py-4">
+                <td className="px-6 py-4 whitespace-nowrap">
                   <div className={`
                     inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-tight
                     ${status === 'vencido' ? 'bg-red-100 text-red-700' : 
@@ -115,7 +115,11 @@ export default function Tabela({ dados, loading, abaAtiva, onEdit, onRefresh }) 
                 {/* Ações */}
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => onEdit(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
+                    <button 
+                      onClick={() => onEdit(item)} 
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                      title="Editar registro"
+                    >
                       <Pencil size={18} />
                     </button>
                   </div>
@@ -127,7 +131,7 @@ export default function Tabela({ dados, loading, abaAtiva, onEdit, onRefresh }) 
       </table>
       {dados.length === 0 && (
         <div className="py-20 text-center text-slate-400 italic">
-          Nenhum registro encontrado para os filtros selecionados.
+          Nenhum registro encontrado para {abaAtiva === 'boletins' ? 'este órgão' : 'esta categoria'}.
         </div>
       )}
     </div>
