@@ -20,9 +20,10 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
     acompanhamento_especial: false,
   })
 
+  // Sincroniza dados ao abrir ou mudar de aba
   useEffect(() => {
     if (item) {
-      // Se for edição de boletim, removemos o "Bol-" apenas para exibição no input numérico
+      // Se for boletim, removemos o "Bol-" para o usuário editar apenas o número no input
       if (abaAtiva === "boletins" && item.numero?.startsWith("Bol-")) {
         setFormData({ ...item, numero: item.numero.replace("Bol-", "") })
       } else {
@@ -54,7 +55,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
         ...prev, 
         tipo_orgao: orgaoReferencia,
         data_registro: dataSugerida,
-        numero: "" // Limpa para o novo input numérico
+        numero: "" 
       }))
     } else {
       setFormData(prev => ({ 
@@ -70,28 +71,30 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
     e.preventDefault()
     setLoading(true)
 
-    // 🔹 CORREÇÃO 2: Formata o número antes de salvar
+    // Formata o número final (Ex: Bol-012)
     const numeroFinal = abaAtiva === "boletins" 
-      ? `Bol-${formData.numero.padStart(3, '0')}` // Ex: Bol-012
+      ? `Bol-${formData.numero.toString().padStart(3, '0')}`
       : formData.numero
 
     try {
-      const payloadDoc = {
-        ...formData,
-        numero: numeroFinal,
-        tipo_orgao: abaAtiva === "boletins" ? formData.tipo_orgao : null,
-        destino_remetente: abaAtiva === "sei" ? formData.destino_remetente : null,
-        prazo: formData.prazo || null,
-      }
-
-      const { error: errorDoc } = await supabase
+      // 1. Salva no Banco de Documentos
+      const { data: docSalvo, error: errorDoc } = await supabase
         .from("documentos_administrativos")
-        .upsert(payloadDoc)
+        .upsert({
+          ...formData,
+          numero: numeroFinal,
+          tipo_orgao: abaAtiva === "boletins" ? formData.tipo_orgao : null,
+          destino_remetente: abaAtiva === "sei" ? formData.destino_remetente : null,
+          prazo: formData.prazo || null,
+        })
+        .select()
+        .single()
 
       if (errorDoc) throw errorDoc
 
-      // 🔹 CORREÇÃO 1: Título da Agenda formatado (Ex: PRAZO: Bol-061-SEDEC)
+      // 2. Integração com Agenda (Se houver prazo)
       if (formData.prazo) {
+        // Título formatado: PRAZO: Bol-061-SEDEC ou PRAZO: SEI 123456
         const tituloAgenda = abaAtiva === "boletins"
           ? `PRAZO: ${numeroFinal}-${formData.tipo_orgao}`
           : `PRAZO: SEI ${numeroFinal}`
@@ -101,7 +104,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
           descricao: `Assunto: ${formData.assunto}\nRef: ${numeroFinal}`,
           data_inicio: `${formData.prazo} 17:00:00`,
           data_fim: `${formData.prazo} 18:00:00`,
-          cor: "#78350f",
+          cor: "#78350f", // Marrom padrão para boletins
           tipo: "Administrativo"
         }
 
@@ -112,10 +115,24 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
       onSuccess()
       onClose()
     } catch (error) {
+      console.error(error)
       toast.error("Erro ao salvar dados")
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleExcluir() {
+    if (!confirm("Deseja realmente excluir este registro?")) return
+    setLoading(true)
+    try {
+      const { error } = await supabase.from("documentos_administrativos").delete().eq("id", item.id)
+      if (error) throw error
+      toast.success("Excluído!")
+      onSuccess()
+      onClose()
+    } catch (error) { toast.error("Erro ao excluir") }
+    finally { setLoading(false) }
   }
 
   if (!isOpen) return null
@@ -124,6 +141,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 md:p-6">
       <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
         
+        {/* HEADER */}
         <div className="bg-slate-50 px-8 py-6 border-b border-slate-100 flex justify-between items-center shrink-0">
           <div>
             <h2 className="text-xl font-black text-slate-800 tracking-tight">
@@ -134,6 +152,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"><X size={20} /></button>
         </div>
 
+        {/* FORMULÁRIO */}
         <form onSubmit={handleSubmit} className="p-8 overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
@@ -141,7 +160,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
               <div className="space-y-2">
                 <label className="text-xs font-black text-slate-400 uppercase ml-1">Órgão Emissor</label>
                 <select 
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   value={formData.tipo_orgao || "SEDEC"}
                   onChange={e => setFormData({...formData, tipo_orgao: e.target.value})}
                 >
@@ -157,7 +176,6 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
               </label>
               
               {abaAtiva === "boletins" ? (
-                /* 🔹 INPUT COM PREFIXO FIXO "Bol-" */
                 <div className="relative flex items-center">
                   <span className="absolute left-4 font-bold text-slate-400 select-none">Bol-</span>
                   <input 
@@ -172,7 +190,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
               ) : (
                 <input 
                   required
-                  placeholder="000000/0000/00"
+                  placeholder="000000/0000/0000"
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.numero}
                   onChange={e => setFormData({...formData, numero: e.target.value})}
@@ -221,8 +239,19 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
               />
             </div>
           </div>
+
+          <div 
+            onClick={() => setFormData({...formData, acompanhamento_especial: !formData.acompanhamento_especial})}
+            className="flex items-center gap-3 cursor-pointer p-3 rounded-2xl bg-amber-50/50 border border-amber-100 w-fit mt-6"
+          >
+            <div className={`w-10 h-6 rounded-full relative transition-colors ${formData.acompanhamento_especial ? 'bg-amber-400' : 'bg-slate-200'}`}>
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.acompanhamento_especial ? 'left-5' : 'left-1'}`} />
+            </div>
+            <span className="text-sm font-bold text-amber-700">Acompanhamento Especial</span>
+          </div>
         </form>
 
+        {/* FOOTER */}
         <div className="bg-slate-50 px-8 py-6 border-t border-slate-100 flex items-center justify-between shrink-0">
           {item && (
             <button type="button" onClick={handleExcluir} className="text-red-500 hover:text-red-700 flex items-center gap-1 text-sm font-bold transition-colors">
