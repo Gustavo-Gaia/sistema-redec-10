@@ -4,25 +4,37 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-import { BookOpen, Calendar, RefreshCcw, Loader2 } from "lucide-react"
+import { BookOpen, Calendar, Loader2 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { exibirDataFormatada } from "./utils"
 
 export default function MarcadorLeitura() {
   const [marcadores, setMarcadores] = useState([])
   const [loading, setLoading] = useState(true)
-  const [salvando, setSalvando] = useState(null) // Armazena o tipo (SEDEC ou DGDEC) que está sendo salvo
+  const [salvando, setSalvando] = useState(null)
 
+  // 1. Carregamento inicial robusto
   async function carregarMarcadores() {
-    const { data, error } = await supabase.from("controle_leitura_boletins").select("*")
-    if (!error) setMarcadores(data)
-    setLoading(false)
+    try {
+      const { data, error } = await supabase
+        .from("controle_leitura_boletins")
+        .select("*")
+      
+      if (error) throw error
+      setMarcadores(data || [])
+    } catch (error) {
+      console.error("Erro ao carregar marcadores:", error)
+      toast.error("Erro ao carregar datas de leitura")
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
     carregarMarcadores()
   }, [])
 
+  // 2. Atualização Otimista (Interface responde sem recarregar tudo)
   async function atualizarData(tipo, novaData) {
     if (!novaData) return
     
@@ -37,8 +49,19 @@ export default function MarcadorLeitura() {
 
       if (error) throw error
       
+      // ✅ ATUALIZAÇÃO LOCAL: Atualiza o estado sem fazer um novo SELECT no banco
+      setMarcadores(prev => {
+        const existe = prev.some(item => item.tipo_orgao === tipo)
+        if (existe) {
+          return prev.map(item => 
+            item.tipo_orgao === tipo ? { ...item, visto_ate: novaData } : item
+          )
+        }
+        // Se for o primeiro registro desse órgão, adiciona ao array
+        return [...prev, { tipo_orgao: tipo, visto_ate: novaData }]
+      })
+
       toast.success(`${tipo}: Leitura atualizada!`)
-      await carregarMarcadores()
     } catch (error) {
       console.error(error)
       toast.error("Erro ao atualizar marcador")
@@ -51,6 +74,7 @@ export default function MarcadorLeitura() {
 
   return (
     <div className="flex items-stretch gap-1 bg-white border border-slate-200 p-1.5 rounded-2xl shadow-sm hover:border-slate-300 transition-all">
+      {/* Mapeia sempre os dois órgãos, conforme sua preferência */}
       {["SEDEC", "DGDEC"].map((tipo) => {
         const m = marcadores.find((item) => item.tipo_orgao === tipo)
         const isSaving = salvando === tipo
@@ -58,7 +82,8 @@ export default function MarcadorLeitura() {
         return (
           <div 
             key={tipo} 
-            className="flex flex-col px-4 py-1.5 border-r last:border-0 border-slate-100 min-w-[110px] hover:bg-slate-50 transition-colors rounded-xl relative"
+            className="flex flex-col px-4 py-1.5 border-r last:border-0 border-slate-100 min-w-[115px] hover:bg-slate-50 transition-colors rounded-xl relative group/card"
+            title={`Atualizar leitura da ${tipo}`}
           >
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
               Visto {tipo}
@@ -69,7 +94,7 @@ export default function MarcadorLeitura() {
                 {m ? exibirDataFormatada(m.visto_ate) : "---"}
               </span>
 
-              {/* O truque: Input por cima do ícone, mas invisível */}
+              {/* Input invisível para manter a UX limpa */}
               <div className="relative flex items-center justify-center">
                 <input
                   type="date"
@@ -81,7 +106,7 @@ export default function MarcadorLeitura() {
                 {isSaving ? (
                   <Loader2 size={16} className="text-blue-500 animate-spin" />
                 ) : (
-                  <Calendar size={16} className="text-blue-500" />
+                  <Calendar size={16} className="text-blue-500 group-hover/card:scale-110 transition-transform" />
                 )}
               </div>
             </div>
