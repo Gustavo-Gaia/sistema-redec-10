@@ -26,7 +26,12 @@ export default function AbasBoletins({ abaAtiva, setAbaAtiva, orgaoAtivo, setOrg
           return (
             <button
               key={aba.id}
-              onClick={() => setAbaAtiva(aba.id)}
+              onClick={() => {
+                setAbaAtiva(aba.id)
+                if (aba.id === "boletins") {
+                  setOrgaoAtivo("SEDEC")
+                }
+              }}
               className={`
                 flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200
                 ${
