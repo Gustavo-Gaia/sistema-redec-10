@@ -9,9 +9,14 @@ export default function Filtros({ filtros, setFiltros, abaAtiva, anosDisponiveis
   const anoAtual = new Date().getFullYear().toString()
 
   const limparFiltros = () => {
+    // Busca o ano mais recente disponível para não deixar o filtro vazio após limpar
+    const anoParaReset = anosDisponiveis.includes(anoAtual) 
+      ? anoAtual 
+      : (anosDisponiveis[0] || anoAtual)
+
     setFiltros({ 
       busca: "", 
-      ano: anosDisponiveis.includes(anoAtual) ? anoAtual : anosDisponiveis[0] || "", 
+      ano: anoParaReset, 
       especial: false 
     })
   }
@@ -41,7 +46,6 @@ export default function Filtros({ filtros, setFiltros, abaAtiva, anosDisponiveis
             onChange={(e) => setFiltros({ ...filtros, ano: e.target.value })}
             className="text-sm font-bold text-slate-700 outline-none bg-transparent cursor-pointer min-w-[70px]"
           >
-            {/* Se não houver anos, mostra o atual ou vazio */}
             {anosDisponiveis.length === 0 ? (
               <option value={anoAtual}>{anoAtual}</option>
             ) : (
@@ -67,7 +71,7 @@ export default function Filtros({ filtros, setFiltros, abaAtiva, anosDisponiveis
           Especiais
         </button>
 
-        {/* Botão Limpar (Só aparece se algo estiver diferente do padrão) */}
+        {/* Botão Limpar */}
         {(filtros.busca || filtros.especial) && (
           <button
             type="button"
