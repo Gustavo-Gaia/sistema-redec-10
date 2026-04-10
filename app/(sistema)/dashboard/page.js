@@ -12,6 +12,11 @@ export default function Dashboard() {
   const { estacoes } = useMonitoramento()
   const [saldoContainer, setSaldoContainer] = useState({ colchoes: 0, kits: 0 })
   const [statsAgenda, setStatsAgenda] = useState({ mes: 0, semana: 0 })
+  const [statsBoletins, setStatsBoletins] = useState({ 
+    prazosSemana: 0, 
+    leituraSEDEC: "...", 
+    leituraDGDEC: "..." 
+  })
 
   useEffect(() => {
     async function buscarDados() {
@@ -24,15 +29,13 @@ export default function Dashboard() {
         })
       }
 
-      // 2. Busca Eventos Reais (Tabela: agenda_eventos)
+      // 2. Busca Eventos e Prazos Administrativos
       const { data: eventos, error } = await supabase
         .from('agenda_eventos')
-        .select('data_inicio')
+        .select('data_inicio, tipo')
       
       if (eventos && !error) {
         const hoje = new Date()
-        
-        // --- Lógica da Semana (Segunda a Domingo) ---
         const diaSemana = hoje.getDay()
         const diffSegunda = diaSemana === 0 ? -6 : 1 - diaSemana
         const segunda = new Date(hoje)
@@ -43,7 +46,6 @@ export default function Dashboard() {
         domingo.setDate(segunda.getDate() + 6)
         domingo.setHours(23, 59, 59, 999)
 
-        // --- Filtros ---
         const contagemMes = eventos.filter(ev => {
           const d = new Date(ev.data_inicio)
           return d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear()
@@ -54,7 +56,34 @@ export default function Dashboard() {
           return d >= segunda && d <= domingo
         }).length
 
+        // Filtra apenas os prazos (Administrativo) para o card de Boletins
+        const prazosAdmSemana = eventos.filter(ev => {
+          const d = new Date(ev.data_inicio)
+          return d >= segunda && d <= domingo && ev.tipo === "Administrativo"
+        }).length
+
         setStatsAgenda({ mes: contagemMes, semana: contagemSemana })
+        setStatsBoletins(prev => ({ ...prev, prazosSemana: prazosAdmSemana }))
+      }
+
+      // 3. Busca Visto Até (SEDEC e DGDEC)
+      const { data: leituras } = await supabase.from('controle_leitura_boletins').select('tipo_orgao, visto_ate')
+      if (leituras) {
+        const sedec = leituras.find(l => l.tipo_orgao === 'SEDEC')?.visto_ate || "---"
+        const dgdec = leituras.find(l => l.tipo_orgao === 'DGDEC')?.visto_ate || "---"
+        
+        // Formata data de YYYY-MM-DD para DD/MM
+        const formatarData = (dataStr) => {
+          if (dataStr === "---") return "---"
+          const [ano, mes, dia] = dataStr.split('-')
+          return `${dia}/${mes}`
+        }
+
+        setStatsBoletins(prev => ({ 
+          ...prev, 
+          leituraSEDEC: formatarData(sedec), 
+          leituraDGDEC: formatarData(dgdec) 
+        }))
       }
     }
     
@@ -81,7 +110,18 @@ export default function Dashboard() {
       link: "/monitoramento", 
       info: [`Nível de Alerta: ${contagemMonitoramento.alerta}`, `Nível Crítico: ${contagemMonitoramento.critico}`] 
     },
-    { title: "Boletins e SEI", icon: FileText, color: "from-blue-600 to-blue-900", link: "/boletins", info: ["Pendências: 5", "Último: 24/04"] },
+    { 
+      title: "Boletins e SEI", 
+      icon: FileText, 
+      color: "from-blue-600 to-blue-900", 
+      link: "/boletins", 
+      info: [
+        statsBoletins.prazosSemana === 0 ? "Nenhum prazo para esta semana" :
+        statsBoletins.prazosSemana === 1 ? "1 documento com prazo na semana" :
+        `${statsBoletins.prazosSemana} documentos com prazo na semana`,
+        `Leitura: SEDEC (${statsBoletins.leituraSEDEC}) | DGDEC (${statsBoletins.leituraDGDEC})`
+      ] 
+    },
     { title: "Equipe REDEC", icon: Users, color: "from-orange-500 to-orange-800", link: "/equipe", info: ["Servidores: 42", "Em campo: 4"] },
     { title: "Ocorrências", icon: AlertTriangle, color: "from-red-500 to-red-900", link: "/comdecs", info: ["Afetados: 5", "Desalojados: 208"] },
     { 
@@ -117,9 +157,11 @@ export default function Dashboard() {
         const isMonitoramento = card.title === "Monitoramento";
         const isContainer = card.title === "Contêiner";
         const isAgenda = card.title === "Agenda";
+        const isBoletim = card.title === "Boletins e SEI";
         
         const temCriticoMonitoramento = isMonitoramento && contagemMonitoramento.critico > 0;
         const temAlertaEstoque = isContainer && estoqueIncompleto;
+        const temPrazoUrgente = isBoletim && statsBoletins.prazosSemana > 0;
 
         return (
           <Link href={card.link} key={i} className="group block">
@@ -128,15 +170,16 @@ export default function Dashboard() {
               hover:shadow-xl transition-all hover:-translate-y-1 relative
               ${temCriticoMonitoramento ? 'ring-2 ring-red-500 ring-offset-2' : ''}
               ${temAlertaEstoque ? 'ring-2 ring-amber-500 ring-offset-2' : ''}
+              ${temPrazoUrgente ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
             `}>
               
               <div className={`p-4 bg-gradient-to-br ${card.color} text-white flex items-center gap-3`}>
                 <div className="p-2 bg-white/20 rounded-lg"><Icon size={24} /></div>
                 <span className="font-bold text-lg">{card.title}</span>
-                {(temCriticoMonitoramento || temAlertaEstoque) && (
+                {(temCriticoMonitoramento || temAlertaEstoque || temPrazoUrgente) && (
                   <span className="ml-auto flex h-3 w-3">
-                    <span className={`animate-ping absolute inline-flex h-3 w-3 rounded-full opacity-75 ${temCriticoMonitoramento ? 'bg-red-400' : 'bg-amber-400'}`}></span>
-                    <span className={`relative inline-flex rounded-full h-3 w-3 ${temCriticoMonitoramento ? 'bg-red-500' : 'bg-amber-500'}`}></span>
+                    <span className={`animate-ping absolute inline-flex h-3 w-3 rounded-full opacity-75 ${temCriticoMonitoramento ? 'bg-red-400' : temAlertaEstoque ? 'bg-amber-400' : 'bg-blue-400'}`}></span>
+                    <span className={`relative inline-flex rounded-full h-3 w-3 ${temCriticoMonitoramento ? 'bg-red-500' : temAlertaEstoque ? 'bg-amber-500' : 'bg-blue-500'}`}></span>
                   </span>
                 )}
               </div>
@@ -145,12 +188,12 @@ export default function Dashboard() {
                 {card.info.map((line, j) => {
                   const isLinhaCritica = isMonitoramento && line.includes("Crítico") && contagemMonitoramento.critico > 0;
                   const isLinhaAlertaMonit = isMonitoramento && line.includes("Alerta") && contagemMonitoramento.alerta > 0;
+                  const isLinhaPrazoBoletim = isBoletim && j === 0 && statsBoletins.prazosSemana > 0;
                   const isLinhaEstoqueBaixo = isContainer && line.includes("/102") && (
                     (line.includes("Colchões") && saldoContainer.colchoes < 102) || 
                     (line.includes("Kits") && saldoContainer.kits < 102)
                   );
                   
-                  // Se for agenda e tiver compromisso na semana, destaca em azul
                   const isDestaqueAgenda = isAgenda && 
                                           !line.includes("Nada agendado") && 
                                           !line.includes("atividades no mês") && 
@@ -162,12 +205,12 @@ export default function Dashboard() {
                         w-1.5 h-1.5 rounded-full 
                         ${isLinhaCritica ? 'bg-red-500 animate-pulse' : 
                           isLinhaAlertaMonit || isLinhaEstoqueBaixo ? 'bg-amber-500' : 
-                          isDestaqueAgenda ? 'bg-blue-500' : 'bg-slate-300'}
+                          isLinhaPrazoBoletim || isDestaqueAgenda ? 'bg-blue-500' : 'bg-slate-300'}
                       `} />
                       <p className={`
                         ${isLinhaCritica ? "text-red-600 font-bold" : ""}
                         ${isLinhaEstoqueBaixo ? "text-amber-600 font-bold" : ""}
-                        ${isDestaqueAgenda ? "text-blue-700 font-bold" : ""}
+                        ${isLinhaPrazoBoletim || isDestaqueAgenda ? "text-blue-700 font-bold" : ""}
                       `}>
                         {line}
                       </p>
