@@ -18,24 +18,49 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
     destino_remetente: "",
     prazo: "",
     acompanhamento_especial: false,
+    agenda_evento_id: null, // Vínculo crucial com a agenda
   })
 
-  // Sincroniza dados ao abrir ou mudar de aba
+  // Sincroniza dados e limpa estados ao abrir/editar
   useEffect(() => {
     if (item) {
-      // Se for boletim, removemos o "Bol-" para o usuário editar apenas o número no input
-      if (abaAtiva === "boletins" && item.numero?.startsWith("Bol-")) {
-        setFormData({ ...item, numero: item.numero.replace("Bol-", "") })
+      // Sanitização: Pegamos apenas o que o formulário realmente usa
+      const dadosLimpos = {
+        id: item.id,
+        categoria: item.categoria,
+        tipo_orgao: item.tipo_orgao,
+        numero: item.numero,
+        data_registro: item.data_registro,
+        assunto: item.assunto,
+        destino_remetente: item.destino_remetente || "",
+        prazo: item.prazo || "",
+        acompanhamento_especial: item.acompanhamento_especial || false,
+        agenda_evento_id: item.agenda_evento_id || null,
+      }
+
+      // Tratamento visual do número para Boletins
+      if (abaAtiva === "boletins" && dadosLimpos.numero?.startsWith("Bol-")) {
+        setFormData({ ...dadosLimpos, numero: dadosLimpos.numero.replace("Bol-", "") })
       } else {
-        setFormData(item)
+        setFormData(dadosLimpos)
       }
     } else {
       prepararSugestaoData()
     }
-  }, [item, abaAtiva, orgaoPadrao])
+  }, [item, abaAtiva, orgaoPadrao, isOpen])
 
   async function prepararSugestaoData() {
     const hoje = new Date().toISOString().split("T")[0]
+    let estadoInicial = {
+      categoria: abaAtiva,
+      numero: "",
+      assunto: "",
+      prazo: "",
+      acompanhamento_especial: false,
+      agenda_evento_id: null,
+      data_registro: hoje
+    }
+
     if (abaAtiva === "boletins") {
       const orgaoReferencia = orgaoPadrao || "SEDEC"
       const { data } = await supabase
@@ -44,101 +69,115 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
         .eq("tipo_orgao", orgaoReferencia)
         .single()
 
-      let dataSugerida = hoje
       if (data?.visto_ate) {
         const d = new Date(data.visto_ate)
         d.setDate(d.getDate() + 1)
-        dataSugerida = d.toISOString().split("T")[0]
+        estadoInicial.data_registro = d.toISOString().split("T")[0]
       }
-
-      setFormData(prev => ({ 
-        ...prev, 
-        tipo_orgao: orgaoReferencia,
-        data_registro: dataSugerida,
-        numero: "" 
-      }))
+      estadoInicial.tipo_orgao = orgaoReferencia
     } else {
-      setFormData(prev => ({ 
-        ...prev, 
-        data_registro: hoje,
-        destino_remetente: "",
-        numero: ""
-      }))
+      estadoInicial.tipo_orgao = null
+      estadoInicial.destino_remetente = ""
     }
+    
+    setFormData(estadoInicial)
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (loading) return
     setLoading(true)
 
-    // Formata o número final (Ex: Bol-012)
     const numeroFinal = abaAtiva === "boletins" 
       ? `Bol-${formData.numero.toString().padStart(3, '0')}`
       : formData.numero
 
     try {
-      // 1. Salva no Banco de Documentos
-      const { data: docSalvo, error: errorDoc } = await supabase
-        .from("documentos_administrativos")
-        .upsert({
-          ...formData,
-          numero: numeroFinal,
-          tipo_orgao: abaAtiva === "boletins" ? formData.tipo_orgao : null,
-          destino_remetente: abaAtiva === "sei" ? formData.destino_remetente : null,
-          prazo: formData.prazo || null,
-        })
-        .select()
-        .single()
+      let idEventoAgenda = formData.agenda_evento_id
 
-      if (errorDoc) throw errorDoc
-
-      // 2. Integração com Agenda (Se houver prazo)
+      // 1. GESTÃO DA AGENDA (Lógica Blindada)
       if (formData.prazo) {
-        // Título formatado: PRAZO: Bol-061-SEDEC ou PRAZO: SEI 123456
         const tituloAgenda = abaAtiva === "boletins"
           ? `PRAZO: ${numeroFinal}-${formData.tipo_orgao}`
           : `PRAZO: ${numeroFinal}`
 
         const payloadAgenda = {
+          id: idEventoAgenda || undefined, // Se houver ID, faz UPDATE. Se não, INSERT.
           titulo: tituloAgenda,
           descricao: `Assunto: ${formData.assunto}\nRef: ${numeroFinal}`,
           data_inicio: `${formData.prazo} 17:00:00`,
           data_fim: `${formData.prazo} 18:00:00`,
-          cor: "#78350f", // Marrom padrão para boletins
+          cor: "#78350f",
           tipo: "Administrativo"
         }
 
-        await supabase.from("agenda_eventos").insert([payloadAgenda])
+        const { data: ev, error: errEv } = await supabase
+          .from("agenda_eventos")
+          .upsert(payloadAgenda)
+          .select("id")
+          .single()
+
+        if (errEv) throw errEv
+        idEventoAgenda = ev.id
+
+      } else if (idEventoAgenda) {
+        // Se o prazo foi removido, deletamos o evento "órfão" da agenda
+        await supabase.from("agenda_eventos").delete().eq("id", idEventoAgenda)
+        idEventoAgenda = null
       }
 
-      toast.success(item ? "Atualizado!" : "Cadastrado com sucesso!")
+      // 2. SALVAMENTO DO DOCUMENTO
+      const { error: errDoc } = await supabase
+        .from("documentos_administrativos")
+        .upsert({
+          ...formData,
+          numero: numeroFinal,
+          agenda_evento_id: idEventoAgenda,
+          tipo_orgao: abaAtiva === "boletins" ? formData.tipo_orgao : null,
+          destino_remetente: abaAtiva === "sei" ? formData.destino_remetente : null,
+          prazo: formData.prazo || null,
+        }, { onConflict: 'id' })
+
+      if (errDoc) throw errDoc
+
+      toast.success(item ? "Registro atualizado!" : "Cadastrado com sucesso!")
       onSuccess()
       onClose()
     } catch (error) {
       console.error(error)
-      toast.error("Erro ao salvar dados")
+      toast.error("Erro ao processar dados")
     } finally {
       setLoading(false)
     }
   }
 
   async function handleExcluir() {
-    if (!confirm("Deseja realmente excluir este registro?")) return
+    if (!confirm("Deseja realmente excluir este registro? Isso também removerá o prazo da agenda.")) return
     setLoading(true)
     try {
+      // O banco está configurado com ON DELETE SET NULL no agenda_evento_id, 
+      // mas vamos limpar a agenda manualmente para não deixar lixo.
+      if (formData.agenda_evento_id) {
+        await supabase.from("agenda_eventos").delete().eq("id", formData.agenda_evento_id)
+      }
+      
       const { error } = await supabase.from("documentos_administrativos").delete().eq("id", item.id)
       if (error) throw error
-      toast.success("Excluído!")
+      
+      toast.success("Excluído com sucesso!")
       onSuccess()
       onClose()
-    } catch (error) { toast.error("Erro ao excluir") }
-    finally { setLoading(false) }
+    } catch (error) { 
+      toast.error("Erro ao excluir") 
+    } finally { 
+      setLoading(false) 
+    }
   }
 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 md:p-6">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
         
         {/* HEADER */}
@@ -179,9 +218,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
                 <div className="relative flex items-center">
                   <span className="absolute left-4 font-bold text-slate-400 select-none">Bol-</span>
                   <input 
-                    type="number"
-                    required
-                    placeholder="000"
+                    type="number" required placeholder="000"
                     className="w-full p-3 pl-12 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
                     value={formData.numero}
                     onChange={e => setFormData({...formData, numero: e.target.value})}
@@ -189,8 +226,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
                 </div>
               ) : (
                 <input 
-                  required
-                  placeholder="000000/0000/0000"
+                  required placeholder="000000/0000/0000"
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.numero}
                   onChange={e => setFormData({...formData, numero: e.target.value})}
@@ -261,6 +297,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
           <div className="flex gap-3 ml-auto">
             <button type="button" onClick={onClose} className="px-6 py-3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancelar</button>
             <button 
+              type="submit"
               disabled={loading} 
               onClick={handleSubmit}
               className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
