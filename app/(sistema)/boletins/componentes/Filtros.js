@@ -4,17 +4,16 @@
 
 import { Search, Calendar, Star, X } from "lucide-react"
 
-export default function Filtros({ filtros, setFiltros, abaAtiva }) {
+export default function Filtros({ filtros, setFiltros, abaAtiva, anosDisponiveis }) {
   
-  // Gera os últimos 5 anos para o filtro
-  const anos = []
-  const anoAtual = new Date().getFullYear()
-  for (let i = 0; i < 5; i++) {
-    anos.push((anoAtual - i).toString())
-  }
+  const anoAtual = new Date().getFullYear().toString()
 
   const limparFiltros = () => {
-    setFiltros({ busca: "", ano: anoAtual.toString(), especial: false })
+    setFiltros({ 
+      busca: "", 
+      ano: anosDisponiveis.includes(anoAtual) ? anoAtual : anosDisponiveis[0] || "", 
+      especial: false 
+    })
   }
 
   return (
@@ -28,33 +27,39 @@ export default function Filtros({ filtros, setFiltros, abaAtiva }) {
           placeholder={abaAtiva === "sei" ? "Buscar por Nº SEI ou Assunto..." : "Buscar por Nº Boletim ou Assunto..."}
           value={filtros.busca}
           onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })}
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all shadow-sm"
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all shadow-sm font-medium"
         />
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
         
-        {/* Filtro de Ano */}
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+        {/* Filtro de Ano Dinâmico */}
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-blue-500 transition-all">
           <Calendar size={16} className="text-slate-400" />
           <select
             value={filtros.ano}
             onChange={(e) => setFiltros({ ...filtros, ano: e.target.value })}
-            className="text-sm font-bold text-slate-700 outline-none bg-transparent cursor-pointer"
+            className="text-sm font-bold text-slate-700 outline-none bg-transparent cursor-pointer min-w-[70px]"
           >
-            {anos.map(ano => (
-              <option key={ano} value={ano}>{ano}</option>
-            ))}
+            {/* Se não houver anos, mostra o atual ou vazio */}
+            {anosDisponiveis.length === 0 ? (
+              <option value={anoAtual}>{anoAtual}</option>
+            ) : (
+              anosDisponiveis.map(ano => (
+                <option key={ano} value={ano}>{ano}</option>
+              ))
+            )}
           </select>
         </div>
 
         {/* Toggle Acompanhamento Especial */}
         <button
+          type="button"
           onClick={() => setFiltros({ ...filtros, especial: !filtros.especial })}
           className={`
             flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm
             ${filtros.especial 
-              ? "bg-amber-50 border-amber-200 text-amber-700" 
+              ? "bg-amber-50 border-amber-200 text-amber-700 ring-2 ring-amber-100" 
               : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}
           `}
         >
@@ -62,14 +67,16 @@ export default function Filtros({ filtros, setFiltros, abaAtiva }) {
           Especiais
         </button>
 
-        {/* Botão Limpar */}
+        {/* Botão Limpar (Só aparece se algo estiver diferente do padrão) */}
         {(filtros.busca || filtros.especial) && (
           <button
+            type="button"
             onClick={limparFiltros}
-            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+            className="flex items-center gap-1 px-3 py-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all text-xs font-bold"
             title="Limpar Filtros"
           >
-            <X size={20} />
+            <X size={18} />
+            <span className="hidden sm:inline">Limpar</span>
           </button>
         )}
       </div>
