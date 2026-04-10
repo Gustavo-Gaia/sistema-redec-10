@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react" // Adicionado useMemo
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { Plus } from "lucide-react"
 import { toast } from "react-hot-toast"
@@ -20,11 +20,9 @@ export default function BoletinsPage() {
   const [dados, setDados] = useState([])
   const [loading, setLoading] = useState(true)
   
-  // Estados de Controle
   const [modalOpen, setModalOpen] = useState(false)
   const [itemParaEditar, setItemParaEditar] = useState(null)
   
-  // Ano atual dinâmico para o filtro inicial
   const anoAtual = new Date().getFullYear().toString()
   
   const [filtros, setFiltros] = useState({ 
@@ -34,7 +32,7 @@ export default function BoletinsPage() {
   })
 
   // 2. BUSCAR DADOS DO SUPABASE
-  async function carregarDados() {
+  const carregarDados = useCallback(async () => {
     setLoading(true)
     try {
       let query = supabase
@@ -46,8 +44,7 @@ export default function BoletinsPage() {
         query = query.eq("tipo_orgao", orgaoAtivo)
       }
 
-      // 🔥 ORDENAÇÃO FIXA: Resolve o problema do item pular para o final
-      // Ordena por data (mais recente) e depois por número (mais alto)
+      // Ordenação fixa para evitar que itens pulem de posição
       query = query.order("data_registro", { ascending: false })
                    .order("numero", { ascending: false })
 
@@ -61,15 +58,31 @@ export default function BoletinsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [abaAtiva, orgaoAtivo])
 
   useEffect(() => {
     carregarDados()
-  }, [abaAtiva, orgaoAtivo])
+  }, [carregarDados])
 
-  // 3. LÓGICA DE FILTROS E ANOS DINÂMICOS
-  
-  // Gera a lista de anos baseada APENAS nos dados que existem no banco
+  // 🔥 3. ATUALIZAÇÃO LOCAL (Otimismo de UI)
+  // Esta função decide se recarrega tudo ou se apenas atualiza um item específico localmente
+  const handleRefresh = (id, novoValorEspecial) => {
+    if (id && novoValorEspecial !== undefined) {
+      // Atualiza apenas o item modificado no estado local
+      setDados(prevDados => 
+        prevDados.map(item => 
+          item.id === id 
+            ? { ...item, acompanhamento_especial: novoValorEspecial } 
+            : item
+        )
+      )
+    } else {
+      // Se não houver parâmetros, faz o fetch normal (ex: após cadastro/exclusão)
+      carregarDados()
+    }
+  }
+
+  // 4. LÓGICA DE FILTROS E ANOS DINÂMICOS
   const anosDisponiveis = useMemo(() => {
     if (dados.length === 0) return [anoAtual]
     
@@ -81,11 +94,9 @@ export default function BoletinsPage() {
       }
     })
     
-    // Converte para array e ordena do maior para o menor
     return Array.from(anosSet).sort((a, b) => b - a)
   }, [dados, anoAtual])
 
-  // Filtra os dados em tempo real
   const dadosFiltrados = useMemo(() => {
     return dados.filter(item => {
       const assunto = item.assunto?.toLowerCase() || ""
@@ -93,18 +104,15 @@ export default function BoletinsPage() {
       const busca = filtros.busca.toLowerCase()
 
       const matchesBusca = assunto.includes(busca) || numero.includes(busca)
-      
-      // ✅ Filtro de ano robusto: extrai o ano da string YYYY-MM-DD
       const anoItem = item.data_registro?.split("-")[0]
       const matchesAno = filtros.ano ? anoItem === filtros.ano : true
-      
       const matchesEspecial = filtros.especial ? item.acompanhamento_especial === true : true
 
       return matchesBusca && matchesAno && matchesEspecial
     })
   }, [dados, filtros])
 
-  // 4. FUNÇÕES DE AÇÃO
+  // 5. FUNÇÕES DE AÇÃO
   const handleNovo = () => {
     setItemParaEditar(null)
     setModalOpen(true)
@@ -132,7 +140,6 @@ export default function BoletinsPage() {
       />
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-        {/* 🔥 Passamos a lista de anos dinâmicos para o componente Filtros */}
         <Filtros 
           filtros={filtros} 
           setFiltros={setFiltros} 
@@ -146,7 +153,7 @@ export default function BoletinsPage() {
           abaAtiva={abaAtiva} 
           orgaoAtivo={orgaoAtivo}
           onEdit={handleEditar}
-          onRefresh={carregarDados}
+          onRefresh={handleRefresh} // Passando a nova lógica de atualização
         />
       </div>
 
