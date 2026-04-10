@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react" // Adicionado useMemo
 import { supabase } from "@/lib/supabase"
 import { Plus } from "lucide-react"
 import { toast } from "react-hot-toast"
@@ -12,21 +12,24 @@ import HeaderBoletins from "./componentes/HeaderBoletins"
 import Filtros from "./componentes/Filtros"
 import Tabela from "./componentes/Tabela"
 import ModalCadastro from "./componentes/ModalCadastro"
-import { ordenarLista } from "./componentes/utils"
 
 export default function BoletinsPage() {
   // 1. ESTADOS PRINCIPAIS
-  const [abaAtiva, setAbaAtiva] = useState("boletins") // 'sei' ou 'boletins'
-  const [orgaoAtivo, setOrgaoAtivo] = useState("SEDEC") // 'SEDEC' ou 'DGDEC'
+  const [abaAtiva, setAbaAtiva] = useState("boletins") 
+  const [orgaoAtivo, setOrgaoAtivo] = useState("SEDEC") 
   const [dados, setDados] = useState([])
   const [loading, setLoading] = useState(true)
   
   // Estados de Controle
   const [modalOpen, setModalOpen] = useState(false)
   const [itemParaEditar, setItemParaEditar] = useState(null)
+  
+  // Ano atual dinâmico para o filtro inicial
+  const anoAtual = new Date().getFullYear().toString()
+  
   const [filtros, setFiltros] = useState({ 
     busca: "", 
-    ano: "2026", 
+    ano: anoAtual, 
     especial: false 
   })
 
@@ -39,16 +42,19 @@ export default function BoletinsPage() {
         .select("*")
         .eq("categoria", abaAtiva)
 
-      // Se estiver na aba de boletins, filtra também pelo órgão selecionado no banco
       if (abaAtiva === "boletins") {
         query = query.eq("tipo_orgao", orgaoAtivo)
       }
 
-      const { data, error } = await query
+      // 🔥 ORDENAÇÃO FIXA: Resolve o problema do item pular para o final
+      // Ordena por data (mais recente) e depois por número (mais alto)
+      query = query.order("data_registro", { ascending: false })
+                   .order("numero", { ascending: false })
 
+      const { data, error } = await query
       if (error) throw error
       
-      setDados(ordenarLista(data || []))
+      setDados(data || [])
     } catch (error) {
       console.error("Erro ao carregar:", error)
       toast.error("Erro ao carregar dados")
@@ -57,23 +63,46 @@ export default function BoletinsPage() {
     }
   }
 
-  // Recarregar sempre que trocar a aba principal OU o órgão (sub-aba)
   useEffect(() => {
     carregarDados()
   }, [abaAtiva, orgaoAtivo])
 
-  // 3. FILTRAGEM EM TEMPO REAL (Busca e Ano)
-  const dadosFiltrados = dados.filter(item => {
-    const assunto = item.assunto?.toLowerCase() || ""
-    const numero = item.numero?.toLowerCase() || ""
-    const busca = filtros.busca.toLowerCase()
+  // 3. LÓGICA DE FILTROS E ANOS DINÂMICOS
+  
+  // Gera a lista de anos baseada APENAS nos dados que existem no banco
+  const anosDisponiveis = useMemo(() => {
+    if (dados.length === 0) return [anoAtual]
+    
+    const anosSet = new Set()
+    dados.forEach(item => {
+      if (item.data_registro) {
+        const ano = item.data_registro.split("-")[0]
+        anosSet.add(ano)
+      }
+    })
+    
+    // Converte para array e ordena do maior para o menor
+    return Array.from(anosSet).sort((a, b) => b - a)
+  }, [dados, anoAtual])
 
-    const matchesBusca = assunto.includes(busca) || numero.includes(busca)
-    const matchesAno = item.data_registro?.startsWith(filtros.ano)
-    const matchesEspecial = filtros.especial ? item.acompanhamento_especial === true : true
+  // Filtra os dados em tempo real
+  const dadosFiltrados = useMemo(() => {
+    return dados.filter(item => {
+      const assunto = item.assunto?.toLowerCase() || ""
+      const numero = item.numero?.toLowerCase() || ""
+      const busca = filtros.busca.toLowerCase()
 
-    return matchesBusca && matchesAno && matchesEspecial
-  })
+      const matchesBusca = assunto.includes(busca) || numero.includes(busca)
+      
+      // ✅ Filtro de ano robusto: extrai o ano da string YYYY-MM-DD
+      const anoItem = item.data_registro?.split("-")[0]
+      const matchesAno = filtros.ano ? anoItem === filtros.ano : true
+      
+      const matchesEspecial = filtros.especial ? item.acompanhamento_especial === true : true
+
+      return matchesBusca && matchesAno && matchesEspecial
+    })
+  }, [dados, filtros])
 
   // 4. FUNÇÕES DE AÇÃO
   const handleNovo = () => {
@@ -89,14 +118,12 @@ export default function BoletinsPage() {
   return (
     <div className="p-6 pb-20 max-w-[1600px] mx-auto space-y-6">
       
-      {/* Topo: Agora passamos o orgaoAtivo para evitar o erro de 'undefined' */}
       <HeaderBoletins 
         abaAtiva={abaAtiva} 
         orgaoAtivo={orgaoAtivo}
         onNovo={handleNovo} 
       />
 
-      {/* Seletor de Abas Principal e Sub-abas de Órgãos */}
       <AbasBoletins 
         abaAtiva={abaAtiva} 
         setAbaAtiva={setAbaAtiva} 
@@ -104,12 +131,13 @@ export default function BoletinsPage() {
         setOrgaoAtivo={setOrgaoAtivo}
       />
 
-      {/* Área de Filtros e Tabela */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* 🔥 Passamos a lista de anos dinâmicos para o componente Filtros */}
         <Filtros 
           filtros={filtros} 
           setFiltros={setFiltros} 
           abaAtiva={abaAtiva} 
+          anosDisponiveis={anosDisponiveis} 
         />
         
         <Tabela 
@@ -122,19 +150,17 @@ export default function BoletinsPage() {
         />
       </div>
 
-      {/* Modal de Cadastro/Edição */}
       {modalOpen && (
         <ModalCadastro
           isOpen={modalOpen}
           onClose={() => setModalOpen(false)}
           item={itemParaEditar}
           abaAtiva={abaAtiva}
-          orgaoPadrao={orgaoAtivo} // Define se o novo registro vem como SEDEC ou DGDEC
+          orgaoPadrao={orgaoAtivo}
           onSuccess={carregarDados}
         />
       )}
 
-      {/* Botão Flutuante de Acesso Rápido */}
       <button
         onClick={handleNovo}
         className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center group z-40"
