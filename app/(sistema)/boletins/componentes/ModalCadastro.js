@@ -295,21 +295,14 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
             </button>
           )}
           <div className="flex gap-3 ml-auto">
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="px-6 py-3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
-            >
-              Cancelar
-            </button>
-          
+            <button type="button" onClick={onClose} className="px-6 py-3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancelar</button>
             <button 
               type="submit"
-              disabled={loading}
+              disabled={loading} 
+              onClick={handleSubmit}
               className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
             >
-              <Save size={20} />
-              {loading ? "Salvando..." : "Salvar Registro"}
+              <Save size={20} /> {loading ? "Salvando..." : "Salvar Registro"}
             </button>
           </div>
         </div>
