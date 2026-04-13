@@ -11,11 +11,11 @@ import Indicadores from "./componentes/Indicadores"
 import BlocoComando from "./componentes/BlocoComando"
 import ListaAdministrativo from "./componentes/ListaAdministrativo"
 import DrawerMilitar from "./componentes/DrawerMilitar"
-import TabelaEfetivo from "./componentes/TabelaEfetivo" // Criaremos a seguir
-import MuralExCoordenadores from "./componentes/MuralExCoordenadores" // Criaremos a seguir
+import TabelaEfetivo from "./componentes/TabelaEfetivo"
+import MuralExCoordenadores from "./componentes/MuralExCoordenadores"
 
 // Ícones e UI
-import { Users, Plus, RefreshCw, LayoutDashboard, Shield, History, ClipboardList } from "lucide-react"
+import { Plus, RefreshCw, LayoutDashboard, Shield, History, ClipboardList } from "lucide-react"
 
 export default function EquipePage() {
   // ESTADOS PRINCIPAIS
@@ -41,7 +41,6 @@ export default function EquipePage() {
     try {
       setLoading(true)
       
-      // Buscamos todos para poder filtrar ativos/inativos no frontend via utils
       const { data: mData } = await supabase
         .from("equipe")
         .select("*")
@@ -71,11 +70,10 @@ export default function EquipePage() {
     carregarDados()
   }, [])
 
-  // Militares que aparecem no painel operacional (Ativos e sem data de saída vencida)
   const militaresAtivos = militares.filter(m => verificarSeAtivo(m))
 
   return (
-    <div className="p-6 space-y-6 min-h-screen bg-gray-50/50">
+    <div className="p-6 space-y-6 min-h-screen bg-gray-50/50 pb-24">
       
       {/* TOAST NOTIFICATION */}
       {toast && (
@@ -94,17 +92,11 @@ export default function EquipePage() {
               <Shield className="w-5 h-5 text-blue-400" />
               <span className="text-blue-200 text-xs font-bold uppercase tracking-widest">Gestão de Efetivo</span>
             </div>
-            <h1 className="text-3xl font-black tracking-tight uppercase">REDEC 10 - Norte</h1>
-            <p className="text-slate-400 text-sm mt-1 font-medium">Controle de Prontidão e Histórico de Comando</p>
+            <h1 className="text-3xl font-black tracking-tight uppercase leading-none">REDEC 10 - Norte</h1>
+            <p className="text-slate-400 text-sm mt-1 font-medium italic">"Prontidão e Resiliência"</p>
           </div>
           
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => { setMilitarSelecionado(null); setDrawerOpen(true); }}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95"
-            >
-              <Plus className="w-5 h-5" /> Novo Militar
-            </button>
             <button 
               onClick={carregarDados}
               className={`p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all ${loading ? 'animate-spin' : ''}`}
@@ -116,18 +108,18 @@ export default function EquipePage() {
       </div>
 
       {/* NAVEGAÇÃO POR ABAS */}
-      <div className="flex flex-wrap gap-2 p-1 bg-slate-200/50 w-fit rounded-2xl">
+      <div className="flex flex-wrap gap-2 p-1.5 bg-slate-200/50 w-fit rounded-2xl border border-slate-200">
         {[
-          { id: "prontidao", label: "Prontidão", icon: LayoutDashboard },
+          { id: "prontidao", label: "Painel de Prontidão", icon: LayoutDashboard },
           { id: "efetivo", label: "Efetivo Geral", icon: ClipboardList },
-          { id: "mural", label: "Mural de Ex-Coords", icon: History }
+          { id: "mural", label: "Galeria de Honra", icon: History }
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setAbaAtiva(tab.id)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-tighter transition-all ${
               abaAtiva === tab.id 
-                ? "bg-white text-slate-900 shadow-sm" 
+                ? "bg-white text-slate-900 shadow-md ring-1 ring-slate-200" 
                 : "text-slate-500 hover:bg-white/50"
             }`}
           >
@@ -140,7 +132,6 @@ export default function EquipePage() {
       {/* CONTEÚDO DAS ABAS */}
       <div className="animate-in fade-in duration-500">
         
-        {/* ABA 1: PRONTIDÃO (O seu painel original) */}
         {abaAtiva === "prontidao" && (
           <div className="space-y-6">
             <Indicadores militares={militaresAtivos} afastamentos={afastamentos} />
@@ -168,7 +159,6 @@ export default function EquipePage() {
           </div>
         )}
 
-        {/* ABA 2: EFETIVO GERAL (Tabela com dados sensíveis: CPF, RG, Datas) */}
         {abaAtiva === "efetivo" && (
           <TabelaEfetivo 
             militares={militares} 
@@ -176,21 +166,28 @@ export default function EquipePage() {
           />
         )}
 
-        {/* ABA 3: MURAL DE EX-COORDENADORES */}
         {abaAtiva === "mural" && (
           <MuralExCoordenadores />
         )}
 
       </div>
 
-      {/* DRAWER LATERAL (Sempre disponível) */}
+      {/* BOTÃO FLUTUANTE DE CADASTRO */}
+      <button 
+        onClick={() => { setMilitarSelecionado(null); setDrawerOpen(true); }}
+        className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-blue-600 hover:scale-110 active:scale-90 transition-all z-50 group border-4 border-white"
+      >
+        <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" />
+      </button>
+
+      {/* DRAWER LATERAL */}
       {drawerOpen && (
         <DrawerMilitar
           militar={militarSelecionado}
           afastamentos={afastamentos.filter(a => a.equipe_id === militarSelecionado?.id)}
-          militares={militares} // Passamos todos para lógica de cargo
+          militares={militares}
           onClose={() => { setDrawerOpen(false); setMilitarSelecionado(null); }}
-          onSaved={() => { carregarDados(); showToast(militarSelecionado ? "Atualizado com sucesso" : "Cadastrado com sucesso"); }}
+          onSaved={() => { carregarDados(); showToast(militarSelecionado ? "Prontuário atualizado" : "Novo militar cadastrado"); }}
         />
       )}
 
