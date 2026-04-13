@@ -3,14 +3,15 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint } from "lucide-react";
+import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award } from "lucide-react";
 import { formatarCPF } from './utils';
 import ModalAfastamento from './ModalAfastamento';
 
 export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved, militares }) {
-  const [aba, setAba] = useState('dados'); // 'dados' | 'datas' | 'afastamentos'
+  const [aba, setAba] = useState('dados'); 
   const [loading, setLoading] = useState(false);
   const [showModalAfast, setShowModalAfast] = useState(false);
+  const [enviarAoMural, setEnviarAoMural] = useState(false);
 
   const [form, setForm] = useState({
     nome_completo: '',
@@ -28,15 +29,28 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     ordem: 0
   });
 
-  // Carrega dados se for edição
   useEffect(() => {
     if (militar) setForm({ ...militar });
   }, [militar]);
 
+  // Função para salvar no Mural de Ex-Coordenadores
+  async function registrarNoMural() {
+    const dadosMural = {
+      militar_id: militar.id,
+      nome_guerra_historico: form.nome_guerra,
+      posto_graduacao_historico: form.posto_graduacao,
+      funcao: form.posto_graduacao.includes('Cel') ? 'Coordenador' : 'Subcoordenador',
+      data_inicio: form.data_entrada_funcao,
+      data_fim: form.data_saida_funcao
+    };
+
+    const { error } = await supabase.from('equipe_mural_historico').insert(dadosMural);
+    if (error) console.error("Erro ao enviar para o mural:", error);
+  }
+
   async function salvarMilitar() {
     setLoading(true);
     
-    // Lógica automática: Se houver data de saída da REDEC, desativa o militar
     const dadosParaSalvar = {
       ...form,
       ativo: form.data_saida_redec ? false : form.ativo,
@@ -48,6 +62,10 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     if (error) {
       alert("Erro ao salvar: " + error.message);
     } else {
+      // Se a automação do mural estiver ativa, registra antes de fechar
+      if (enviarAoMural && form.data_saida_funcao) {
+        await registrarNoMural();
+      }
       onSaved();
       if (!militar) onClose();
     }
@@ -75,18 +93,15 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
           </button>
         </div>
 
-        {/* NAVEGAÇÃO INTERNA */}
+        {/* ABAS */}
         <div className="flex border-b px-4 bg-slate-50 overflow-x-auto no-scrollbar">
           {[
             { id: 'dados', label: 'Pessoal', icon: User },
             { id: 'datas', label: 'Função', icon: Shield },
             { id: 'afastamentos', label: 'Afastamentos', icon: Plane, hidden: !militar },
           ].map(t => !t.hidden && (
-            <button 
-              key={t.id}
-              onClick={() => setAba(t.id)}
-              className={`flex items-center gap-2 py-4 px-4 text-[10px] font-black uppercase whitespace-nowrap transition-all border-b-2 ${aba === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}
-            >
+            <button key={t.id} onClick={() => setAba(t.id)}
+              className={`flex items-center gap-2 py-4 px-4 text-[10px] font-black uppercase whitespace-nowrap transition-all border-b-2 ${aba === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>
               <t.icon className="w-3.5 h-3.5" /> {t.label}
             </button>
           ))}
@@ -133,7 +148,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                     value={form.cpf} placeholder="000.000.000-00" onChange={e => setForm({...form, cpf: formatarCPF(e.target.value)})} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">RG / ID Funcional</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">ID Funcional</label>
                   <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
                     value={form.id_funcional} onChange={e => setForm({...form, id_funcional: e.target.value})} />
                 </div>
@@ -148,40 +163,55 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
 
           {aba === 'datas' && (
             <div className="space-y-6">
-              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                <h4 className="text-[10px] font-black text-blue-600 uppercase mb-3 flex items-center gap-2">
-                  <Shield className="w-3 h-3" /> Histórico na REDEC 10
+              <div className="p-5 bg-blue-50 rounded-3xl border border-blue-100 space-y-4">
+                <h4 className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
+                  <Shield className="w-3 h-3" /> Movimentação na Unidade
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400">Ingresso na Unidade</label>
-                    <input type="date" className="w-full p-2 bg-white rounded-lg border-none text-sm"
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 ml-1">Ingresso</label>
+                    <input type="date" className="w-full p-2 bg-white rounded-xl border-none text-sm font-medium shadow-sm"
                       value={form.data_entrada_redec} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400">Saída da Unidade</label>
-                    <input type="date" className="w-full p-2 bg-white rounded-lg border-none text-sm text-red-600 font-bold"
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 ml-1 text-red-400">Desligamento</label>
+                    <input type="date" className="w-full p-2 bg-white rounded-xl border-none text-sm font-bold text-red-600 shadow-sm"
                       value={form.data_saida_redec} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                <h4 className="text-[10px] font-black text-slate-500 uppercase mb-3 flex items-center gap-2">
-                  <Fingerprint className="w-3 h-3" /> Função Atual
+              <div className="p-5 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">
+                  <Fingerprint className="w-3 h-3" /> Datas da Função
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400">Início na Função</label>
-                    <input type="date" className="w-full p-2 bg-white rounded-lg border-none text-sm"
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 ml-1">Início Função</label>
+                    <input type="date" className="w-full p-2 bg-white rounded-xl border-none text-sm font-medium shadow-sm"
                       value={form.data_entrada_funcao} onChange={e => setForm({...form, data_entrada_funcao: e.target.value})} />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400">Encerramento Função</label>
-                    <input type="date" className="w-full p-2 bg-white rounded-lg border-none text-sm"
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 ml-1">Fim Função</label>
+                    <input type="date" className="w-full p-2 bg-white rounded-xl border-none text-sm font-medium shadow-sm"
                       value={form.data_saida_funcao} onChange={e => setForm({...form, data_saida_funcao: e.target.value})} />
                   </div>
                 </div>
+
+                {/* Automação do Mural (Aparece se houver data de fim e for oficial) */}
+                {form.data_saida_funcao && (form.posto_graduacao.includes('Cel') || form.posto_graduacao.includes('Maj')) && (
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="flex items-center gap-3 p-3 bg-amber-50 rounded-2xl border border-amber-100 cursor-pointer transition-all hover:bg-amber-100">
+                      <input type="checkbox" className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500" 
+                        checked={enviarAoMural} onChange={e => setEnviarAoMural(e.target.checked)} />
+                      <div>
+                        <p className="text-[10px] font-black text-amber-700 uppercase leading-none mb-1">Galeria de Honra</p>
+                        <p className="text-[9px] text-amber-600/80 font-medium">Enviar registro para o Mural de Ex-Coordenadores?</p>
+                      </div>
+                      <Award className="w-5 h-5 text-amber-500 ml-auto" />
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -189,14 +219,12 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
           {aba === 'afastamentos' && (
             <div className="space-y-6">
               <button onClick={() => setShowModalAfast(true)}
-                className="w-full p-4 border-2 border-dashed border-blue-200 rounded-2xl text-blue-600 font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-blue-50 transition-all">
-                <Plus className="w-4 h-4" /> Lançar Férias / Afastamento
+                className="w-full p-4 border-2 border-dashed border-blue-200 rounded-3xl text-blue-600 font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-blue-50 transition-all">
+                <Plus className="w-4 h-4" /> Lançar Novo Afastamento
               </button>
-
               <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registros</h4>
                 {afastamentos.map(afast => (
-                  <div key={afast.id} className="p-4 bg-white rounded-xl border flex justify-between items-center shadow-sm">
+                  <div key={afast.id} className="p-4 bg-white rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
                     <div>
                       <p className="font-bold text-slate-700 text-sm">{afast.tipo}</p>
                       <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
@@ -204,7 +232,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                       </p>
                     </div>
                     <button onClick={async () => {
-                      if(confirm("Excluir?")) {
+                      if(confirm("Excluir registro?")) {
                         await supabase.from('equipe_afastamentos').delete().eq('id', afast.id);
                         onSaved();
                       }
@@ -219,23 +247,18 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
         </div>
 
         {/* FOOTER */}
-        <div className="p-6 border-t bg-slate-50 flex gap-3">
+        <div className="p-6 border-t bg-slate-50">
           <button disabled={loading} onClick={salvarMilitar}
-            className="flex-1 bg-slate-900 hover:bg-blue-700 text-white p-4 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">
+            className="w-full bg-slate-900 hover:bg-blue-700 text-white p-4 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">
             <Save className="w-4 h-4" />
-            {loading ? 'Processando...' : 'Confirmar e Salvar'}
+            {loading ? 'Salvando...' : 'Confirmar Alterações'}
           </button>
         </div>
       </div>
 
       {showModalAfast && (
-        <ModalAfastamento 
-          militar={militar} 
-          militares={militares} 
-          afastamentos={afastamentos}
-          onClose={() => setShowModalAfast(false)} 
-          onSaved={onSaved} 
-        />
+        <ModalAfastamento militar={militar} militares={militares} afastamentos={afastamentos}
+          onClose={() => setShowModalAfast(false)} onSaved={onSaved} />
       )}
     </div>
   );
