@@ -1,10 +1,12 @@
 /* app/(sistema)/equipe/componentes/DrawerMilitar.js */
 
+/* app/(sistema)/equipe/componentes/DrawerMilitar.js */
+
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
 import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus } from "lucide-react";
-import { formatarCPF, formatarTelefone } from './utils'; // Importação atualizada
+import { formatarCPF, formatarTelefone } from './utils'; 
 import ModalAfastamento from './ModalAfastamento';
 
 export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved, militares }) {
@@ -35,45 +37,51 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     if (militar) setForm({ ...militar });
   }, [militar]);
 
-  async function registrarNoMural() {
+  // Função para salvar no Histórico/Mural de Honra
+  async function registrarNoMural(militarId) {
     const dadosMural = {
-      militar_id: militar.id,
-      nome_guerra_historico: form.nome_guerra,
-      posto_graduacao_historico: form.posto_graduacao,
-      funcao: form.funcao_redec || (form.posto_graduacao.includes('Cel') ? 'Coordenador' : 'Subcoordenador'),
-      data_inicio: form.data_entrada_funcao,
-      data_fim: form.data_saida_funcao
+      militar_id: militarId,
+      nome_guerra_historico: form.nome_guerra.toUpperCase(),
+      posto_graduacao_historico: form.posto_graduacao.toUpperCase(),
+      // Garante MAIÚSCULAS para bater com a constraint do banco
+      funcao: form.funcao_redec.toUpperCase(),
+      data_inicio: form.data_entrada_funcao || null,
+      data_fim: form.data_saida_funcao || null
     };
 
     const { error } = await supabase.from('equipe_mural_historico').insert(dadosMural);
-    if (error) console.error("Erro ao enviar para o mural:", error);
+    if (error) {
+      console.error("Erro ao enviar para o mural:", error.message);
+      alert("Atenção: Militar salvo, mas houve erro ao registrar na Galeria: " + error.message);
+    }
   }
 
   async function salvarMilitar() {
     setLoading(true);
     
-    // Função auxiliar para converter string vazia em null
-    const formatarDataParaBanco = (data) => (data === "" ? null : data);
+    // Função vital para evitar o erro: invalid input syntax for type date: ""
+    const formatarDataParaBanco = (data) => (data === "" || !data ? null : data);
 
     const dadosParaSalvar = {
       ...form,
-      // Garante que campos de data vazios sejam enviados como NULL
       data_entrada_redec: formatarDataParaBanco(form.data_entrada_redec),
       data_saida_redec: formatarDataParaBanco(form.data_saida_redec),
       data_entrada_funcao: formatarDataParaBanco(form.data_entrada_funcao),
       data_saida_funcao: formatarDataParaBanco(form.data_saida_funcao),
       
+      // Se preencher a data de saída da REDEC, o militar fica inativo automaticamente
       ativo: form.data_saida_redec ? false : form.ativo,
       id: militar?.id || undefined
     };
 
-    const { error } = await supabase.from('equipe').upsert(dadosParaSalvar);
+    const { data, error } = await supabase.from('equipe').upsert(dadosParaSalvar).select().single();
 
     if (error) {
       alert("Erro ao salvar: " + error.message);
     } else {
+      // Se o checkbox do mural estiver marcado e houver data de saída da função
       if (enviarAoMural && form.data_saida_funcao) {
-        await registrarNoMural();
+        await registrarNoMural(data.id);
       }
       onSaved();
       onClose();
@@ -149,9 +157,9 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
                     value={form.funcao_redec} onChange={e => setForm({...form, funcao_redec: e.target.value})}>
                     <option value="">Selecione...</option>
-                    <option value="Coordenador">Coordenador</option>
-                    <option value="Subcoordenador">Subcoordenador</option>
-                    <option value="Administrativo">Administrativo</option>
+                    <option value="COORDENADOR">COORDENADOR</option>
+                    <option value="SUBCOORDENADOR">SUBCOORDENADOR</option>
+                    <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
                   </select>
                 </div>
 
@@ -215,12 +223,12 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Ingresso</label>
                     <input type="date" className="w-full p-2 bg-white rounded-xl border-none text-sm font-medium shadow-sm"
-                      value={form.data_entrada_redec} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
+                      value={form.data_entrada_redec || ''} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-red-400 ml-1">Desligamento</label>
                     <input type="date" className="w-full p-2 bg-white rounded-xl border-none text-sm font-bold text-red-600 shadow-sm"
-                      value={form.data_saida_redec} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
+                      value={form.data_saida_redec || ''} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
                   </div>
                 </div>
               </div>
@@ -233,16 +241,17 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Início Função</label>
                     <input type="date" className="w-full p-2 bg-white rounded-xl border-none text-sm font-medium shadow-sm"
-                      value={form.data_entrada_funcao} onChange={e => setForm({...form, data_entrada_funcao: e.target.value})} />
+                      value={form.data_entrada_funcao || ''} onChange={e => setForm({...form, data_entrada_funcao: e.target.value})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Fim Função</label>
                     <input type="date" className="w-full p-2 bg-white rounded-xl border-none text-sm font-medium shadow-sm"
-                      value={form.data_saida_funcao} onChange={e => setForm({...form, data_saida_funcao: e.target.value})} />
+                      value={form.data_saida_funcao || ''} onChange={e => setForm({...form, data_saida_funcao: e.target.value})} />
                   </div>
                 </div>
 
-                {form.data_saida_funcao && (form.funcao_redec === 'Coordenador' || form.funcao_redec === 'Subcoordenador') && (
+                {/* Logica para Galeria de Honra (Apenas para Coordenador/Sub) */}
+                {form.data_saida_funcao && ['COORDENADOR', 'SUBCOORDENADOR'].includes(form.funcao_redec) && (
                   <div className="pt-2 border-t border-slate-200">
                     <label className="flex items-center gap-3 p-3 bg-amber-50 rounded-2xl border border-amber-100 cursor-pointer transition-all hover:bg-amber-100">
                       <input type="checkbox" className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500" 
