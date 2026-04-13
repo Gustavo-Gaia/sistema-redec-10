@@ -7,7 +7,7 @@ import { X, Calendar, AlertTriangle, Check, Building2, MessageSquare, Trash2 } f
 import { calcularStatus } from './utils';
 import { toast } from "react-hot-toast";
 
-export default function ModalAfastamento({ militar, militares, afastamentos, onClose, onSaved, afastamentoParaEditar = null }) {
+export default function ModalAfastamento({ militar, militares, afastamentos = [], onClose, onSaved, afastamentoParaEditar = null }) {
   const [loading, setLoading] = useState(false);
   const [qtdDias, setQtdDias] = useState('');
   
@@ -20,26 +20,38 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
     num_boletim: ''
   });
 
-  // Carrega dados se for Edição
+  // Carrega dados se for Edição ou limpa se for Novo
   useEffect(() => {
     if (afastamentoParaEditar) {
       // Tenta extrair o número do boletim da observação se não houver campo específico
       const numMatch = afastamentoParaEditar.observacao?.match(/Bol-(\d+)/);
       
       setForm({
-        tipo: afastamentoParaEditar.tipo,
-        data_inicio: afastamentoParaEditar.data_inicio,
-        data_fim: afastamentoParaEditar.data_fim,
+        tipo: afastamentoParaEditar.tipo || 'Férias',
+        data_inicio: afastamentoParaEditar.data_inicio || '',
+        data_fim: afastamentoParaEditar.data_fim || '',
         observacao: afastamentoParaEditar.observacao || '',
-        orgao_boletim: 'SEDEC', // Valor padrão, ajuste se tiver essa info no banco
+        orgao_boletim: 'SEDEC', 
         num_boletim: numMatch ? parseInt(numMatch[1]) : ''
       });
 
-      // Calcula diferença de dias para o input
-      const d1 = new Date(afastamentoParaEditar.data_inicio + "T12:00:00");
-      const d2 = new Date(afastamentoParaEditar.data_fim + "T12:00:00");
-      const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
-      setQtdDias(diff.toString());
+      if (afastamentoParaEditar.data_inicio && afastamentoParaEditar.data_fim) {
+        const d1 = new Date(afastamentoParaEditar.data_inicio + "T12:00:00");
+        const d2 = new Date(afastamentoParaEditar.data_fim + "T12:00:00");
+        const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+        setQtdDias(diff.toString());
+      }
+    } else {
+      // Reset para novo cadastro
+      setForm({
+        tipo: 'Férias',
+        data_inicio: '',
+        data_fim: '',
+        observacao: '',
+        orgao_boletim: 'SEDEC',
+        num_boletim: ''
+      });
+      setQtdDias('');
     }
   }, [afastamentoParaEditar]);
 
@@ -54,13 +66,13 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
         setForm(prev => ({ ...prev, data_fim: fim.toISOString().split('T')[0] }));
       }
     }
-  }, [form.data_inicio, qtdDias]);
+  }, [form.data_inicio, qtdDias, loading]);
 
   const isCritico = (() => {
-    if (!form.data_inicio || !form.data_fim) return false;
+    if (!form.data_inicio || !form.data_fim || !militares) return false;
     const disponiveis = militares.filter(m => {
       if (m.id === militar.id) return false;
-      const m_afas = afastamentos.filter(a => a.equipe_id === m.id);
+      const m_afas = (afastamentos || []).filter(a => a.equipe_id === m.id);
       return !calcularStatus(m_afas).isAfastado;
     }).length;
     return disponiveis <= 1;
@@ -114,7 +126,6 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
 
       } else {
         // --- MODO NOVO CADASTRO ---
-        
         const { data: evento, error: errAgenda } = await supabase
           .from('agenda_eventos')
           .insert({
@@ -177,8 +188,11 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
       toast.success("Removido com sucesso!");
       onSaved();
       onClose();
-    } catch (e) { toast.error("Erro ao excluir."); }
-    finally { setLoading(false); }
+    } catch (e) { 
+      toast.error("Erro ao excluir."); 
+    } finally { 
+      setLoading(false); 
+    }
   }
 
   return (
@@ -305,7 +319,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
           <button 
             onClick={salvarAfastamento}
             disabled={loading}
-            className="flex-2 p-4 rounded-2xl font-black text-white text-xs bg-slate-900 hover:bg-blue-700 shadow-lg transition-all"
+            className="flex-2 p-4 rounded-2xl font-black text-white text-xs bg-slate-900 hover:bg-blue-700 shadow-lg transition-all disabled:opacity-50"
           >
             {loading ? '...' : (afastamentoParaEditar ? 'ATUALIZAR' : 'CONFIRMAR')}
           </button>
