@@ -1,29 +1,49 @@
 /* app/(sistema)/equipe/componentes/DrawerMilitar.js */
 
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { X, User, Plane, Save, Trash2, Calendar } from "lucide-react";
+import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint } from "lucide-react";
+import { formatarCPF } from './utils';
 import ModalAfastamento from './ModalAfastamento';
 
-export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved }) {
-  const [aba, setAba] = useState('dados'); // 'dados' ou 'afastamentos'
+export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved, militares }) {
+  const [aba, setAba] = useState('dados'); // 'dados' | 'datas' | 'afastamentos'
   const [loading, setLoading] = useState(false);
-  const [formMilitar, setFormMilitar] = useState(militar || {
+  const [showModalAfast, setShowModalAfast] = useState(false);
+
+  const [form, setForm] = useState({
     nome_completo: '',
     nome_guerra: '',
     posto_graduacao: '',
     rg: '',
+    cpf: '',
+    id_funcional: '',
     telefone: '',
+    data_entrada_redec: '',
+    data_saida_redec: '',
+    data_entrada_funcao: '',
+    data_saida_funcao: '',
+    ativo: true,
     ordem: 0
   });
 
-  // Salvar alterações do militar
+  // Carrega dados se for edição
+  useEffect(() => {
+    if (militar) setForm({ ...militar });
+  }, [militar]);
+
   async function salvarMilitar() {
     setLoading(true);
-    const { error } = await supabase
-      .from('equipe')
-      .upsert({ ...formMilitar, id: militar?.id || undefined });
+    
+    // Lógica automática: Se houver data de saída da REDEC, desativa o militar
+    const dadosParaSalvar = {
+      ...form,
+      ativo: form.data_saida_redec ? false : form.ativo,
+      id: militar?.id || undefined
+    };
+
+    const { error } = await supabase.from('equipe').upsert(dadosParaSalvar);
 
     if (error) {
       alert("Erro ao salvar: " + error.message);
@@ -36,20 +56,18 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved 
 
   return (
     <div className="fixed inset-0 z-[60] flex justify-end">
-      {/* Overlay Escuro */}
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Painel Lateral */}
       <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
-        {/* Header do Drawer */}
+        {/* HEADER */}
         <div className="p-6 border-b flex justify-between items-center bg-slate-50">
           <div>
-            <h2 className="text-xl font-black text-slate-800">
-              {militar ? 'Editar Militar' : 'Novo Militar'}
+            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">
+              {militar ? form.nome_guerra : 'Novo Militar'}
             </h2>
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-tighter">
-              Gerenciamento de Prontuário
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+              {militar ? 'Gestão de Prontuário' : 'Cadastro de Efetivo'}
             </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
@@ -57,110 +75,140 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved 
           </button>
         </div>
 
-        {/* Abas de Navegação */}
-        <div className="flex border-b px-6 bg-slate-50">
-          <button 
-            onClick={() => setAba('dados')}
-            className={`flex items-center gap-2 py-4 px-4 text-sm font-bold transition-all border-b-2 ${aba === 'dados' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}
-          >
-            <User className="w-4 h-4" /> Dados
-          </button>
-          {militar && (
+        {/* NAVEGAÇÃO INTERNA */}
+        <div className="flex border-b px-4 bg-slate-50 overflow-x-auto no-scrollbar">
+          {[
+            { id: 'dados', label: 'Pessoal', icon: User },
+            { id: 'datas', label: 'Função', icon: Shield },
+            { id: 'afastamentos', label: 'Afastamentos', icon: Plane, hidden: !militar },
+          ].map(t => !t.hidden && (
             <button 
-              onClick={() => setAba('afastamentos')}
-              className={`flex items-center gap-2 py-4 px-4 text-sm font-bold transition-all border-b-2 ${aba === 'afastamentos' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}
+              key={t.id}
+              onClick={() => setAba(t.id)}
+              className={`flex items-center gap-2 py-4 px-4 text-[10px] font-black uppercase whitespace-nowrap transition-all border-b-2 ${aba === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}
             >
-              <Plane className="w-4 h-4" /> Afastamentos
+              <t.icon className="w-3.5 h-3.5" /> {t.label}
             </button>
-          )}
+          ))}
         </div>
 
-        {/* Conteúdo Dinâmico */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {aba === 'dados' ? (
+        {/* CONTEÚDO */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          
+          {aba === 'dados' && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Nome Completo</label>
-                  <input 
-                    type="text" 
-                    className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
-                    value={formMilitar.nome_completo}
-                    onChange={e => setFormMilitar({...formMilitar, nome_completo: e.target.value.toUpperCase()})}
-                  />
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Nome Completo</label>
+                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    value={form.nome_completo} onChange={e => setForm({...form, nome_completo: e.target.value.toUpperCase()})} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Nome de Guerra</label>
-                  <input 
-                    type="text" 
-                    className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold"
-                    value={formMilitar.nome_guerra}
-                    onChange={e => setFormMilitar({...formMilitar, nome_guerra: e.target.value.toUpperCase()})}
-                  />
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Nome de Guerra</label>
+                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-blue-700"
+                    value={form.nome_guerra} onChange={e => setForm({...form, nome_guerra: e.target.value.toUpperCase()})} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Posto/Graduação</label>
-                  <select 
-                    className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
-                    value={formMilitar.posto_graduacao}
-                    onChange={e => setFormMilitar({...formMilitar, posto_graduacao: e.target.value})}
-                  >
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Posto/Graduação</label>
+                  <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold"
+                    value={form.posto_graduacao} onChange={e => setForm({...form, posto_graduacao: e.target.value})}>
                     <option value="">Selecione...</option>
+                    <option value="Cel BM">Coronel BM</option>
+                    <option value="Ten Cel BM">Ten Cel BM</option>
+                    <option value="Maj BM">Major BM</option>
                     <option value="Cap BM">Capitão BM</option>
-                    <option value="Ten BM">Tenente BM</option>
-                    <option value="Sgt BM">Sargento BM</option>
+                    <option value="1º Ten BM">1º Tenente BM</option>
+                    <option value="2º Ten BM">2º Tenente BM</option>
+                    <option value="Subten BM">Subtenente BM</option>
+                    <option value="1º Sgt BM">1º Sargento BM</option>
+                    <option value="2º Sgt BM">2º Sargento BM</option>
+                    <option value="3º Sgt BM">3º Sargento BM</option>
                     <option value="Cb BM">Cabo BM</option>
                     <option value="Sd BM">Soldado BM</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">RG Funcional</label>
-                  <input 
-                    type="text" 
-                    className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
-                    value={formMilitar.rg}
-                    onChange={e => setFormMilitar({...formMilitar, rg: e.target.value})}
-                  />
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">CPF</label>
+                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
+                    value={form.cpf} placeholder="000.000.000-00" onChange={e => setForm({...form, cpf: formatarCPF(e.target.value)})} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Telefone</label>
-                  <input 
-                    type="text" 
-                    className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
-                    value={formMilitar.telefone}
-                    onChange={e => setFormMilitar({...formMilitar, telefone: e.target.value})}
-                  />
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">RG / ID Funcional</label>
+                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
+                    value={form.id_funcional} onChange={e => setForm({...form, id_funcional: e.target.value})} />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Telefone / WhatsApp</label>
+                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
+                    value={form.telefone} onChange={e => setForm({...form, telefone: e.target.value})} />
                 </div>
               </div>
             </div>
-          ) : (
+          )}
+
+          {aba === 'datas' && (
             <div className="space-y-6">
-              <button 
-                onClick={() => window.openModalAfastamento()} // Chamada para o modal que faremos
-                className="w-full p-4 border-2 border-dashed border-blue-200 rounded-2xl text-blue-600 font-bold flex items-center justify-center gap-2 hover:bg-blue-50 transition-all"
-              >
-                <Plus className="w-5 h-5" /> Registrar Afastamento
+              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <h4 className="text-[10px] font-black text-blue-600 uppercase mb-3 flex items-center gap-2">
+                  <Shield className="w-3 h-3" /> Histórico na REDEC 10
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400">Ingresso na Unidade</label>
+                    <input type="date" className="w-full p-2 bg-white rounded-lg border-none text-sm"
+                      value={form.data_entrada_redec} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400">Saída da Unidade</label>
+                    <input type="date" className="w-full p-2 bg-white rounded-lg border-none text-sm text-red-600 font-bold"
+                      value={form.data_saida_redec} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase mb-3 flex items-center gap-2">
+                  <Fingerprint className="w-3 h-3" /> Função Atual
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400">Início na Função</label>
+                    <input type="date" className="w-full p-2 bg-white rounded-lg border-none text-sm"
+                      value={form.data_entrada_funcao} onChange={e => setForm({...form, data_entrada_funcao: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400">Encerramento Função</label>
+                    <input type="date" className="w-full p-2 bg-white rounded-lg border-none text-sm"
+                      value={form.data_saida_funcao} onChange={e => setForm({...form, data_saida_funcao: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {aba === 'afastamentos' && (
+            <div className="space-y-6">
+              <button onClick={() => setShowModalAfast(true)}
+                className="w-full p-4 border-2 border-dashed border-blue-200 rounded-2xl text-blue-600 font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-blue-50 transition-all">
+                <Plus className="w-4 h-4" /> Lançar Férias / Afastamento
               </button>
 
               <div className="space-y-3">
-                <h4 className="text-xs font-black text-slate-400 uppercase italic">Histórico Recente</h4>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registros</h4>
                 {afastamentos.map(afast => (
-                  <div key={afast.id} className="p-4 bg-slate-50 rounded-xl border flex justify-between items-center">
+                  <div key={afast.id} className="p-4 bg-white rounded-xl border flex justify-between items-center shadow-sm">
                     <div>
-                      <p className="font-bold text-slate-700">{afast.tipo}</p>
-                      <p className="text-[10px] text-slate-500 uppercase flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {afast.data_inicio} até {afast.data_fim}
+                      <p className="font-bold text-slate-700 text-sm">{afast.tipo}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> {afast.data_inicio} a {afast.data_fim}
                       </p>
                     </div>
-                    <button 
-                      onClick={async () => {
-                        if(confirm("Excluir registro?")) {
-                          await supabase.from('equipe_afastamentos').delete().eq('id', afast.id);
-                          onSaved();
-                        }
-                      }}
-                      className="text-red-400 hover:text-red-600 p-2"
-                    >
+                    <button onClick={async () => {
+                      if(confirm("Excluir?")) {
+                        await supabase.from('equipe_afastamentos').delete().eq('id', afast.id);
+                        onSaved();
+                      }
+                    }} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -170,18 +218,25 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved 
           )}
         </div>
 
-        {/* Footer com Ações */}
-        <div className="p-6 border-t bg-slate-50">
-          <button 
-            disabled={loading}
-            onClick={salvarMilitar}
-            className="w-full bg-slate-900 hover:bg-blue-700 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all shadow-lg shadow-slate-200 disabled:opacity-50"
-          >
-            <Save className="w-5 h-5" />
-            {loading ? 'SALVANDO...' : 'CONFIRMAR ALTERAÇÕES'}
+        {/* FOOTER */}
+        <div className="p-6 border-t bg-slate-50 flex gap-3">
+          <button disabled={loading} onClick={salvarMilitar}
+            className="flex-1 bg-slate-900 hover:bg-blue-700 text-white p-4 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">
+            <Save className="w-4 h-4" />
+            {loading ? 'Processando...' : 'Confirmar e Salvar'}
           </button>
         </div>
       </div>
+
+      {showModalAfast && (
+        <ModalAfastamento 
+          militar={militar} 
+          militares={militares} 
+          afastamentos={afastamentos}
+          onClose={() => setShowModalAfast(false)} 
+          onSaved={onSaved} 
+        />
+      )}
     </div>
   );
 }
