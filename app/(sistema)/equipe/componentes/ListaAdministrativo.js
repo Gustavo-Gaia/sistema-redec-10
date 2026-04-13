@@ -4,13 +4,14 @@
 import CardMilitar from './CardMilitar';
 import { UserCog } from "lucide-react";
 
-export default function ListaAdministrativo({ militares, config, afastamentos, onSelect }) {
+export default function ListaAdministrativo({ militares, afastamentos, onSelect }) {
   
-  // Filtra a lista para excluir quem já está no Bloco de Comando
-  const administrativo = militares.filter(m => 
-    m.id !== config?.coordenador_id && 
-    m.id !== config?.subcoordenador_id
-  );
+  // Agora filtramos por FUNÇÃO. 
+  // Se for COORDENADOR ou SUBCOORDENADOR, ele NÃO entra nesta lista (pois já está no BlocoComando)
+  const administrativo = militares.filter(m => {
+    const funcao = m.funcao_redec?.toUpperCase();
+    return funcao !== 'COORDENADOR' && funcao !== 'SUBCOORDENADOR';
+  });
 
   return (
     <div className="space-y-4">
