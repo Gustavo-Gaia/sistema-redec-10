@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus } from "lucide-react";
+import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus, Edit2 } from "lucide-react";
 import { formatarCPF, formatarTelefone } from './utils'; 
 import ModalAfastamento from './ModalAfastamento';
 
@@ -11,6 +11,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
   const [aba, setAba] = useState('dados'); 
   const [loading, setLoading] = useState(false);
   const [showModalAfast, setShowModalAfast] = useState(false);
+  const [afastamentoParaEditar, setAfastamentoParaEditar] = useState(null);
   const [enviarAoMural, setEnviarAoMural] = useState(false);
 
   const [form, setForm] = useState({
@@ -39,17 +40,14 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     if (militar) setForm({ ...militar });
   }, [militar]);
 
-  // Máscara para Padrão Bol-Sedec: 061/2026 - 15/01/2026
   const aplicarMascaraBoletim = (valor) => {
     const numeros = valor.replace(/\D/g, "");
     let resultado = "Bol-Sedec ";
-
     if (numeros.length > 0) resultado += numeros.substring(0, 3);
     if (numeros.length >= 4) resultado += "/" + numeros.substring(3, 7);
     if (numeros.length >= 8) resultado += " - " + numeros.substring(7, 9);
     if (numeros.length >= 10) resultado += "/" + numeros.substring(9, 11);
     if (numeros.length >= 12) resultado += "/" + numeros.substring(11, 15);
-
     return resultado.toUpperCase();
   };
 
@@ -64,12 +62,8 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
       bol_inicio_historico: form.bol_entrada_funcao, 
       bol_fim_historico: form.bol_saida_funcao
     };
-
     const { error } = await supabase.from('equipe_mural_historico').insert(dadosMural);
-    if (error) {
-      console.error("Erro ao enviar para o mural:", error.message);
-      alert("Atenção: Militar salvo, mas houve erro ao registrar na Galeria: " + error.message);
-    }
+    if (error) console.error("Erro ao enviar para o mural:", error.message);
   }
 
   async function salvarMilitar() {
@@ -91,14 +85,22 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     if (error) {
       alert("Erro ao salvar: " + error.message);
     } else {
-      if (enviarAoMural && form.data_saida_funcao) {
-        await registrarNoMural(data.id);
-      }
+      if (enviarAoMural && form.data_saida_funcao) await registrarNoMural(data.id);
       onSaved();
       onClose();
     }
     setLoading(false);
   }
+
+  const handleNovoAfastamento = () => {
+    setAfastamentoParaEditar(null);
+    setShowModalAfast(true);
+  };
+
+  const handleEditarAfastamento = (afast) => {
+    setAfastamentoParaEditar(afast);
+    setShowModalAfast(true);
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex justify-end">
@@ -149,7 +151,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
 
                 <div className="col-span-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
-                    <Mail className="w-3 h-3 text-blue-500" /> E-mail Institucional/Pessoal
+                    <Mail className="w-3 h-3 text-blue-500" /> E-mail Institucional
                   </label>
                   <input type="email" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-600 lowercase"
                     value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
@@ -162,9 +164,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
-                    <Star className="w-3 h-3 text-amber-500" /> Função REDEC
-                  </label>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Função REDEC</label>
                   <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
                     value={form.funcao_redec} onChange={e => setForm({...form, funcao_redec: e.target.value})}>
                     <option value="">Selecione...</option>
@@ -174,36 +174,37 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Posto/Graduação</label>
-                  <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
-                    value={form.posto_graduacao} onChange={e => setForm({...form, posto_graduacao: e.target.value})}>
-                    <option value="">Selecione...</option>
-                    <option value="Cel BM">Coronel BM</option>
-                    <option value="Ten Cel BM">Ten Cel BM</option>
-                    <option value="Maj BM">Major BM</option>
-                    <option value="Cap BM">Capitão BM</option>
-                    <option value="1º Ten BM">1º Tenente BM</option>
-                    <option value="2º Ten BM">2º Tenente BM</option>
-                    <option value="Subten BM">Subtenente BM</option>
-                    <option value="1º Sgt BM">1º Sargento BM</option>
-                    <option value="2º Sgt BM">2º Sargento BM</option>
-                    <option value="3º Sgt BM">3º Sargento BM</option>
-                    <option value="Cb BM">Cabo BM</option>
-                    <option value="Sd BM">Soldado BM</option>
-                  </select>
+                <div className="col-span-2 grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Posto/Graduação</label>
+                        <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
+                            value={form.posto_graduacao} onChange={e => setForm({...form, posto_graduacao: e.target.value})}>
+                            <option value="">Selecione...</option>
+                            <option value="Cel BM">Coronel BM</option>
+                            <option value="Ten Cel BM">Ten Cel BM</option>
+                            <option value="Maj BM">Major BM</option>
+                            <option value="Cap BM">Capitão BM</option>
+                            <option value="1º Ten BM">1º Tenente BM</option>
+                            <option value="2º Ten BM">2º Tenente BM</option>
+                            <option value="Subten BM">Subtenente BM</option>
+                            <option value="1º Sgt BM">1º Sargento BM</option>
+                            <option value="2º Sgt BM">2º Sargento BM</option>
+                            <option value="3º Sgt BM">3º Sargento BM</option>
+                            <option value="Cb BM">Cabo BM</option>
+                            <option value="Sd BM">Soldado BM</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">ID Funcional</label>
+                        <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
+                            value={form.id_funcional} onChange={e => setForm({...form, id_funcional: e.target.value})} />
+                    </div>
                 </div>
 
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">CPF</label>
                   <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
                     value={form.cpf} placeholder="000.000.000-00" onChange={e => setForm({...form, cpf: formatarCPF(e.target.value)})} />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">ID Funcional</label>
-                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
-                    value={form.id_funcional} onChange={e => setForm({...form, id_funcional: e.target.value})} />
                 </div>
 
                 <div>
@@ -268,27 +269,13 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                       value={form.bol_saida_funcao} onChange={e => setForm({...form, bol_saida_funcao: aplicarMascaraBoletim(e.target.value)})} />
                   </div>
                 </div>
-
-                {form.data_saida_funcao && ['COORDENADOR', 'SUBCOORDENADOR'].includes(form.funcao_redec) && (
-                  <div className="pt-2 border-t border-slate-200">
-                    <label className="flex items-center gap-3 p-3 bg-amber-50 rounded-2xl border border-amber-100 cursor-pointer transition-all hover:bg-amber-100">
-                      <input type="checkbox" className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500" 
-                        checked={enviarAoMural} onChange={e => setEnviarAoMural(e.target.checked)} />
-                      <div>
-                        <p className="text-[10px] font-black text-amber-700 uppercase leading-none mb-1">Galeria de Honra</p>
-                        <p className="text-[9px] text-amber-600/80 font-medium italic">Registrar histórico de comando ao salvar?</p>
-                      </div>
-                      <Award className="w-5 h-5 text-amber-500 ml-auto" />
-                    </label>
-                  </div>
-                )}
               </div>
             </div>
           )}
 
           {aba === 'afastamentos' && (
             <div className="space-y-6">
-              <button onClick={() => setShowModalAfast(true)}
+              <button onClick={handleNovoAfastamento}
                 className="w-full p-4 border-2 border-dashed border-blue-200 rounded-3xl text-blue-600 font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-blue-50 transition-all">
                 <Plus className="w-4 h-4" /> Lançar Novo Afastamento
               </button>
@@ -297,21 +284,30 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   <p className="text-center text-[10px] text-slate-400 font-bold uppercase py-10">Nenhum afastamento registrado</p>
                 ) : (
                   afastamentos.map(afast => (
-                    <div key={afast.id} className="p-4 bg-white rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
+                    <div key={afast.id} className="p-4 bg-white rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm hover:border-blue-200 transition-all group">
                       <div>
                         <p className="font-bold text-slate-700 text-sm">{afast.tipo}</p>
                         <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
                           <Calendar className="w-3 h-3" /> {afast.data_inicio} a {afast.data_fim}
                         </p>
+                        {afast.boletim && (
+                            <p className="text-[9px] text-blue-500 font-bold mt-1 uppercase italic">{afast.boletim}</p>
+                        )}
                       </div>
-                      <button onClick={async () => {
-                        if(confirm("Excluir este afastamento permanentemente?")) {
-                          await supabase.from('equipe_afastamentos').delete().eq('id', afast.id);
-                          onSaved();
-                        }
-                      }} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleEditarAfastamento(afast)} 
+                          className="text-slate-300 hover:text-blue-500 p-2 transition-colors">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={async () => {
+                          if(confirm("Excluir este afastamento permanentemente?")) {
+                            await supabase.from('equipe_afastamentos').delete().eq('id', afast.id);
+                            onSaved();
+                          }
+                        }} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -331,8 +327,13 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
       </div>
 
       {showModalAfast && (
-        <ModalAfastamento militar={militar} militares={militares} afastamentos={afastamentos}
-          onClose={() => setShowModalAfast(false)} onSaved={onSaved} />
+        <ModalAfastamento 
+            militar={militar} 
+            militares={militares} 
+            afastamentoExistente={afastamentoParaEditar}
+            onClose={() => setShowModalAfast(false)} 
+            onSaved={onSaved} 
+        />
       )}
     </div>
   );
