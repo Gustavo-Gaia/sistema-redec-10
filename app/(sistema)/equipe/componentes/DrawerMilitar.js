@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
 import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus } from "lucide-react";
-import { formatarCPF } from './utils';
+import { formatarCPF, formatarTelefone } from './utils'; // Importação atualizada
 import ModalAfastamento from './ModalAfastamento';
 
 export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved, militares }) {
@@ -17,8 +17,8 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     nome_completo: '',
     nome_guerra: '',
     posto_graduacao: '',
-    funcao_redec: '', // Novo: Coordenador, Subcoordenador, Administrativo
-    email: '',        // Novo
+    funcao_redec: '',
+    email: '',
     rg: '',
     cpf: '',
     id_funcional: '',
@@ -123,8 +123,8 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
                     <Mail className="w-3 h-3 text-blue-500" /> E-mail Institucional/Pessoal
                   </label>
-                  <input type="email" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
-                    value={form.email} onChange={e => setForm({...form, email: e.target.value.toLowerCase()})} />
+                  <input type="email" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-600 lowercase"
+                    value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
                 </div>
 
                 <div>
@@ -137,7 +137,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
                     <Star className="w-3 h-3 text-amber-500" /> Função REDEC
                   </label>
-                  <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold"
+                  <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
                     value={form.funcao_redec} onChange={e => setForm({...form, funcao_redec: e.target.value})}>
                     <option value="">Selecione...</option>
                     <option value="Coordenador">Coordenador</option>
@@ -185,9 +185,12 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                 </div>
 
                 <div className="col-span-2">
-                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Telefone / WhatsApp</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-green-600" /> Telefone / WhatsApp
+                  </label>
                   <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
-                    value={form.telefone} onChange={e => setForm({...form, telefone: e.target.value})} />
+                    placeholder="(00) 00000-0000"
+                    value={form.telefone} onChange={e => setForm({...form, telefone: formatarTelefone(e.target.value)})} />
                 </div>
               </div>
             </div>
@@ -230,7 +233,6 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   </div>
                 </div>
 
-                {/* Automação do Mural */}
                 {form.data_saida_funcao && (form.funcao_redec === 'Coordenador' || form.funcao_redec === 'Subcoordenador') && (
                   <div className="pt-2 border-t border-slate-200">
                     <label className="flex items-center gap-3 p-3 bg-amber-50 rounded-2xl border border-amber-100 cursor-pointer transition-all hover:bg-amber-100">
