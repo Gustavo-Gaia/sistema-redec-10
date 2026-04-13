@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award } from "lucide-react";
+import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus } from "lucide-react";
 import { formatarCPF } from './utils';
 import ModalAfastamento from './ModalAfastamento';
 
@@ -17,6 +17,8 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     nome_completo: '',
     nome_guerra: '',
     posto_graduacao: '',
+    funcao_redec: '', // Novo: Coordenador, Subcoordenador, Administrativo
+    email: '',        // Novo
     rg: '',
     cpf: '',
     id_funcional: '',
@@ -33,13 +35,12 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     if (militar) setForm({ ...militar });
   }, [militar]);
 
-  // Função para salvar no Mural de Ex-Coordenadores
   async function registrarNoMural() {
     const dadosMural = {
       militar_id: militar.id,
       nome_guerra_historico: form.nome_guerra,
       posto_graduacao_historico: form.posto_graduacao,
-      funcao: form.posto_graduacao.includes('Cel') ? 'Coordenador' : 'Subcoordenador',
+      funcao: form.funcao_redec || (form.posto_graduacao.includes('Cel') ? 'Coordenador' : 'Subcoordenador'),
       data_inicio: form.data_entrada_funcao,
       data_fim: form.data_saida_funcao
     };
@@ -62,12 +63,11 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     if (error) {
       alert("Erro ao salvar: " + error.message);
     } else {
-      // Se a automação do mural estiver ativa, registra antes de fechar
       if (enviarAoMural && form.data_saida_funcao) {
         await registrarNoMural();
       }
       onSaved();
-      if (!militar) onClose();
+      onClose();
     }
     setLoading(false);
   }
@@ -84,8 +84,8 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
             <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">
               {militar ? form.nome_guerra : 'Novo Militar'}
             </h2>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-              {militar ? 'Gestão de Prontuário' : 'Cadastro de Efetivo'}
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">
+              REDEC 10 - Norte
             </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
@@ -97,7 +97,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
         <div className="flex border-b px-4 bg-slate-50 overflow-x-auto no-scrollbar">
           {[
             { id: 'dados', label: 'Pessoal', icon: User },
-            { id: 'datas', label: 'Função', icon: Shield },
+            { id: 'datas', label: 'Função/Datas', icon: Shield },
             { id: 'afastamentos', label: 'Afastamentos', icon: Plane, hidden: !militar },
           ].map(t => !t.hidden && (
             <button key={t.id} onClick={() => setAba(t.id)}
@@ -118,14 +118,37 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
                     value={form.nome_completo} onChange={e => setForm({...form, nome_completo: e.target.value.toUpperCase()})} />
                 </div>
+
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
+                    <Mail className="w-3 h-3 text-blue-500" /> E-mail Institucional/Pessoal
+                  </label>
+                  <input type="email" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    value={form.email} onChange={e => setForm({...form, email: e.target.value.toLowerCase()})} />
+                </div>
+
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Nome de Guerra</label>
                   <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-blue-700"
                     value={form.nome_guerra} onChange={e => setForm({...form, nome_guerra: e.target.value.toUpperCase()})} />
                 </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
+                    <Star className="w-3 h-3 text-amber-500" /> Função REDEC
+                  </label>
+                  <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold"
+                    value={form.funcao_redec} onChange={e => setForm({...form, funcao_redec: e.target.value})}>
+                    <option value="">Selecione...</option>
+                    <option value="Coordenador">Coordenador</option>
+                    <option value="Subcoordenador">Subcoordenador</option>
+                    <option value="Administrativo">Administrativo</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Posto/Graduação</label>
-                  <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold"
+                  <select className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
                     value={form.posto_graduacao} onChange={e => setForm({...form, posto_graduacao: e.target.value})}>
                     <option value="">Selecione...</option>
                     <option value="Cel BM">Coronel BM</option>
@@ -142,19 +165,28 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                     <option value="Sd BM">Soldado BM</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">CPF</label>
                   <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
                     value={form.cpf} placeholder="000.000.000-00" onChange={e => setForm({...form, cpf: formatarCPF(e.target.value)})} />
                 </div>
+
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">ID Funcional</label>
-                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
+                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
                     value={form.id_funcional} onChange={e => setForm({...form, id_funcional: e.target.value})} />
                 </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">RG (CBMERJ)</label>
+                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    value={form.rg} onChange={e => setForm({...form, rg: e.target.value})} />
+                </div>
+
                 <div className="col-span-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Telefone / WhatsApp</label>
-                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500"
+                  <input type="text" className="w-full p-3 bg-slate-100 rounded-xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
                     value={form.telefone} onChange={e => setForm({...form, telefone: e.target.value})} />
                 </div>
               </div>
@@ -174,7 +206,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                       value={form.data_entrada_redec} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 ml-1 text-red-400">Desligamento</label>
+                    <label className="text-[10px] font-bold text-red-400 ml-1">Desligamento</label>
                     <input type="date" className="w-full p-2 bg-white rounded-xl border-none text-sm font-bold text-red-600 shadow-sm"
                       value={form.data_saida_redec} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
                   </div>
@@ -183,7 +215,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
 
               <div className="p-5 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">
-                  <Fingerprint className="w-3 h-3" /> Datas da Função
+                  <Fingerprint className="w-3 h-3" /> Datas da Função Atual
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -198,15 +230,15 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                   </div>
                 </div>
 
-                {/* Automação do Mural (Aparece se houver data de fim e for oficial) */}
-                {form.data_saida_funcao && (form.posto_graduacao.includes('Cel') || form.posto_graduacao.includes('Maj')) && (
+                {/* Automação do Mural */}
+                {form.data_saida_funcao && (form.funcao_redec === 'Coordenador' || form.funcao_redec === 'Subcoordenador') && (
                   <div className="pt-2 border-t border-slate-200">
                     <label className="flex items-center gap-3 p-3 bg-amber-50 rounded-2xl border border-amber-100 cursor-pointer transition-all hover:bg-amber-100">
                       <input type="checkbox" className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500" 
                         checked={enviarAoMural} onChange={e => setEnviarAoMural(e.target.checked)} />
                       <div>
                         <p className="text-[10px] font-black text-amber-700 uppercase leading-none mb-1">Galeria de Honra</p>
-                        <p className="text-[9px] text-amber-600/80 font-medium">Enviar registro para o Mural de Ex-Coordenadores?</p>
+                        <p className="text-[9px] text-amber-600/80 font-medium italic">Registrar histórico de comando ao salvar?</p>
                       </div>
                       <Award className="w-5 h-5 text-amber-500 ml-auto" />
                     </label>
@@ -223,24 +255,28 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
                 <Plus className="w-4 h-4" /> Lançar Novo Afastamento
               </button>
               <div className="space-y-3">
-                {afastamentos.map(afast => (
-                  <div key={afast.id} className="p-4 bg-white rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
-                    <div>
-                      <p className="font-bold text-slate-700 text-sm">{afast.tipo}</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {afast.data_inicio} a {afast.data_fim}
-                      </p>
+                {afastamentos.length === 0 ? (
+                  <p className="text-center text-[10px] text-slate-400 font-bold uppercase py-10">Nenhum afastamento registrado</p>
+                ) : (
+                  afastamentos.map(afast => (
+                    <div key={afast.id} className="p-4 bg-white rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
+                      <div>
+                        <p className="font-bold text-slate-700 text-sm">{afast.tipo}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> {afast.data_inicio} a {afast.data_fim}
+                        </p>
+                      </div>
+                      <button onClick={async () => {
+                        if(confirm("Excluir este afastamento permanentemente?")) {
+                          await supabase.from('equipe_afastamentos').delete().eq('id', afast.id);
+                          onSaved();
+                        }
+                      }} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button onClick={async () => {
-                      if(confirm("Excluir registro?")) {
-                        await supabase.from('equipe_afastamentos').delete().eq('id', afast.id);
-                        onSaved();
-                      }
-                    }} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -251,7 +287,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
           <button disabled={loading} onClick={salvarMilitar}
             className="w-full bg-slate-900 hover:bg-blue-700 text-white p-4 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">
             <Save className="w-4 h-4" />
-            {loading ? 'Salvando...' : 'Confirmar Alterações'}
+            {loading ? 'PROCESSANDO...' : militar ? 'CONFIRMAR ALTERAÇÕES' : 'CONFIRMAR CADASTRO'}
           </button>
         </div>
       </div>
