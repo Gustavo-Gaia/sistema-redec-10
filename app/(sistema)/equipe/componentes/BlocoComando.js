@@ -4,11 +4,17 @@
 import CardMilitar from './CardMilitar';
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 
-export default function BlocoComando({ config, militares, afastamentos, onSelect }) {
+export default function BlocoComando({ militares, afastamentos, onSelect }) {
   
-  // Encontra os objetos completos dos militares de comando
-  const coordenador = militares.find(m => m.id === config?.coordenador_id);
-  const subcoordenador = militares.find(m => m.id === config?.subcoordenador_id);
+  // Agora buscamos diretamente pela função cadastrada no militar
+  // Usamos toUpperCase() para garantir que ache mesmo se no banco estiver 'Coordenador'
+  const coordenador = militares.find(m => 
+    m.funcao_redec?.toUpperCase() === 'COORDENADOR'
+  );
+
+  const subcoordenador = militares.find(m => 
+    m.funcao_redec?.toUpperCase() === 'SUBCOORDENADOR'
+  );
 
   return (
     <div className="space-y-4">
@@ -31,7 +37,7 @@ export default function BlocoComando({ config, militares, afastamentos, onSelect
         )}
       </div>
 
-      {/* SUBCOORDEANDOR */}
+      {/* SUBCOORDENADOR */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 px-1">
           <ShieldAlert className="w-4 h-4 text-slate-400" />
