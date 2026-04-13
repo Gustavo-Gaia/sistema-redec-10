@@ -61,23 +61,20 @@ export default function ContainerPage() {
 
   async function uploadArquivo(file) {
     if (!file) return null
-
-    const fileName = `${Date.now()}-${file.name}`
-
+  
+    const fileName = `${Date.now()}-${file.name.replace(/\s/g, "_")}`
+  
     const { error } = await supabase.storage
       .from("guias-humanitarias")
       .upload(fileName, file)
-
+  
     if (error) {
       showToast("Erro ao enviar arquivo", "error")
       return null
     }
-
-    const { data } = await supabase.storage
-      .from("guias-humanitarias")
-      .createSignedUrl(fileName, 60 * 60 * 24 * 7)
-
-    return data.signedUrl
+  
+    // 🔥 AGORA RETORNA APENAS O NOME DO ARQUIVO
+    return fileName
   }
 
   async function salvarMovimentacao(form, file, id = null) {
