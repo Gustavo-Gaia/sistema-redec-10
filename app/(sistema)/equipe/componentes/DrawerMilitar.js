@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus } from "lucide-react";
+import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus } from "lucide-center";
 import { formatarCPF, formatarTelefone } from './utils'; 
 import ModalAfastamento from './ModalAfastamento';
 
@@ -24,13 +24,13 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
     id_funcional: '',
     telefone: '',
     data_entrada_redec: '',
-    bol_entrada_redec: '', // Novo
+    bol_entrada_redec: '', 
     data_saida_redec: '',
-    bol_saida_redec: '',   // Novo
+    bol_saida_redec: '',   
     data_entrada_funcao: '',
-    bol_entrada_funcao: '', // Novo
+    bol_entrada_funcao: '', 
     data_saida_funcao: '',
-    bol_saida_funcao: '',   // Novo
+    bol_saida_funcao: '',   
     ativo: true,
     ordem: 0
   });
@@ -61,7 +61,7 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
       funcao: form.funcao_redec.toUpperCase(),
       data_inicio: form.data_entrada_funcao || null,
       data_fim: form.data_saida_funcao || null,
-      bol_inicio_historico: form.bol_entrada_funcao, // Salva o boletim no histórico
+      bol_inicio_historico: form.bol_entrada_funcao, 
       bol_fim_historico: form.bol_saida_funcao
     };
 
