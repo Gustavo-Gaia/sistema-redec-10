@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus } from "lucide-center";
+import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus } from "lucide-react";
 import { formatarCPF, formatarTelefone } from './utils'; 
 import ModalAfastamento from './ModalAfastamento';
 
