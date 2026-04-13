@@ -1,31 +1,58 @@
 /* app/(sistema)/equipe/componentes/utils.js */
 
-import { format, isWithinInterval, parseISO, addDays, startOfDay } from 'date-fns';
+import { format, isWithinInterval, parseISO, addDays, startOfDay, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 /**
- * Normaliza uma string de data para evitar problemas de fuso horário (UTC vs Local)
+ * Normaliza uma string de data para evitar problemas de fuso horário
  */
 const safeParse = (dateString) => {
-  // Adiciona o horário para garantir que o parseISO trate como tempo local do navegador
+  if (!dateString) return null;
   return parseISO(`${dateString}T00:00:00`);
 };
 
 /**
- * Calcula o status de prontidão de um militar com base nos afastamentos
+ * Formata CPF no padrão xxx.xxx.xxx-xx
+ */
+export const formatarCPF = (value) => {
+  if (!value) return '';
+  return value
+    .replace(/\D/g, '') 
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+    .replace(/(-\d{2})\d+?$/, '$1');
+};
+
+/**
+ * Verifica se o militar ainda pertence à unidade com base nas datas e status
+ */
+export function verificarSeAtivo(militar) {
+  if (!militar.ativo) return false;
+  
+  if (militar.data_saida_redec) {
+    const hoje = startOfDay(new Date());
+    const dataSaida = safeParse(militar.data_saida_redec);
+    // Se a data de saída já passou ou é hoje, ele não está mais ativo no painel
+    if (isBefore(dataSaida, hoje)) return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Calcula o status de prontidão (Verde/Amarelo)
  */
 export function calcularStatus(afastamentos = []) {
   const hoje = startOfDay(new Date());
 
-  // Busca se existe algum afastamento que englobe a data de hoje
   const afastamentoAtual = afastamentos.find(afast => {
     const inicio = safeParse(afast.data_inicio);
     const fim = safeParse(afast.data_fim);
-    return isWithinInterval(hoje, { start: inicio, end: fim });
+    return inicio && fim && isWithinInterval(hoje, { start: inicio, end: fim });
   });
 
   if (afastamentoAtual) {
-    // O retorno é sempre no dia seguinte ao fim do afastamento
     const dataRetorno = addDays(safeParse(afastamentoAtual.data_fim), 1);
     
     return {
@@ -53,26 +80,26 @@ export function calcularStatus(afastamentos = []) {
 }
 
 /**
- * Ordena a equipe por hierarquia (Coord, Sub, Adm) e depois por ordem manual
+ * Ordena a equipe por hierarquia e ordem manual
  */
 export function ordenarEquipe(militares, config) {
   if (!militares) return [];
 
   return [...militares].sort((a, b) => {
-    // 1. Coordenador sempre no topo
+    // 1. Coordenador
     if (a.id === config?.coordenador_id) return -1;
     if (b.id === config?.coordenador_id) return 1;
 
-    // 2. Subcoordenador em segundo
+    // 2. Subcoordenador
     if (a.id === config?.subcoordenador_id) return -1;
     if (b.id === config?.subcoordenador_id) return 1;
 
-    // 3. Critério de 'ordem' definido no cadastro
+    // 3. Critério de 'ordem'
     if (a.ordem !== b.ordem) {
       return (a.ordem || 0) - (b.ordem || 0);
     }
 
-    // 4. Desempate por Nome de Guerra (Alfabeto)
+    // 4. Alfabeto
     return a.nome_guerra.localeCompare(b.nome_guerra);
   });
 }
