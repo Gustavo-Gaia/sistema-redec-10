@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { X, Calendar, AlertTriangle, Check, Building2, Hash } from "lucide-react";
+import { X, Calendar, AlertTriangle, Check, Building2, MessageSquare } from "lucide-react";
 import { calcularStatus } from './utils';
 import { toast } from "react-hot-toast";
 
@@ -54,15 +54,18 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
       const anoAtual = new Date().getFullYear();
       const numFormatado = form.num_boletim.toString().padStart(3, '0');
       const refBoletim = `Bol-${numFormatado}/${anoAtual} (${form.orgao_boletim})`;
+      
+      // TÍTULO: Motivo + Posto + Nome de Guerra
+      const tituloDinamico = `${form.tipo}: ${militar.posto_graduacao} ${militar.nome_guerra}`;
 
-      // 1. CRIAR NA AGENDA (Definido para às 08:00h conforme solicitado)
+      // 1. CRIAR NA AGENDA (Horário fixo às 08:00h)
       const { data: evento, error: errAgenda } = await supabase
         .from('agenda_eventos')
         .insert({
-          titulo: `AFASTADO: ${militar.nome_guerra}`,
-          descricao: `${form.tipo} conforme ${refBoletim}`,
+          titulo: tituloDinamico,
+          descricao: form.observacao || `Afastamento registrado via sistema. Ref: ${refBoletim}`,
           data_inicio: `${form.data_inicio} 08:00:00`,
-          data_fim: `${form.data_fim} 18:00:00`,
+          data_fim: `${form.data_fim} 19:00:00`,
           cor: '#f59e0b',
           tipo: 'Administrativo'
         })
@@ -99,12 +102,12 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
           data_fim: form.data_fim,
           agenda_evento_id: evento.id,
           documento_id: documento.id,
-          observacao: `Publicado no ${refBoletim}. ${form.observacao}`.trim()
+          observacao: form.observacao
         });
 
       if (errAfast) throw errAfast;
 
-      toast.success("Afastamento integrado com sucesso!");
+      toast.success("Afastamento e Agenda integrados!");
       onSaved();
       onClose();
     } catch (error) {
@@ -125,7 +128,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
         <div className="p-8 border-b flex justify-between items-center bg-slate-50">
           <div>
             <h3 className="font-black text-slate-800 tracking-tight text-lg uppercase leading-none">Novo Afastamento</h3>
-            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-2">
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-2 italic">
               {militar?.posto_graduacao} {militar?.nome_guerra}
             </p>
           </div>
@@ -134,7 +137,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
           </button>
         </div>
 
-        <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+        <div className="p-8 space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
           
           <div className="space-y-2">
             <label className="text-xs font-black text-slate-400 uppercase ml-1">Motivo</label>
@@ -156,7 +159,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
               <label className="text-xs font-black text-slate-400 uppercase ml-1">Início</label>
               <input 
                 type="date" 
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 value={form.data_inicio}
                 onChange={e => setForm({...form, data_inicio: e.target.value})}
               />
@@ -181,6 +184,20 @@ export default function ModalAfastamento({ militar, militares, afastamentos, onC
             <span className="font-black text-amber-700">
               {form.data_fim ? new Date(form.data_fim + "T12:00:00").toLocaleDateString('pt-BR') : '---'}
             </span>
+          </div>
+
+          {/* Campo Observação / Descrição da Agenda */}
+          <div className="space-y-2">
+            <label className="text-xs font-black text-slate-400 uppercase ml-1 flex items-center gap-2">
+              <MessageSquare size={14} /> Observação (Agenda)
+            </label>
+            <textarea 
+              rows={3}
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-medium outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+              placeholder="Ex: Tel para contato, local do curso ou detalhes da nota."
+              value={form.observacao}
+              onChange={e => setForm({...form, observacao: e.target.value})}
+            />
           </div>
 
           {/* Dados do Boletim */}
