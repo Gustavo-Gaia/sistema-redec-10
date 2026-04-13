@@ -52,8 +52,17 @@ export default function DrawerMilitar({ militar, afastamentos, onClose, onSaved,
   async function salvarMilitar() {
     setLoading(true);
     
+    // Função auxiliar para converter string vazia em null
+    const formatarDataParaBanco = (data) => (data === "" ? null : data);
+
     const dadosParaSalvar = {
       ...form,
+      // Garante que campos de data vazios sejam enviados como NULL
+      data_entrada_redec: formatarDataParaBanco(form.data_entrada_redec),
+      data_saida_redec: formatarDataParaBanco(form.data_saida_redec),
+      data_entrada_funcao: formatarDataParaBanco(form.data_entrada_funcao),
+      data_saida_funcao: formatarDataParaBanco(form.data_saida_funcao),
+      
       ativo: form.data_saida_redec ? false : form.ativo,
       id: militar?.id || undefined
     };
