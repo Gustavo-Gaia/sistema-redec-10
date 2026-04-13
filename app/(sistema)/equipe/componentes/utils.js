@@ -12,7 +12,7 @@ const safeParse = (dateString) => {
 };
 
 /**
- * Formata CPF no padrão xxx.xxx.xxx-xx
+ * Formata CPF no padrão 000.000.000-00
  */
 export const formatarCPF = (value) => {
   if (!value) return '';
@@ -22,6 +22,20 @@ export const formatarCPF = (value) => {
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d{1,2})/, '$1-$2')
     .replace(/(-\d{2})\d+?$/, '$1');
+};
+
+/**
+ * Formata Telefone no padrão (00) 00000-0000
+ */
+export const formatarTelefone = (value) => {
+  if (!value) return "";
+  const num = value.replace(/\D/g, ""); // Remove tudo que não é número
+  const len = num.length;
+
+  if (len <= 2) return `(${num}`;
+  if (len <= 6) return `(${num.slice(0, 2)}) ${num.slice(2)}`;
+  if (len <= 10) return `(${num.slice(0, 2)}) ${num.slice(2, 6)}-${num.slice(6)}`;
+  return `(${num.slice(0, 2)}) ${num.slice(2, 7)}-${num.slice(7, 11)}`;
 };
 
 /**
