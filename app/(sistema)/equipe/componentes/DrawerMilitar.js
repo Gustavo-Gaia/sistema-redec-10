@@ -3,7 +3,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { X, User, Plane, Save, Trash2, Calendar, Shield, Phone, Fingerprint, Award, Mail, Star, Plus, Edit2, Loader2 } from "lucide-react";
+import { 
+  X, User, Plane, Save, Trash2, Calendar, Shield, Phone, 
+  Fingerprint, Mail, Plus, Edit2, Loader2 
+} from "lucide-react";
 import { formatarCPF, formatarTelefone } from './utils'; 
 import ModalAfastamento from './ModalAfastamento';
 
@@ -42,7 +45,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
 
   const aplicarMascaraBoletim = (valor) => {
     const numeros = valor.replace(/\D/g, "");
-    let resultado = "Bol-Sedec ";
+    let resultado = "BOL-SEDEC ";
     if (numeros.length > 0) resultado += numeros.substring(0, 3);
     if (numeros.length >= 4) resultado += "/" + numeros.substring(3, 7);
     if (numeros.length >= 8) resultado += " - " + numeros.substring(7, 9);
@@ -114,8 +117,8 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
             <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter leading-none">
               {militar ? form.nome_guerra : 'Novo Militar'}
             </h2>
-            <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest mt-1">
-              REDEC 10 - Norte
+            <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest mt-1 flex items-center gap-1">
+              <Shield size={12} /> REDEC 10 - Norte
             </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
@@ -171,6 +174,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <option value="COORDENADOR">COORDENADOR</option>
                     <option value="SUBCOORDENADOR">SUBCOORDENADOR</option>
                     <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
+                    <option value="OPERACIONAL">OPERACIONAL</option>
                   </select>
                 </div>
 
@@ -236,14 +240,14 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Ingresso</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm"
                       value={form.data_entrada_redec || ''} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
-                    <input type="text" placeholder="BOL-SEDEC XXX/2026" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
+                    <input type="text" placeholder="BOL-SEDEC XXX/XXXX" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
                       value={form.bol_entrada_redec} onChange={e => setForm({...form, bol_entrada_redec: aplicarMascaraBoletim(e.target.value)})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-red-400 ml-1">Desligamento</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold text-red-600 shadow-sm"
                       value={form.data_saida_redec || ''} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
-                    <input type="text" placeholder="BOL-SEDEC XXX/2026" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
+                    <input type="text" placeholder="BOL-SEDEC XXX/XXXX" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
                       value={form.bol_saida_redec} onChange={e => setForm({...form, bol_saida_redec: aplicarMascaraBoletim(e.target.value)})} />
                   </div>
                 </div>
@@ -258,16 +262,22 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Início Função</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm"
                       value={form.data_entrada_funcao || ''} onChange={e => setForm({...form, data_entrada_funcao: e.target.value})} />
-                    <input type="text" placeholder="BOL-SEDEC XXX/2026" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
+                    <input type="text" placeholder="BOL-SEDEC XXX/XXXX" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
                       value={form.bol_entrada_funcao} onChange={e => setForm({...form, bol_entrada_funcao: aplicarMascaraBoletim(e.target.value)})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Fim Função</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm"
                       value={form.data_saida_funcao || ''} onChange={e => setForm({...form, data_saida_funcao: e.target.value})} />
-                    <input type="text" placeholder="BOL-SEDEC XXX/2026" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
+                    <input type="text" placeholder="BOL-SEDEC XXX/XXXX" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
                       value={form.bol_saida_funcao} onChange={e => setForm({...form, bol_saida_funcao: aplicarMascaraBoletim(e.target.value)})} />
                   </div>
+                </div>
+                {/* CHECKBOX HISTÓRICO */}
+                <div className="flex items-center gap-2 px-2 pt-2">
+                  <input type="checkbox" id="mural" className="rounded border-slate-300" 
+                    checked={enviarAoMural} onChange={e => setEnviarAoMural(e.target.checked)} />
+                  <label htmlFor="mural" className="text-[10px] font-bold text-slate-500 uppercase">Enviar saída da função para o mural histórico</label>
                 </div>
               </div>
             </div>
@@ -302,12 +312,9 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                           className="text-slate-300 hover:text-blue-600 p-2 transition-colors">
                           <Edit2 size={18} />
                         </button>
-                        <button onClick={async () => {
-                          if(confirm("Excluir este afastamento permanentemente?")) {
-                            await supabase.from('equipe_afastamentos').delete().eq('id', afast.id);
-                            onSaved();
-                          }
-                        }} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
+                        {/* ✅ CORREÇÃO: Abre o modal para exclusão segura (centralizada no modal) */}
+                        <button onClick={() => handleEditarAfastamento(afast)} 
+                          className="text-slate-300 hover:text-red-500 p-2 transition-colors">
                           <Trash2 size={18} />
                         </button>
                       </div>
@@ -319,7 +326,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
           )}
         </div>
 
-        {/* FOOTER - AÇÃO PRINCIPAL */}
+        {/* FOOTER */}
         <div className="p-6 border-t bg-slate-50">
           <button disabled={loading} onClick={salvarMilitar}
             className="w-full bg-slate-900 hover:bg-blue-700 text-white p-5 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">
@@ -329,18 +336,22 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
         </div>
       </div>
 
-      {/* MODAL DE AFASTAMENTO - PROPS SINCRONIZADAS */}
+      {/* MODAL DE AFASTAMENTO */}
       {showModalAfast && (
         <ModalAfastamento 
             militar={militar} 
             militares={militares} 
-            afastamentoParaEditar={afastamentoParaEditar} // ✅ Nome da Prop corrigido para bater com o Modal
+            afastamentoParaEditar={afastamentoParaEditar}
             afastamentos={afastamentos}
             onClose={() => {
               setShowModalAfast(false);
-              setAfastamentoParaEditar(null); // Limpa o estado ao fechar
+              setAfastamentoParaEditar(null);
             }} 
-            onSaved={onSaved} 
+            onSaved={() => {
+              setShowModalAfast(false);
+              setAfastamentoParaEditar(null);
+              onSaved();
+            }} 
         />
       )}
     </div>
