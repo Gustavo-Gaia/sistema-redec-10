@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { X, Calendar, AlertTriangle, Building2, MessageSquare, Trash2, Loader2, FileText } from "lucide-react";
+import { X, AlertTriangle, Trash2, Loader2, FileText } from "lucide-react";
 import { calcularStatus } from './utils';
 import { toast } from "react-hot-toast";
 
@@ -22,7 +22,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     data_boletim: '' 
   });
 
-  // 1. CARREGAMENTO DE DADOS
+  // 1. CARREGAMENTO DE DADOS (Edição)
   useEffect(() => {
     async function carregarDadosEdicao() {
       if (!afastamentoParaEditar) {
@@ -45,7 +45,8 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
             .single();
 
           if (doc) {
-            numero = doc.numero?.split('/')[0].replace(/\D/g, '') || '';
+            // Ponto 2: Pegamos apenas o número puro para o input
+            numero = doc.numero?.replace('Bol-', '').split('/')[0] || '';
             orgao = doc.tipo_orgao || 'SEDEC';
             dataBol = doc.data_registro || '';
           }
@@ -102,7 +103,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     return disponiveis <= 1;
   })();
 
-  // 2. SALVAMENTO COM LOGICA DE RETORNO PARA AGENDA
+  // 2. SALVAMENTO (Implementação dos Pontos 1, 2, 3 e 4)
   async function salvarAfastamento() {
     if (!form.data_inicio || !form.num_boletim || !form.data_boletim) {
       toast.error("Preencha as datas e o número do boletim.");
@@ -112,36 +113,38 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     setLoading(true);
     try {
       let agendaId = afastamentoParaEditar?.agenda_evento_id;
+      let retornoId = afastamentoParaEditar?.agenda_retorno_id;
       let docId = afastamentoParaEditar?.documento_id;
 
+      // Sincronização de IDs para evitar duplicidade
       if (afastamentoParaEditar?.id) {
         const { data: check } = await supabase
           .from('equipe_afastamentos')
-          .select('agenda_evento_id, documento_id')
+          .select('agenda_evento_id, agenda_retorno_id, documento_id')
           .eq('id', afastamentoParaEditar.id)
           .single();
         if (check) {
           agendaId = check.agenda_evento_id;
+          retornoId = check.agenda_retorno_id;
           docId = check.documento_id;
         }
       }
 
+      // PONTO 2: Formatação do Boletim (Somente Bol-XXX)
       const numFormatado = form.num_boletim.toString().padStart(3, '0');
-      const dataBolObj = new Date(form.data_boletim + "T12:00:00");
-      const refBoletim = `Bol-${numFormatado}/${dataBolObj.getFullYear()}`;
-      
-      // CALCULO DO DIA DE RETORNO (Data Fim + 1)
+      const refBoletim = `Bol-${numFormatado}`;
+      const descGeral = `${form.observacao || ''} Ref: ${refBoletim} (${form.orgao_boletim})`.trim();
+
+      // Cálculo da Data de Retorno
       const dataFimObj = new Date(form.data_fim + "T12:00:00");
       const dataRetorno = new Date(dataFimObj);
       dataRetorno.setDate(dataFimObj.getDate() + 1);
-      const retornoFormatado = dataRetorno.toLocaleDateString('pt-BR');
+      const dataRetornoISO = dataRetorno.toISOString().split('T')[0];
 
-      const descAgenda = `${form.observacao || ''} Ref: ${refBoletim} (${form.orgao_boletim})`.trim();
-
-      // PASSO 1: AGENDA (Título inclui o dia do retorno agora)
-      const dadosAgenda = {
-        titulo: `${form.tipo.toUpperCase()}: ${militar.nome_guerra} (RETORNO: ${retornoFormatado})`,
-        descricao: descAgenda,
+      // PASSO 1: AGENDA - EVENTO PRINCIPAL (Ponto 3)
+      const dadosAgendaPrincipal = {
+        titulo: `${form.tipo.toUpperCase()}: ${militar.posto_graduacao} ${militar.nome_guerra}`,
+        descricao: descGeral,
         data_inicio: `${form.data_inicio} 08:00:00`,
         data_fim: `${form.data_fim} 19:00:00`,
         tipo: 'Administrativo',
@@ -149,20 +152,38 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
       };
 
       if (agendaId) {
-        await supabase.from('agenda_eventos').update(dadosAgenda).eq('id', agendaId);
+        await supabase.from('agenda_eventos').update(dadosAgendaPrincipal).eq('id', agendaId);
       } else {
-        const { data: nEv, error: eEv } = await supabase.from('agenda_eventos').insert(dadosAgenda).select('id').single();
+        const { data: nEv, error: eEv } = await supabase.from('agenda_eventos').insert(dadosAgendaPrincipal).select('id').single();
         if (eEv) throw eEv;
         agendaId = nEv.id;
       }
 
-      // PASSO 2: DOCUMENTO (BOLETIM)
+      // PASSO 2: AGENDA - EVENTO DE TÉRMINO (Ponto 4)
+      const dadosAgendaRetorno = {
+        titulo: `TÉRMINO ${form.tipo.toUpperCase()}: ${militar.posto_graduacao} ${militar.nome_guerra}`,
+        descricao: descGeral,
+        data_inicio: `${dataRetornoISO} 08:00:00`,
+        data_fim: `${dataRetornoISO} 09:00:00`,
+        tipo: 'Administrativo',
+        cor: '#10b981'
+      };
+
+      if (retornoId) {
+        await supabase.from('agenda_eventos').update(dadosAgendaRetorno).eq('id', retornoId);
+      } else {
+        const { data: nRet, error: eRet } = await supabase.from('agenda_eventos').insert(dadosAgendaRetorno).select('id').single();
+        if (eRet) throw eRet;
+        retornoId = nRet.id;
+      }
+
+      // PASSO 3: DOCUMENTO (Ponto 1: Assunto = Observação)
       const dadosDoc = {
         categoria: 'boletins',
         tipo_orgao: form.orgao_boletim,
         numero: refBoletim,
         data_registro: form.data_boletim,
-        assunto: `${militar.nome_guerra} - ${form.tipo} (${qtdDias} dias)`,
+        assunto: form.observacao || `${form.tipo} - ${militar.nome_guerra}`,
         agenda_evento_id: agendaId
       };
 
@@ -174,7 +195,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
         docId = nDoc.id;
       }
 
-      // PASSO 3: AFASTAMENTO
+      // PASSO 4: AFASTAMENTO
       const dadosAfast = {
         equipe_id: militar.id,
         tipo: form.tipo,
@@ -182,6 +203,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
         data_fim: form.data_fim,
         observacao: form.observacao,
         agenda_evento_id: agendaId,
+        agenda_retorno_id: retornoId,
         documento_id: docId
       };
 
@@ -202,12 +224,14 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
   }
 
   async function excluirAfastamento() {
-    if (!confirm("Isso removerá também o boletim e o registro na agenda. Confirmar?")) return;
+    if (!confirm("Isso removerá também o boletim e os registros na agenda. Confirmar?")) return;
     setLoading(true);
     try {
       await supabase.from('equipe_afastamentos').delete().eq('id', afastamentoParaEditar.id);
       if (afastamentoParaEditar.documento_id) await supabase.from('documentos_administrativos').delete().eq('id', afastamentoParaEditar.documento_id);
       if (afastamentoParaEditar.agenda_evento_id) await supabase.from('agenda_eventos').delete().eq('id', afastamentoParaEditar.agenda_evento_id);
+      if (afastamentoParaEditar.agenda_retorno_id) await supabase.from('agenda_eventos').delete().eq('id', afastamentoParaEditar.agenda_retorno_id);
+      
       onSaved();
       onClose();
       toast.success("Registro excluído.");
@@ -226,6 +250,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
           </div>
         )}
 
+        {/* Header */}
         <div className="p-8 border-b flex justify-between items-center bg-slate-50">
           <div>
             <h3 className="font-black text-slate-800 text-lg uppercase leading-none">
@@ -238,6 +263,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-400"><X size={20} /></button>
         </div>
 
+        {/* Body */}
         <div className="p-8 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
           <div className="space-y-2">
             <label className="text-xs font-black text-slate-400 uppercase ml-1">Motivo</label>
@@ -269,6 +295,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
              <span className="font-black text-amber-700">{form.data_fim ? new Date(form.data_fim + "T12:00:00").toLocaleDateString('pt-BR') : '---'}</span>
           </div>
 
+          {/* Seção Boletim */}
           <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-4">
             <p className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2"><FileText size={14} /> Dados do Boletim</p>
             <div className="grid grid-cols-2 gap-3">
@@ -293,6 +320,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
           <div className="space-y-2">
             <label className="text-xs font-black text-slate-400 uppercase ml-1">Observação</label>
             <textarea rows={2} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-medium text-sm outline-none"
+              placeholder="Digite o assunto que sairá no boletim..."
               value={form.observacao} onChange={e => setForm({...form, observacao: e.target.value})} />
           </div>
 
@@ -304,6 +332,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
           )}
         </div>
 
+        {/* Footer */}
         <div className="p-8 bg-slate-50 border-t flex gap-4">
           {afastamentoParaEditar && (
             <button onClick={excluirAfastamento} disabled={loading} className="p-4 rounded-2xl bg-red-100 text-red-600 hover:bg-red-200 transition-all">
