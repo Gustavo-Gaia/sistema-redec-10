@@ -22,7 +22,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     data_boletim: '' 
   });
 
-  // 1. CARREGAMENTO DE DADOS (BUSCA REAL NO BANCO)
+  // 1. CARREGAMENTO DE DADOS
   useEffect(() => {
     async function carregarDadosEdicao() {
       if (!afastamentoParaEditar) {
@@ -45,7 +45,6 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
             .single();
 
           if (doc) {
-            // Ajustado para extrair o número puro antes de qualquer formatação
             numero = doc.numero?.split('/')[0].replace(/\D/g, '') || '';
             orgao = doc.tipo_orgao || 'SEDEC';
             dataBol = doc.data_registro || '';
@@ -77,7 +76,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     carregarDadosEdicao();
   }, [afastamentoParaEditar]);
 
-  // Cálculo automático da data fim (Corrigido para evitar erro de fuso horário)
+  // Cálculo automático da data fim
   useEffect(() => {
     if (form.data_inicio && qtdDias && !loading) {
       const inicio = new Date(form.data_inicio + "T12:00:00");
@@ -85,10 +84,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
       if (!isNaN(dias) && dias > 0) {
         const fim = new Date(inicio);
         fim.setDate(inicio.getDate() + (dias - 1));
-        
-        // Formatação manual YYYY-MM-DD para garantir consistência
         const dataFimStr = `${fim.getFullYear()}-${String(fim.getMonth() + 1).padStart(2, '0')}-${String(fim.getDate()).padStart(2, '0')}`;
-        
         if (form.data_fim !== dataFimStr) {
           setForm(prev => ({ ...prev, data_fim: dataFimStr }));
         }
@@ -106,7 +102,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     return disponiveis <= 1;
   })();
 
-  // 2. SALVAMENTO COM BLINDAGEM DE IDs E FORMATAÇÃO CORRETA
+  // 2. SALVAMENTO COM LOGICA DE RETORNO PARA AGENDA
   async function salvarAfastamento() {
     if (!form.data_inicio || !form.num_boletim || !form.data_boletim) {
       toast.error("Preencha as datas e o número do boletim.");
@@ -118,7 +114,6 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
       let agendaId = afastamentoParaEditar?.agenda_evento_id;
       let docId = afastamentoParaEditar?.documento_id;
 
-      // RE-CHEQUE DE IDs (Evita duplicação por cache)
       if (afastamentoParaEditar?.id) {
         const { data: check } = await supabase
           .from('equipe_afastamentos')
@@ -132,13 +127,20 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
       }
 
       const numFormatado = form.num_boletim.toString().padStart(3, '0');
-      const anoBol = new Date(form.data_boletim + "T12:00:00").getFullYear();
-      const refBoletim = `Bol-${numFormatado}/${anoBol}`;
+      const dataBolObj = new Date(form.data_boletim + "T12:00:00");
+      const refBoletim = `Bol-${numFormatado}/${dataBolObj.getFullYear()}`;
+      
+      // CALCULO DO DIA DE RETORNO (Data Fim + 1)
+      const dataFimObj = new Date(form.data_fim + "T12:00:00");
+      const dataRetorno = new Date(dataFimObj);
+      dataRetorno.setDate(dataFimObj.getDate() + 1);
+      const retornoFormatado = dataRetorno.toLocaleDateString('pt-BR');
+
       const descAgenda = `${form.observacao || ''} Ref: ${refBoletim} (${form.orgao_boletim})`.trim();
 
-      // PASSO 1: AGENDA
+      // PASSO 1: AGENDA (Título inclui o dia do retorno agora)
       const dadosAgenda = {
-        titulo: `${form.tipo.toUpperCase()}: ${militar.nome_guerra}`,
+        titulo: `${form.tipo.toUpperCase()}: ${militar.nome_guerra} (RETORNO: ${retornoFormatado})`,
         descricao: descAgenda,
         data_inicio: `${form.data_inicio} 08:00:00`,
         data_fim: `${form.data_fim} 19:00:00`,
@@ -203,19 +205,14 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     if (!confirm("Isso removerá também o boletim e o registro na agenda. Confirmar?")) return;
     setLoading(true);
     try {
-      // Ordem reversa para integridade referencial
       await supabase.from('equipe_afastamentos').delete().eq('id', afastamentoParaEditar.id);
       if (afastamentoParaEditar.documento_id) await supabase.from('documentos_administrativos').delete().eq('id', afastamentoParaEditar.documento_id);
       if (afastamentoParaEditar.agenda_evento_id) await supabase.from('agenda_eventos').delete().eq('id', afastamentoParaEditar.agenda_evento_id);
-      
       onSaved();
       onClose();
       toast.success("Registro excluído.");
-    } catch (e) { 
-      toast.error("Erro ao excluir."); 
-    } finally { 
-      setLoading(false); 
-    }
+    } catch (e) { toast.error("Erro ao excluir."); }
+    finally { setLoading(false); }
   }
 
   return (
@@ -229,7 +226,6 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
           </div>
         )}
 
-        {/* Header */}
         <div className="p-8 border-b flex justify-between items-center bg-slate-50">
           <div>
             <h3 className="font-black text-slate-800 text-lg uppercase leading-none">
@@ -273,7 +269,6 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
              <span className="font-black text-amber-700">{form.data_fim ? new Date(form.data_fim + "T12:00:00").toLocaleDateString('pt-BR') : '---'}</span>
           </div>
 
-          {/* Seção Boletim */}
           <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-4">
             <p className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2"><FileText size={14} /> Dados do Boletim</p>
             <div className="grid grid-cols-2 gap-3">
