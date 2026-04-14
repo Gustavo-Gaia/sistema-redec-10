@@ -30,11 +30,11 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     data_entrada_redec: '',
     bol_entrada_redec: '', 
     data_saida_redec: '',
-    bol_saida_redec: '',   
+    bol_saida_redec: '',    
     data_entrada_funcao: '',
     bol_entrada_funcao: '', 
     data_saida_funcao: '',
-    bol_saida_funcao: '',   
+    bol_saida_funcao: '',    
     ativo: true,
     ordem: 0
   });
@@ -43,14 +43,26 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     if (militar) setForm({ ...militar });
   }, [militar]);
 
-  const aplicarMascaraBoletim = (valor) => {
+  /**
+   * NOVA MÁSCARA INTELIGENTE
+   * Se digitar apenas o número (ex: 061), ele busca o ano da dataReferencia.
+   * Se continuar digitando (ex: 0612025), ele aceita o ano digitado.
+   */
+  const aplicarMascaraBoletim = (valor, dataReferencia = null) => {
     const numeros = valor.replace(/\D/g, "");
-    let resultado = "BOL-SEDEC ";
-    if (numeros.length > 0) resultado += numeros.substring(0, 3);
-    if (numeros.length >= 4) resultado += "/" + numeros.substring(3, 7);
-    if (numeros.length >= 8) resultado += " - " + numeros.substring(7, 9);
-    if (numeros.length >= 10) resultado += "/" + numeros.substring(9, 11);
-    if (numeros.length >= 12) resultado += "/" + numeros.substring(11, 15);
+    if (numeros.length === 0) return "";
+
+    let numeroPart = numeros.substring(0, 3);
+    let anoPart = numeros.substring(3, 7);
+
+    // Se o usuário só digitou o número e temos uma data preenchida no campo ao lado
+    if (numeros.length <= 3 && dataReferencia) {
+      anoPart = new Date(dataReferencia + "T12:00:00").getFullYear();
+    }
+
+    let resultado = `BOL-SEDEC ${numeroPart}`;
+    if (anoPart) resultado += `/${anoPart}`;
+    
     return resultado.toUpperCase();
   };
 
@@ -240,15 +252,15 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Ingresso</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm"
                       value={form.data_entrada_redec || ''} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
-                    <input type="text" placeholder="BOL-SEDEC XXX/XXXX" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
-                      value={form.bol_entrada_redec} onChange={e => setForm({...form, bol_entrada_redec: aplicarMascaraBoletim(e.target.value)})} />
+                    <input type="text" placeholder="Nº BOL (Ex: 061)" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
+                      value={form.bol_entrada_redec} onChange={e => setForm({...form, bol_entrada_redec: aplicarMascaraBoletim(e.target.value, form.data_entrada_redec)})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-red-400 ml-1">Desligamento</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold text-red-600 shadow-sm"
                       value={form.data_saida_redec || ''} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
-                    <input type="text" placeholder="BOL-SEDEC XXX/XXXX" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
-                      value={form.bol_saida_redec} onChange={e => setForm({...form, bol_saida_redec: aplicarMascaraBoletim(e.target.value)})} />
+                    <input type="text" placeholder="Nº BOL (Ex: 061)" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
+                      value={form.bol_saida_redec} onChange={e => setForm({...form, bol_saida_redec: aplicarMascaraBoletim(e.target.value, form.data_saida_redec)})} />
                   </div>
                 </div>
               </div>
@@ -262,15 +274,15 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Início Função</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm"
                       value={form.data_entrada_funcao || ''} onChange={e => setForm({...form, data_entrada_funcao: e.target.value})} />
-                    <input type="text" placeholder="BOL-SEDEC XXX/XXXX" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
-                      value={form.bol_entrada_funcao} onChange={e => setForm({...form, bol_entrada_funcao: aplicarMascaraBoletim(e.target.value)})} />
+                    <input type="text" placeholder="Nº BOL (Ex: 061)" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
+                      value={form.bol_entrada_funcao} onChange={e => setForm({...form, bol_entrada_funcao: aplicarMascaraBoletim(e.target.value, form.data_entrada_funcao)})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Fim Função</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm"
                       value={form.data_saida_funcao || ''} onChange={e => setForm({...form, data_saida_funcao: e.target.value})} />
-                    <input type="text" placeholder="BOL-SEDEC XXX/XXXX" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
-                      value={form.bol_saida_funcao} onChange={e => setForm({...form, bol_saida_funcao: aplicarMascaraBoletim(e.target.value)})} />
+                    <input type="text" placeholder="Nº BOL (Ex: 061)" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
+                      value={form.bol_saida_funcao} onChange={e => setForm({...form, bol_saida_funcao: aplicarMascaraBoletim(e.target.value, form.data_saida_funcao)})} />
                   </div>
                 </div>
                 {/* CHECKBOX HISTÓRICO */}
@@ -312,7 +324,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                           className="text-slate-300 hover:text-blue-600 p-2 transition-colors">
                           <Edit2 size={18} />
                         </button>
-                        {/* ✅ CORREÇÃO: Abre o modal para exclusão segura (centralizada no modal) */}
                         <button onClick={() => handleEditarAfastamento(afast)} 
                           className="text-slate-300 hover:text-red-500 p-2 transition-colors">
                           <Trash2 size={18} />
