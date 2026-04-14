@@ -19,7 +19,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     observacao: '',
     orgao_boletim: 'SEDEC',
     num_boletim: '',
-    data_boletim: '' // Campo novo essencial
+    data_boletim: '' 
   });
 
   // 1. CARREGAMENTO DE DADOS (BUSCA REAL NO BANCO)
@@ -45,7 +45,8 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
             .single();
 
           if (doc) {
-            numero = doc.numero?.match(/^\d+/)?.[0] || ''; // Pega só o número inicial
+            // Ajustado para extrair o número puro antes de qualquer formatação
+            numero = doc.numero?.split('/')[0].replace(/\D/g, '') || '';
             orgao = doc.tipo_orgao || 'SEDEC';
             dataBol = doc.data_registro || '';
           }
@@ -76,7 +77,7 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     carregarDadosEdicao();
   }, [afastamentoParaEditar]);
 
-  // Cálculo automático da data fim
+  // Cálculo automático da data fim (Corrigido para evitar erro de fuso horário)
   useEffect(() => {
     if (form.data_inicio && qtdDias && !loading) {
       const inicio = new Date(form.data_inicio + "T12:00:00");
@@ -84,7 +85,10 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
       if (!isNaN(dias) && dias > 0) {
         const fim = new Date(inicio);
         fim.setDate(inicio.getDate() + (dias - 1));
-        const dataFimStr = fim.toISOString().split('T')[0];
+        
+        // Formatação manual YYYY-MM-DD para garantir consistência
+        const dataFimStr = `${fim.getFullYear()}-${String(fim.getMonth() + 1).padStart(2, '0')}-${String(fim.getDate()).padStart(2, '0')}`;
+        
         if (form.data_fim !== dataFimStr) {
           setForm(prev => ({ ...prev, data_fim: dataFimStr }));
         }
@@ -199,13 +203,19 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
     if (!confirm("Isso removerá também o boletim e o registro na agenda. Confirmar?")) return;
     setLoading(true);
     try {
-      if (afastamentoParaEditar.agenda_evento_id) await supabase.from('agenda_eventos').delete().eq('id', afastamentoParaEditar.agenda_evento_id);
-      if (afastamentoParaEditar.documento_id) await supabase.from('documentos_administrativos').delete().eq('id', afastamentoParaEditar.documento_id);
+      // Ordem reversa para integridade referencial
       await supabase.from('equipe_afastamentos').delete().eq('id', afastamentoParaEditar.id);
+      if (afastamentoParaEditar.documento_id) await supabase.from('documentos_administrativos').delete().eq('id', afastamentoParaEditar.documento_id);
+      if (afastamentoParaEditar.agenda_evento_id) await supabase.from('agenda_eventos').delete().eq('id', afastamentoParaEditar.agenda_evento_id);
+      
       onSaved();
       onClose();
-    } catch (e) { toast.error("Erro ao excluir."); }
-    finally { setLoading(false); }
+      toast.success("Registro excluído.");
+    } catch (e) { 
+      toast.error("Erro ao excluir."); 
+    } finally { 
+      setLoading(false); 
+    }
   }
 
   return (
@@ -301,7 +311,9 @@ export default function ModalAfastamento({ militar, militares, afastamentos = []
 
         <div className="p-8 bg-slate-50 border-t flex gap-4">
           {afastamentoParaEditar && (
-            <button onClick={excluirAfastamento} className="p-4 rounded-2xl bg-red-100 text-red-600 hover:bg-red-200 transition-all"><Trash2 size={20} /></button>
+            <button onClick={excluirAfastamento} disabled={loading} className="p-4 rounded-2xl bg-red-100 text-red-600 hover:bg-red-200 transition-all">
+              {loading ? <Loader2 className="animate-spin" size={20} /> : <Trash2 size={20} />}
+            </button>
           )}
           <button onClick={onClose} className="flex-1 p-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-200 text-xs">FECHAR</button>
           <button onClick={salvarAfastamento} disabled={loading} className="flex-2 p-4 rounded-2xl font-black text-white text-xs bg-slate-900 hover:bg-blue-700 shadow-lg min-w-[120px]">
