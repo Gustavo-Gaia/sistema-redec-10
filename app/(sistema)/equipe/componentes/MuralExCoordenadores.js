@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
-import { History, Medal, Calendar, User, Award, Shield } from "lucide-react";
+import { History, Medal, Calendar, User, Shield } from "lucide-react";
 
 export default function MuralExCoordenadores() {
   const [historico, setHistorico] = useState([]);
@@ -30,11 +30,15 @@ export default function MuralExCoordenadores() {
     carregarMural();
   }, []);
 
-  // Função para formatar data sem erro de fuso horário
-  const formatarDataLocal = (dataString) => {
-    if (!dataString) return '---';
-    const [ano, mes, dia] = dataString.split('-');
-    return `${dia}/${mes}/${ano}`;
+  // Função para formatar data por extenso
+  const formatarDataExtenso = (dataString) => {
+    if (!dataString) return 'Atualmente';
+    const data = new Date(dataString + "T12:00:00");
+    return data.toLocaleDateString('pt-BR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
   };
 
   if (loading) {
@@ -51,7 +55,7 @@ export default function MuralExCoordenadores() {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       
-      {/* CABEÇALHO COM ESTILO GOVERNO */}
+      {/* CABEÇALHO */}
       <div className="text-center max-w-2xl mx-auto space-y-4">
         <div className="relative inline-block">
             <div className="absolute inset-0 bg-amber-400 blur-2xl opacity-20 animate-pulse"></div>
@@ -63,7 +67,7 @@ export default function MuralExCoordenadores() {
             <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Galeria de Ex-Coordenadores</h2>
             <div className="flex items-center justify-center gap-2 mt-1">
                 <span className="h-[2px] w-8 bg-blue-600"></span>
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest text-blue-600">
                     REDEC 10 - Norte
                 </p>
                 <span className="h-[2px] w-8 bg-blue-600"></span>
@@ -83,68 +87,48 @@ export default function MuralExCoordenadores() {
               key={item.id} 
               className="group relative bg-white rounded-[32px] p-1 border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-500"
             >
-              {/* Overlay Decorativo Glass */}
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[32px]" />
-
-              <div className="relative p-6 space-y-6">
-                {/* Badge de Função */}
-                <div className="flex justify-between items-start">
-                    <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                        item.funcao === 'COORDENADOR' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                    }`}>
-                        {item.funcao}
-                    </div>
-                    <Award className="w-5 h-5 text-slate-200 group-hover:text-amber-400 transition-colors" />
-                </div>
-
-                {/* Perfil */}
-                <div className="flex flex-col items-center text-center space-y-3">
+              <div className="relative p-8 space-y-6">
+                
+                {/* Perfil Centralizado */}
+                <div className="flex flex-col items-center text-center space-y-4">
                   <div className="relative">
-                    <div className="w-20 h-20 rounded-3xl bg-slate-100 flex items-center justify-center border-4 border-white shadow-md overflow-hidden group-hover:scale-110 transition-transform duration-500">
-                      {item.foto_url ? (
-                        <img src={item.foto_url} alt={item.nome_guerra_historico} className="w-full h-full object-cover" />
+                    {/* Moldura da Foto com gradiente sutil */}
+                    <div className="w-28 h-28 rounded-[2.5rem] bg-slate-100 flex items-center justify-center border-4 border-white shadow-xl overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                      {item.foto_historica_url ? (
+                        <img src={item.foto_historica_url} alt={item.nome_guerra_historico} className="w-full h-full object-cover" />
                       ) : (
-                        <User className="w-10 h-10 text-slate-300" />
+                        <User className="w-12 h-12 text-slate-300" />
                       )}
                     </div>
-                    <div className="absolute -bottom-2 -right-2 bg-white p-1.5 rounded-xl shadow-sm border border-slate-50">
-                        <Shield className="w-4 h-4 text-blue-600" />
+                    {/* Selo de Honra */}
+                    <div className="absolute -bottom-1 -right-1 bg-amber-400 p-2 rounded-2xl shadow-lg border-2 border-white">
+                        <Shield className="w-4 h-4 text-white" />
                     </div>
                   </div>
                   
                   <div>
-                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest opacity-80">
+                    <p className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1">
                       {item.posto_graduacao_historico}
                     </p>
-                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter group-hover:text-blue-700 transition-colors">
+                    <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter leading-tight">
                       {item.nome_guerra_historico}
                     </h3>
                   </div>
                 </div>
 
-                {/* Datas com Estilo Timeline */}
-                <div className="bg-slate-50 rounded-2xl p-4 relative overflow-hidden">
-                  <div className="flex items-center justify-between relative z-10">
-                    <div className="text-center">
-                      <p className="text-[8px] text-slate-400 uppercase font-black">Admissão</p>
-                      <p className="text-xs font-bold text-slate-700 tracking-tight">
-                        {formatarDataLocal(item.data_inicio)}
-                      </p>
-                    </div>
-                    
-                    <div className="flex-1 flex flex-col items-center px-2">
-                        <div className="h-[1px] w-full bg-slate-200 relative">
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                {/* Período Formatado */}
+                <div className="pt-4 border-t border-slate-50">
+                    <div className="bg-slate-50 rounded-2xl p-4 flex flex-col items-center gap-2">
+                        <div className="flex items-center gap-2 text-slate-400">
+                            <Calendar size={14} />
+                            <span className="text-[9px] font-black uppercase tracking-widest">Período de Gestão</span>
                         </div>
+                        <p className="text-[11px] font-bold text-slate-600 text-center leading-relaxed">
+                            {formatarDataExtenso(item.data_inicio)} <br/>
+                            <span className="text-[9px] text-slate-400 font-normal lowercase">a</span> <br/>
+                            {formatarDataExtenso(item.data_fim)}
+                        </p>
                     </div>
-
-                    <div className="text-center">
-                      <p className="text-[8px] text-slate-400 uppercase font-black">Saída</p>
-                      <p className="text-xs font-bold text-slate-700 tracking-tight">
-                        {item.data_fim ? formatarDataLocal(item.data_fim) : 'ATUAL'}
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -152,10 +136,10 @@ export default function MuralExCoordenadores() {
         </div>
       )}
 
-      {/* RODAPÉ DO MURAL */}
+      {/* RODAPÉ */}
       <div className="pt-10 border-t border-slate-100 text-center">
-        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em]">
-          Patrimônio Histórico e Memória Institucional
+        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.3em]">
+          Eternizando o comando e a dedicação à Defesa Civil
         </p>
       </div>
     </div>
