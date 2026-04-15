@@ -60,7 +60,7 @@ export default function MuralExCoordenadores() {
             </div>
         </div>
         <div>
-            <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Galeria de Honra</h2>
+            <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Galeria de Ex-Coordenadores</h2>
             <div className="flex items-center justify-center gap-2 mt-1">
                 <span className="h-[2px] w-8 bg-blue-600"></span>
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
