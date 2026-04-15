@@ -2,7 +2,7 @@
 
 'use client';
 import { useState, useMemo } from 'react';
-import { Edit2, Search, UserMinus, UserCheck, FileText, Shield } from "lucide-material";
+import { Edit2, Search, UserMinus, UserCheck, FileText, Shield } from "lucide-react";
 import { verificarSeAtivo } from './utils';
 
 // Constante de ordenação por Posto/Graduação
