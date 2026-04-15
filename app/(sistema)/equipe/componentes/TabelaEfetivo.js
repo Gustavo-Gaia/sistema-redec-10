@@ -51,14 +51,18 @@ export default function TabelaEfetivo({ militares, onEdit }) {
       return matchBusca && matchStatus;
     });
 
-    // 2. Ordenação Complexa (Status -> Hierarquia -> RG)
+    // 2. Ordenação Complexa Corrigida (Status -> Hierarquia -> RG)
     return filtrados.sort((a, b) => {
       const aAtivo = verificarSeAtivo(a);
       const bAtivo = verificarSeAtivo(b);
 
-      // Critério 1: Status (Ativos primeiro)
-      if (aAtivo && !bAtivo) return -1;
-      if (!aAtivo && bAtivo) return 1;
+      // Critério 1: Status (Ativos primeiro que inativos)
+      if (aAtivo !== bAtivo) {
+        return aAtivo ? -1 : 1;
+      }
+
+      // Se ambos tiverem o mesmo status (ambos ativos ou ambos inativos),
+      // seguimos para a hierarquia militar:
 
       // Critério 2: Hierarquia
       const pesoA = PESO_HIERARQUIA[a.posto_graduacao] || 99;
@@ -134,7 +138,6 @@ export default function TabelaEfetivo({ militares, onEdit }) {
                 <tr key={m.id} className="hover:bg-blue-50/40 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-4">
-                      {/* Badge de Posto/Graduação com largura fixa para não quebrar nomes longos */}
                       <div className={`min-w-[90px] h-10 px-2 rounded-xl flex items-center justify-center font-black text-[10px] text-center leading-tight shadow-sm border ${
                         ativo 
                           ? 'bg-white border-slate-200 text-slate-600' 
@@ -203,7 +206,6 @@ export default function TabelaEfetivo({ militares, onEdit }) {
           </tbody>
         </table>
         
-        {/* EMPTY STATE */}
         {militaresProcessados.length === 0 && (
           <div className="p-24 text-center">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-slate-200">
@@ -215,7 +217,6 @@ export default function TabelaEfetivo({ militares, onEdit }) {
         )}
       </div>
 
-      {/* RODAPÉ INFORMATIVO */}
       <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
           Total: {militaresProcessados.length} militar(es) listado(s)
