@@ -9,27 +9,56 @@ export default function MuralExCoordenadores() {
   const [historico, setHistorico] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  async function carregarMural() {
+  async function carregarMuralCompleto() {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      // 1. Busca o Coordenador Atual na tabela principal de equipe
+      const { data: atual, error: errorAtual } = await supabase
+        .from('equipe')
+        .select('*')
+        .eq('cargo', 'Coordenador')
+        .maybeSingle(); // Usamos maybeSingle para não quebrar se não houver um
+
+      // 2. Busca o Histórico na tabela de mural
+      const { data: exCoordenadores, error: errorHistorico } = await supabase
         .from('equipe_mural_historico')
         .select('*')
-        /* Ordenação: Quem não tem data_fim (atual) primeiro, depois por data de término mais recente */
-        .order('data_fim', { ascending: false, nullsFirst: true })
-        .limit(50);
+        .order('data_inicio', { ascending: false });
 
-      if (error) throw error;
-      setHistorico(data || []);
+      if (errorHistorico) throw errorHistorico;
+
+      let listaFinal = exCoordenadores || [];
+
+      // 3. Se houver um coordenador na ativa, normaliza os dados e insere no topo
+      if (atual) {
+        const coordenadorAtualMap = {
+          id: `atual-${atual.id}`,
+          nome_guerra_historico: atual.nome_guerra,
+          posto_graduacao_historico: atual.posto_graduacao,
+          foto_historica_url: atual.avatar_url,
+          data_inicio: atual.data_admissao, // Certifique-se que este campo existe ou use outra referência de data
+          data_fim: null, // Crucial para o badge "Atual"
+        };
+
+        // Verifica se ele já não está no histórico (evitar duplicidade)
+        const jaExisteNoHistorico = listaFinal.some(ex => ex.nome_guerra_historico === atual.nome_guerra);
+        
+        if (!jaExisteNoHistorico) {
+          listaFinal = [coordenadorAtualMap, ...listaFinal];
+        }
+      }
+
+      setHistorico(listaFinal);
     } catch (error) {
-      console.error("Erro mural:", error);
+      console.error("Erro ao processar mural:", error);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    carregarMural();
+    carregarMuralCompleto();
   }, []);
 
   const formatarDataExtenso = (dataString) => {
@@ -48,7 +77,7 @@ export default function MuralExCoordenadores() {
         <div className="w-16 h-16 bg-slate-200 rounded-full mx-auto mb-4 flex items-center justify-center">
           <History className="w-8 h-8 text-slate-300" />
         </div>
-        <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Consultando Arquivos Históricos...</p>
+        <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Acessando Galeria de Honra...</p>
       </div>
     );
   }
@@ -79,7 +108,7 @@ export default function MuralExCoordenadores() {
       {historico.length === 0 ? (
         <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[40px] p-20 text-center">
           <Shield className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-          <p className="text-slate-400 font-bold uppercase text-xs">Nenhum registro histórico na unidade.</p>
+          <p className="text-slate-400 font-bold uppercase text-xs">Sem registros históricos encontrados.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -88,7 +117,7 @@ export default function MuralExCoordenadores() {
               key={item.id} 
               className="group relative bg-white rounded-[32px] p-1 border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
             >
-              {/* Badge "ATUAL" */}
+              {/* Badge "ATUAL" - Dispara quando data_fim é null */}
               {!item.data_fim && (
                 <div className="absolute top-6 right-6 z-10 animate-bounce">
                   <span className="bg-green-500 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase shadow-lg shadow-green-100 flex items-center gap-1">
@@ -98,8 +127,6 @@ export default function MuralExCoordenadores() {
               )}
 
               <div className="relative p-8 space-y-6">
-                
-                {/* Perfil Centralizado */}
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="relative">
                     <div className="w-28 h-28 rounded-[2.5rem] bg-slate-100 flex items-center justify-center border-4 border-white shadow-xl overflow-hidden group-hover:scale-105 transition-transform duration-500 relative">
@@ -112,7 +139,6 @@ export default function MuralExCoordenadores() {
                             className="w-full h-full object-cover"
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
-                          {/* Overlay suave para aspecto premium */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                         </>
                       ) : (
@@ -122,7 +148,6 @@ export default function MuralExCoordenadores() {
                       )}
                     </div>
                     
-                    {/* Selo de Honra */}
                     <div className="absolute -bottom-1 -right-1 bg-amber-400 p-2 rounded-2xl shadow-lg border-2 border-white">
                       <Shield className="w-4 h-4 text-white" />
                     </div>
@@ -138,12 +163,11 @@ export default function MuralExCoordenadores() {
                   </div>
                 </div>
 
-                {/* Período Formatado */}
                 <div className="pt-4 border-t border-slate-50">
                   <div className="bg-slate-50 rounded-2xl p-4 flex flex-col items-center gap-2 group-hover:bg-blue-50 transition-colors">
                     <div className="flex items-center gap-2 text-slate-400 group-hover:text-blue-400">
                       <Calendar size={14} />
-                      <span className="text-[9px] font-black uppercase tracking-widest">Gestão</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest">Gestão na Unidade</span>
                     </div>
                     <p className="text-[11px] font-bold text-slate-600 text-center leading-relaxed">
                       {formatarDataExtenso(item.data_inicio)} <br/>
@@ -160,10 +184,9 @@ export default function MuralExCoordenadores() {
         </div>
       )}
 
-      {/* RODAPÉ */}
       <div className="pt-10 border-t border-slate-100 text-center">
         <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.3em]">
-          Honrando o passado para fortalecer o futuro da Defesa Civil
+          Honrando o comando e a dedicação à Defesa Civil
         </p>
       </div>
     </div>
