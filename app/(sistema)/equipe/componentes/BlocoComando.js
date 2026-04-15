@@ -22,7 +22,7 @@ export default function BlocoComando({ militares, afastamentos, onSelect }) {
       <div className="space-y-2">
         <div className="flex items-center gap-2 px-1">
           <ShieldCheck className="w-4 h-4 text-blue-600" />
-          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-tighter">Coordenador Geral</span>
+          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-tighter">Coordenador</span>
         </div>
         {coordenador ? (
           <CardMilitar 
