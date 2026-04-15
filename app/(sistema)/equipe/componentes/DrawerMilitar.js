@@ -17,7 +17,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
   const [afastamentoParaEditar, setAfastamentoParaEditar] = useState(null);
   const [enviarAoMural, setEnviarAoMural] = useState(false);
   
-  // ESTADOS PARA FOTO
   const fileInputRef = useRef(null);
   const [fotoArquivo, setFotoArquivo] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
@@ -45,7 +44,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     avatar_url: ''
   });
 
-  // Limpeza de memória (Revoke Object URL)
   useEffect(() => {
     return () => {
       if (fotoPreview && fotoPreview.startsWith('blob:')) {
@@ -79,30 +77,12 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
       setForm(prev => ({ ...prev, avatar_url: '' }));
       setFotoPreview(null);
       setFotoArquivo(null);
-      onSaved(); 
+      onSaved();
     } catch (error) {
       alert("Erro ao remover: " + error.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const aplicarMascaraBoletim = (valor, dataReferencia = null) => {
-    const numeros = valor.replace(/\D/g, "");
-    if (numeros.length === 0) return "";
-    let numeroPart = numeros.substring(0, 3);
-    let anoPart = numeros.substring(3, 7);
-    if (numeros.length <= 3 && dataReferencia) {
-      anoPart = new Date(dataReferencia + "T12:00:00").getFullYear();
-    }
-    let resultado = `BOL-SEDEC ${numeroPart}`;
-    if (anoPart) resultado += `/${anoPart}`;
-    return resultado.toUpperCase();
-  };
-
-  const handleEditarAfastamento = (afast) => {
-    setAfastamentoParaEditar(afast);
-    setShowModalAfast(true);
   };
 
   async function registrarNoMural(militarId, urlFoto) {
@@ -125,11 +105,21 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     setLoading(true);
     try {
         const formatarDataParaBanco = (data) => (data === "" || !data ? null : data);
+
+        // Reconstrução do padrão oficial apenas no salvamento
+        const formatarBolAoSalvar = (valor, dataRef) => {
+          if (!valor) return null;
+          const numeros = valor.replace(/\D/g, ""); 
+          if (!numeros) return null;
+          
+          const ano = dataRef ? new Date(dataRef + "T12:00:00").getFullYear() : new Date().getFullYear();
+          return `BOL-SEDEC ${numeros.padStart(3, '0')}/${ano}`;
+        };
+
         let urlFinal = form.avatar_url;
         let militarId = militar?.id;
 
-        // 1. Se for novo e tiver foto, cria o registro básico primeiro para obter ID
-        if (!militarId) {
+        if (!militarId && fotoArquivo) {
             const { data: novo, error: errN } = await supabase
                 .from('equipe')
                 .insert([{ ...form, avatar_url: '' }])
@@ -139,15 +129,18 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
             militarId = novo.id;
         }
 
-        // 2. Upload da foto se houver novo arquivo
         if (fotoArquivo && militarId) {
             urlFinal = await uploadFotoMilitar(militarId, fotoArquivo);
         }
 
-        // 3. Update Final (ou Upsert se já existia)
         const dadosParaSalvar = {
           ...form,
           avatar_url: urlFinal,
+          bol_entrada_redec: formatarBolAoSalvar(form.bol_entrada_redec, form.data_entrada_redec),
+          bol_saida_redec: formatarBolAoSalvar(form.bol_saida_redec, form.data_saida_redec),
+          bol_entrada_funcao: formatarBolAoSalvar(form.bol_entrada_funcao, form.data_entrada_funcao),
+          bol_saida_funcao: formatarBolAoSalvar(form.bol_saida_funcao, form.data_saida_funcao),
+          
           data_entrada_redec: formatarDataParaBanco(form.data_entrada_redec),
           data_saida_redec: formatarDataParaBanco(form.data_saida_redec),
           data_entrada_funcao: formatarDataParaBanco(form.data_entrada_funcao),
@@ -157,10 +150,8 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
         };
 
         const { data, error } = await supabase.from('equipe').upsert(dadosParaSalvar).select().single();
-
         if (error) throw error;
 
-        // 4. Mural Histórico
         if (enviarAoMural && form.data_saida_funcao) {
             await registrarNoMural(data.id, urlFinal);
         }
@@ -174,21 +165,9 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     }
   }
 
-  const handleExcluirAfastamento = async (id) => {
-    if (!confirm("Excluir este afastamento definitivamente?")) return;
-    try {
-      const { error } = await supabase.from('equipe_afastamentos').delete().eq('id', id);
-      if (error) throw error;
-      onSaved();
-    } catch (error) {
-      alert("Erro ao excluir: " + error.message);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-[60] flex justify-end">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-
       <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
         {/* HEADER */}
@@ -225,8 +204,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
           
           {aba === 'dados' && (
             <div className="space-y-4 animate-in fade-in duration-300">
-              
-              {/* ÁREA DA FOTO */}
               <div className="flex flex-col items-center justify-center pb-4">
                 <div className="relative group">
                   <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center relative">
@@ -235,33 +212,20 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     ) : (
                       <User size={48} className="text-slate-300" />
                     )}
-                    
-                    <button 
-                      onClick={() => fileInputRef.current.click()}
-                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1"
-                    >
+                    <button onClick={() => fileInputRef.current.click()} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1">
                       <Camera size={20} />
                       <span className="text-[8px] font-black uppercase">Alterar Foto</span>
                     </button>
                   </div>
-                  
                   {fotoArquivo && (
-                    <button 
-                      onClick={() => { setFotoArquivo(null); setFotoPreview(form.avatar_url); }}
-                      className="absolute -top-2 -right-2 bg-amber-500 text-white p-1.5 rounded-full shadow-lg hover:bg-amber-600 transition-colors"
-                      title="Descartar alteração"
-                    >
+                    <button onClick={() => { setFotoArquivo(null); setFotoPreview(form.avatar_url); }} className="absolute -top-2 -right-2 bg-amber-500 text-white p-1.5 rounded-full shadow-lg hover:bg-amber-600 transition-colors">
                       <RefreshCw size={14} />
                     </button>
                   )}
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleSelecionarFoto} />
-                
                 {form.avatar_url && (
-                  <button 
-                    onClick={handleRemoverFotoStorage}
-                    className="mt-3 text-[9px] text-red-500 font-black uppercase tracking-tighter hover:underline"
-                  >
+                  <button onClick={handleRemoverFotoStorage} className="mt-3 text-[9px] text-red-500 font-black uppercase tracking-tighter hover:underline">
                     Excluir Foto Permanente
                   </button>
                 )}
@@ -273,7 +237,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                   <input type="text" className="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
                     value={form.nome_completo} onChange={e => setForm({...form, nome_completo: e.target.value.toUpperCase()})} />
                 </div>
-
                 <div className="col-span-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
                     <Mail size={12} className="text-blue-500" /> E-mail Institucional
@@ -281,13 +244,11 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                   <input type="email" className="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-600 lowercase"
                     value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
                 </div>
-
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Nome de Guerra</label>
                   <input type="text" className="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-black text-blue-700 uppercase"
                     value={form.nome_guerra} onChange={e => setForm({...form, nome_guerra: e.target.value.toUpperCase()})} />
                 </div>
-
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Função REDEC</label>
                   <select className="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
@@ -299,7 +260,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <option value="OPERACIONAL">OPERACIONAL</option>
                   </select>
                 </div>
-
                 <div className="col-span-2 grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Posto/Graduação</label>
@@ -326,19 +286,16 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                       value={form.id_funcional} onChange={e => setForm({...form, id_funcional: e.target.value})} />
                   </div>
                 </div>
-
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">CPF</label>
                   <input type="text" className="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500"
                     value={form.cpf} placeholder="000.000.000-00" onChange={e => setForm({...form, cpf: formatarCPF(e.target.value)})} />
                 </div>
-
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">RG (CBMERJ)</label>
                   <input type="text" className="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
                     value={form.rg} onChange={e => setForm({...form, rg: e.target.value})} />
                 </div>
-
                 <div className="col-span-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
                     <Phone size={12} className="text-green-600" /> Telefone / WhatsApp
@@ -358,19 +315,36 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                   <Shield size={14} /> Movimentação na Unidade
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
+                  {/* INGRESSO REDEC */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Ingresso</label>
-                    <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm"
+                    <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm mb-1"
                       value={form.data_entrada_redec || ''} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
-                    <input type="text" placeholder="Nº BOL (Ex: 061)" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
-                      value={form.bol_entrada_redec} onChange={e => setForm({...form, bol_entrada_redec: aplicarMascaraBoletim(e.target.value, form.data_entrada_redec)})} />
+                    
+                    <div className="relative flex items-center">
+                      <span className="absolute left-2 text-[9px] font-black text-slate-400 select-none">BOL-SEDEC</span>
+                      <input type="text" placeholder="000" 
+                        className="w-full p-2 pl-14 bg-white/80 rounded-lg border-none text-[10px] font-bold outline-none focus:ring-1 focus:ring-blue-500"
+                        value={form.bol_entrada_redec?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
+                        onChange={e => setForm({...form, bol_entrada_redec: e.target.value})} 
+                      />
+                    </div>
                   </div>
+
+                  {/* DESLIGAMENTO REDEC */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-red-400 ml-1">Desligamento</label>
-                    <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold text-red-600 shadow-sm"
+                    <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold text-red-600 shadow-sm mb-1"
                       value={form.data_saida_redec || ''} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
-                    <input type="text" placeholder="Nº BOL (Ex: 061)" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
-                      value={form.bol_saida_redec} onChange={e => setForm({...form, bol_saida_redec: aplicarMascaraBoletim(e.target.value, form.data_saida_redec)})} />
+                    
+                    <div className="relative flex items-center">
+                      <span className="absolute left-2 text-[9px] font-black text-slate-400 select-none">BOL-SEDEC</span>
+                      <input type="text" placeholder="000" 
+                        className="w-full p-2 pl-14 bg-white/80 rounded-lg border-none text-[10px] font-bold outline-none focus:ring-1 focus:ring-blue-500"
+                        value={form.bol_saida_redec?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
+                        onChange={e => setForm({...form, bol_saida_redec: e.target.value})} 
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -380,25 +354,42 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                   <Fingerprint size={14} /> Datas da Função Atual
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
+                  {/* INÍCIO FUNÇÃO */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Início Função</label>
-                    <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm"
+                    <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm mb-1"
                       value={form.data_entrada_funcao || ''} onChange={e => setForm({...form, data_entrada_funcao: e.target.value})} />
-                    <input type="text" placeholder="Nº BOL (Ex: 061)" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
-                      value={form.bol_entrada_funcao} onChange={e => setForm({...form, bol_entrada_funcao: aplicarMascaraBoletim(e.target.value, form.data_entrada_funcao)})} />
+                    
+                    <div className="relative flex items-center">
+                      <span className="absolute left-2 text-[9px] font-black text-slate-400 select-none">BOL-SEDEC</span>
+                      <input type="text" placeholder="000" 
+                        className="w-full p-2 pl-14 bg-white/80 rounded-lg border-none text-[10px] font-bold outline-none focus:ring-1 focus:ring-blue-500"
+                        value={form.bol_entrada_funcao?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
+                        onChange={e => setForm({...form, bol_entrada_funcao: e.target.value})} 
+                      />
+                    </div>
                   </div>
+
+                  {/* FIM FUNÇÃO */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Fim Função</label>
-                    <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm"
+                    <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm mb-1"
                       value={form.data_saida_funcao || ''} onChange={e => setForm({...form, data_saida_funcao: e.target.value})} />
-                    <input type="text" placeholder="Nº BOL (Ex: 061)" className="w-full p-2 mt-1 bg-white/50 rounded-lg border-none text-[9px] font-bold uppercase"
-                      value={form.bol_saida_funcao} onChange={e => setForm({...form, bol_saida_funcao: aplicarMascaraBoletim(e.target.value, form.data_saida_funcao)})} />
+                    
+                    <div className="relative flex items-center">
+                      <span className="absolute left-2 text-[9px] font-black text-slate-400 select-none">BOL-SEDEC</span>
+                      <input type="text" placeholder="000" 
+                        className="w-full p-2 pl-14 bg-white/80 rounded-lg border-none text-[10px] font-bold outline-none focus:ring-1 focus:ring-blue-500"
+                        value={form.bol_saida_funcao?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
+                        onChange={e => setForm({...form, bol_saida_funcao: e.target.value})} 
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 px-2 pt-2">
                   <input type="checkbox" id="mural" className="rounded border-slate-300 text-blue-600" 
                     checked={enviarAoMural} onChange={e => setEnviarAoMural(e.target.checked)} />
-                  <label htmlFor="mural" className="text-[10px] font-bold text-slate-500 uppercase">Enviar saída para o mural histórico</label>
+                  <label htmlFor="mural" className="text-[10px] font-bold text-slate-500 uppercase">Enviar saída da função para o mural histórico</label>
                 </div>
               </div>
             </div>
@@ -426,12 +417,10 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleEditarAfastamento(afast)} 
-                          className="text-slate-300 hover:text-blue-600 p-2 transition-colors">
+                        <button onClick={() => {setAfastamentoParaEditar(afast); setShowModalAfast(true);}} className="text-slate-300 hover:text-blue-600 p-2 transition-colors">
                           <Edit2 size={18} />
                         </button>
-                        <button onClick={() => handleExcluirAfastamento(afast.id)} 
-                          className="text-slate-300 hover:text-red-500 p-2 transition-colors">
+                        <button onClick={() => handleExcluirAfastamento(afast.id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
                           <Trash2 size={18} />
                         </button>
                       </div>
