@@ -112,7 +112,7 @@ export default function EquipePage() {
         {[
           { id: "prontidao", label: "Painel de Prontidão", icon: LayoutDashboard },
           { id: "efetivo", label: "Efetivo Geral", icon: ClipboardList },
-          { id: "mural", label: "Galeria de Honra", icon: History }
+          { id: "mural", label: "Galeria de Ex-Coordenadores", icon: History }
         ].map((tab) => (
           <button
             key={tab.id}
