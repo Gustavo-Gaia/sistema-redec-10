@@ -1,13 +1,13 @@
 /* app/(sistema)/equipe/componentes/DrawerMilitar.js */
 
 'use client';
-import { useState, useEffect, useRef } from 'react'; // Adicionado useRef
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from "@/lib/supabase";
 import { 
   X, User, Plane, Save, Trash2, Calendar, Shield, Phone, 
   Fingerprint, Mail, Plus, Edit2, Loader2, Camera, RefreshCw 
 } from "lucide-react";
-import { formatarCPF, formatarTelefone, uploadFotoMilitar } from './utils'; // Incluído uploadFotoMilitar
+import { formatarCPF, formatarTelefone, uploadFotoMilitar, removerFotoMilitar } from './utils';
 import ModalAfastamento from './ModalAfastamento';
 
 export default function DrawerMilitar({ militar, afastamentos = [], onClose, onSaved, militares }) {
@@ -42,8 +42,17 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     bol_saida_funcao: '',    
     ativo: true,
     ordem: 0,
-    avatar_url: '' // Campo da foto
+    avatar_url: ''
   });
+
+  // Limpeza de memória (Revoke Object URL)
+  useEffect(() => {
+    return () => {
+      if (fotoPreview && fotoPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(fotoPreview);
+      }
+    };
+  }, [fotoPreview]);
 
   useEffect(() => {
     if (militar) {
@@ -52,12 +61,29 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     }
   }, [militar]);
 
-  // Lógica de Seleção de Foto
   const handleSelecionarFoto = (e) => {
     const file = e.target.files[0];
     if (file) {
       setFotoArquivo(file);
       setFotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoverFotoStorage = async () => {
+    if (!militar?.id) return;
+    if (!confirm("Deseja remover permanentemente a foto deste militar?")) return;
+
+    setLoading(true);
+    try {
+      await removerFotoMilitar(militar.id);
+      setForm(prev => ({ ...prev, avatar_url: '' }));
+      setFotoPreview(null);
+      setFotoArquivo(null);
+      onSaved(); // Atualiza a lista principal
+    } catch (error) {
+      alert("Erro ao remover: " + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -84,7 +110,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
       data_fim: form.data_saida_funcao || null,
       bol_inicio_historico: form.bol_entrada_funcao, 
       bol_fim_historico: form.bol_saida_funcao,
-      foto_historica_url: urlFoto // Salva a foto no mural também
+      foto_historica_url: urlFoto 
     };
     const { error } = await supabase.from('equipe_mural_historico').insert(dadosMural);
     if (error) console.error("Erro ao enviar para o mural:", error.message);
@@ -94,24 +120,23 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     setLoading(true);
     try {
         const formatarDataParaBanco = (data) => (data === "" || !data ? null : data);
-
         let urlFinal = form.avatar_url;
 
-        // 1. Se houver nova foto, faz upload primeiro
-        if (fotoArquivo) {
-            // Se for novo militar, precisamos do ID. Upsert resolve isso:
-            // Primeiro salvamos os dados básicos para garantir que temos um ID
-            const tempDados = { ...form, id: militar?.id || undefined };
-            const { data: militarSalvo, error: errM } = await supabase
+        // Se for novo militar e tiver foto, precisamos primeiro do ID
+        let militarId = militar?.id;
+
+        if (!militarId && fotoArquivo) {
+            const { data: novo, error: errN } = await supabase
                 .from('equipe')
-                .upsert(tempDados)
+                .insert([{ ...form, avatar_url: '' }])
                 .select()
                 .single();
-            
-            if (errM) throw errM;
-            
-            // Agora com o ID garantido, fazemos o upload com nome fixo
-            urlFinal = await uploadFotoMilitar(militarSalvo.id, fotoArquivo);
+            if (errN) throw errN;
+            militarId = novo.id;
+        }
+
+        if (fotoArquivo && militarId) {
+            urlFinal = await uploadFotoMilitar(militarId, fotoArquivo);
         }
 
         const dadosParaSalvar = {
@@ -122,18 +147,19 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
           data_entrada_funcao: formatarDataParaBanco(form.data_entrada_funcao),
           data_saida_funcao: formatarDataParaBanco(form.data_saida_funcao),
           ativo: form.data_saida_redec ? false : form.ativo,
-          id: militar?.id || undefined
+          id: militarId
         };
 
         const { data, error } = await supabase.from('equipe').upsert(dadosParaSalvar).select().single();
 
-        if (error) {
-          alert("Erro ao salvar: " + error.message);
-        } else {
-          if (enviarAoMural && form.data_saida_funcao) await registrarNoMural(data.id, urlFinal);
-          onSaved();
-          onClose();
+        if (error) throw error;
+
+        if (enviarAoMural && form.data_saida_funcao) {
+            await registrarNoMural(data.id, urlFinal);
         }
+
+        onSaved();
+        onClose();
     } catch (err) {
         alert("Erro no processo: " + err.message);
     } finally {
@@ -141,14 +167,15 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     }
   }
 
-  const handleNovoAfastamento = () => {
-    setAfastamentoParaEditar(null);
-    setShowModalAfast(true);
-  };
-
-  const handleEditarAfastamento = (afast) => {
-    setAfastamentoParaEditar(afast);
-    setShowModalAfast(true);
+  const handleExcluirAfastamento = async (id) => {
+    if (!confirm("Excluir este afastamento definitivamente?")) return;
+    try {
+      const { error } = await supabase.from('equipe_afastamentos').delete().eq('id', id);
+      if (error) throw error;
+      onSaved();
+    } catch (error) {
+      alert("Erro ao excluir: " + error.message);
+    }
   };
 
   return (
@@ -172,7 +199,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
           </button>
         </div>
 
-        {/* NAVEGAÇÃO POR ABAS */}
+        {/* NAVEGAÇÃO */}
         <div className="flex border-b px-4 bg-slate-50 overflow-x-auto no-scrollbar">
           {[
             { id: 'dados', label: 'Pessoal', icon: User },
@@ -186,7 +213,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
           ))}
         </div>
 
-        {/* CONTEÚDO PRINCIPAL */}
+        {/* CONTEÚDO */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           
           {aba === 'dados' && (
@@ -202,7 +229,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                       <User size={48} className="text-slate-300" />
                     )}
                     
-                    {/* Overlay de Upload */}
                     <button 
                       onClick={() => fileInputRef.current.click()}
                       className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1"
@@ -212,18 +238,26 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     </button>
                   </div>
                   
-                  {/* Botão flutuante para limpar foto se houver uma nova selecionada */}
                   {fotoArquivo && (
                     <button 
                       onClick={() => { setFotoArquivo(null); setFotoPreview(form.avatar_url); }}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                      className="absolute -top-2 -right-2 bg-amber-500 text-white p-1.5 rounded-full shadow-lg hover:bg-amber-600 transition-colors"
+                      title="Descartar alteração"
                     >
                       <RefreshCw size={14} />
                     </button>
                   )}
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleSelecionarFoto} />
-                <p className="text-[9px] text-slate-400 font-bold uppercase mt-3 tracking-widest">Foto de Identificação</p>
+                
+                {form.avatar_url && (
+                  <button 
+                    onClick={handleRemoverFotoStorage}
+                    className="mt-3 text-[9px] text-red-500 font-black uppercase tracking-tighter hover:underline"
+                  >
+                    Excluir Foto Permanente
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -310,7 +344,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
             </div>
           )}
 
-          {/* AS ABAS 'datas' e 'afastamentos' CONTINUAM IGUAIS AO SEU CÓDIGO ORIGINAL */}
           {aba === 'datas' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-100 space-y-4">
@@ -356,7 +389,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                   </div>
                 </div>
                 <div className="flex items-center gap-2 px-2 pt-2">
-                  <input type="checkbox" id="mural" className="rounded border-slate-300" 
+                  <input type="checkbox" id="mural" className="rounded border-slate-300 text-blue-600" 
                     checked={enviarAoMural} onChange={e => setEnviarAoMural(e.target.checked)} />
                   <label htmlFor="mural" className="text-[10px] font-bold text-slate-500 uppercase">Enviar saída da função para o mural histórico</label>
                 </div>
@@ -366,7 +399,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
 
           {aba === 'afastamentos' && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <button onClick={handleNovoAfastamento}
+              <button onClick={() => { setAfastamentoParaEditar(null); setShowModalAfast(true); }}
                 className="w-full p-6 border-2 border-dashed border-blue-200 rounded-[2rem] text-blue-600 font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-blue-50 transition-all">
                 <Plus size={16} /> Lançar Novo Afastamento
               </button>
@@ -384,16 +417,13 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                         <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1 mt-1">
                           <Calendar size={12} /> {new Date(afast.data_inicio + "T12:00:00").toLocaleDateString('pt-BR')} a {new Date(afast.data_fim + "T12:00:00").toLocaleDateString('pt-BR')}
                         </p>
-                        {afast.observacao && (
-                            <p className="text-[9px] text-blue-500 font-bold mt-1 uppercase italic truncate max-w-[200px]">{afast.observacao}</p>
-                        )}
                       </div>
                       <div className="flex items-center gap-1">
                         <button onClick={() => handleEditarAfastamento(afast)} 
                           className="text-slate-300 hover:text-blue-600 p-2 transition-colors">
                           <Edit2 size={18} />
                         </button>
-                        <button onClick={() => handleEditarAfastamento(afast)} 
+                        <button onClick={() => handleExcluirAfastamento(afast.id)} 
                           className="text-slate-300 hover:text-red-500 p-2 transition-colors">
                           <Trash2 size={18} />
                         </button>
@@ -407,7 +437,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
         </div>
 
         {/* FOOTER */}
-        <div className="p-6 border-t bg-slate-50">
+        <div className="p-6 border-t bg-white">
           <button disabled={loading} onClick={salvarMilitar}
             className="w-full bg-slate-900 hover:bg-blue-700 text-white p-5 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-200 disabled:opacity-50">
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
@@ -416,22 +446,14 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
         </div>
       </div>
 
-      {/* MODAL DE AFASTAMENTO */}
       {showModalAfast && (
         <ModalAfastamento 
             militar={militar} 
             militares={militares} 
             afastamentoParaEditar={afastamentoParaEditar}
             afastamentos={afastamentos}
-            onClose={() => {
-              setShowModalAfast(false);
-              setAfastamentoParaEditar(null);
-            }} 
-            onSaved={() => {
-              setShowModalAfast(false);
-              setAfastamentoParaEditar(null);
-              onSaved();
-            }} 
+            onClose={() => { setShowModalAfast(false); setAfastamentoParaEditar(null); }} 
+            onSaved={() => { setShowModalAfast(false); setAfastamentoParaEditar(null); onSaved(); }} 
         />
       )}
     </div>
