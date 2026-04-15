@@ -1,13 +1,13 @@
 /* app/(sistema)/equipe/componentes/DrawerMilitar.js */
 
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react'; // Adicionado useRef
 import { supabase } from "@/lib/supabase";
 import { 
   X, User, Plane, Save, Trash2, Calendar, Shield, Phone, 
-  Fingerprint, Mail, Plus, Edit2, Loader2 
+  Fingerprint, Mail, Plus, Edit2, Loader2, Camera, RefreshCw 
 } from "lucide-react";
-import { formatarCPF, formatarTelefone } from './utils'; 
+import { formatarCPF, formatarTelefone, uploadFotoMilitar } from './utils'; // Incluído uploadFotoMilitar
 import ModalAfastamento from './ModalAfastamento';
 
 export default function DrawerMilitar({ militar, afastamentos = [], onClose, onSaved, militares }) {
@@ -16,6 +16,11 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
   const [showModalAfast, setShowModalAfast] = useState(false);
   const [afastamentoParaEditar, setAfastamentoParaEditar] = useState(null);
   const [enviarAoMural, setEnviarAoMural] = useState(false);
+  
+  // ESTADOS PARA FOTO
+  const fileInputRef = useRef(null);
+  const [fotoArquivo, setFotoArquivo] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState(null);
 
   const [form, setForm] = useState({
     nome_completo: '',
@@ -36,37 +41,40 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     data_saida_funcao: '',
     bol_saida_funcao: '',    
     ativo: true,
-    ordem: 0
+    ordem: 0,
+    avatar_url: '' // Campo da foto
   });
 
   useEffect(() => {
-    if (militar) setForm({ ...militar });
+    if (militar) {
+        setForm({ ...militar });
+        if (militar.avatar_url) setFotoPreview(militar.avatar_url);
+    }
   }, [militar]);
 
-  /**
-   * NOVA MÁSCARA INTELIGENTE
-   * Se digitar apenas o número (ex: 061), ele busca o ano da dataReferencia.
-   * Se continuar digitando (ex: 0612025), ele aceita o ano digitado.
-   */
+  // Lógica de Seleção de Foto
+  const handleSelecionarFoto = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFotoArquivo(file);
+      setFotoPreview(URL.createObjectURL(file));
+    }
+  };
+
   const aplicarMascaraBoletim = (valor, dataReferencia = null) => {
     const numeros = valor.replace(/\D/g, "");
     if (numeros.length === 0) return "";
-
     let numeroPart = numeros.substring(0, 3);
     let anoPart = numeros.substring(3, 7);
-
-    // Se o usuário só digitou o número e temos uma data preenchida no campo ao lado
     if (numeros.length <= 3 && dataReferencia) {
       anoPart = new Date(dataReferencia + "T12:00:00").getFullYear();
     }
-
     let resultado = `BOL-SEDEC ${numeroPart}`;
     if (anoPart) resultado += `/${anoPart}`;
-    
     return resultado.toUpperCase();
   };
 
-  async function registrarNoMural(militarId) {
+  async function registrarNoMural(militarId, urlFoto) {
     const dadosMural = {
       militar_id: militarId,
       nome_guerra_historico: form.nome_guerra.toUpperCase(),
@@ -75,7 +83,8 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
       data_inicio: form.data_entrada_funcao || null,
       data_fim: form.data_saida_funcao || null,
       bol_inicio_historico: form.bol_entrada_funcao, 
-      bol_fim_historico: form.bol_saida_funcao
+      bol_fim_historico: form.bol_saida_funcao,
+      foto_historica_url: urlFoto // Salva a foto no mural também
     };
     const { error } = await supabase.from('equipe_mural_historico').insert(dadosMural);
     if (error) console.error("Erro ao enviar para o mural:", error.message);
@@ -83,28 +92,53 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
 
   async function salvarMilitar() {
     setLoading(true);
-    const formatarDataParaBanco = (data) => (data === "" || !data ? null : data);
+    try {
+        const formatarDataParaBanco = (data) => (data === "" || !data ? null : data);
 
-    const dadosParaSalvar = {
-      ...form,
-      data_entrada_redec: formatarDataParaBanco(form.data_entrada_redec),
-      data_saida_redec: formatarDataParaBanco(form.data_saida_redec),
-      data_entrada_funcao: formatarDataParaBanco(form.data_entrada_funcao),
-      data_saida_funcao: formatarDataParaBanco(form.data_saida_funcao),
-      ativo: form.data_saida_redec ? false : form.ativo,
-      id: militar?.id || undefined
-    };
+        let urlFinal = form.avatar_url;
 
-    const { data, error } = await supabase.from('equipe').upsert(dadosParaSalvar).select().single();
+        // 1. Se houver nova foto, faz upload primeiro
+        if (fotoArquivo) {
+            // Se for novo militar, precisamos do ID. Upsert resolve isso:
+            // Primeiro salvamos os dados básicos para garantir que temos um ID
+            const tempDados = { ...form, id: militar?.id || undefined };
+            const { data: militarSalvo, error: errM } = await supabase
+                .from('equipe')
+                .upsert(tempDados)
+                .select()
+                .single();
+            
+            if (errM) throw errM;
+            
+            // Agora com o ID garantido, fazemos o upload com nome fixo
+            urlFinal = await uploadFotoMilitar(militarSalvo.id, fotoArquivo);
+        }
 
-    if (error) {
-      alert("Erro ao salvar: " + error.message);
-    } else {
-      if (enviarAoMural && form.data_saida_funcao) await registrarNoMural(data.id);
-      onSaved();
-      onClose();
+        const dadosParaSalvar = {
+          ...form,
+          avatar_url: urlFinal,
+          data_entrada_redec: formatarDataParaBanco(form.data_entrada_redec),
+          data_saida_redec: formatarDataParaBanco(form.data_saida_redec),
+          data_entrada_funcao: formatarDataParaBanco(form.data_entrada_funcao),
+          data_saida_funcao: formatarDataParaBanco(form.data_saida_funcao),
+          ativo: form.data_saida_redec ? false : form.ativo,
+          id: militar?.id || undefined
+        };
+
+        const { data, error } = await supabase.from('equipe').upsert(dadosParaSalvar).select().single();
+
+        if (error) {
+          alert("Erro ao salvar: " + error.message);
+        } else {
+          if (enviarAoMural && form.data_saida_funcao) await registrarNoMural(data.id, urlFinal);
+          onSaved();
+          onClose();
+        }
+    } catch (err) {
+        alert("Erro no processo: " + err.message);
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
   }
 
   const handleNovoAfastamento = () => {
@@ -157,6 +191,41 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
           
           {aba === 'dados' && (
             <div className="space-y-4 animate-in fade-in duration-300">
+              
+              {/* ÁREA DA FOTO */}
+              <div className="flex flex-col items-center justify-center pb-4">
+                <div className="relative group">
+                  <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center relative">
+                    {fotoPreview ? (
+                      <img src={fotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={48} className="text-slate-300" />
+                    )}
+                    
+                    {/* Overlay de Upload */}
+                    <button 
+                      onClick={() => fileInputRef.current.click()}
+                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1"
+                    >
+                      <Camera size={20} />
+                      <span className="text-[8px] font-black uppercase">Alterar Foto</span>
+                    </button>
+                  </div>
+                  
+                  {/* Botão flutuante para limpar foto se houver uma nova selecionada */}
+                  {fotoArquivo && (
+                    <button 
+                      onClick={() => { setFotoArquivo(null); setFotoPreview(form.avatar_url); }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                    >
+                      <RefreshCw size={14} />
+                    </button>
+                  )}
+                </div>
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleSelecionarFoto} />
+                <p className="text-[9px] text-slate-400 font-bold uppercase mt-3 tracking-widest">Foto de Identificação</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Nome Completo</label>
@@ -241,6 +310,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
             </div>
           )}
 
+          {/* AS ABAS 'datas' e 'afastamentos' CONTINUAM IGUAIS AO SEU CÓDIGO ORIGINAL */}
           {aba === 'datas' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-100 space-y-4">
@@ -285,7 +355,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                       value={form.bol_saida_funcao} onChange={e => setForm({...form, bol_saida_funcao: aplicarMascaraBoletim(e.target.value, form.data_saida_funcao)})} />
                   </div>
                 </div>
-                {/* CHECKBOX HISTÓRICO */}
                 <div className="flex items-center gap-2 px-2 pt-2">
                   <input type="checkbox" id="mural" className="rounded border-slate-300" 
                     checked={enviarAoMural} onChange={e => setEnviarAoMural(e.target.checked)} />
