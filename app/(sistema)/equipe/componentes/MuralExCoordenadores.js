@@ -9,46 +9,50 @@ export default function MuralExCoordenadores() {
   const [historico, setHistorico] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  /* Substitua apenas a função carregarMuralCompleto dentro do seu arquivo */
+
   async function carregarMuralCompleto() {
     try {
       setLoading(true);
-
-      // 1. Busca o Coordenador Atual na tabela principal de equipe
+  
+      // 1. Busca o Coordenador Atual usando os nomes corretos das colunas
       const { data: atual, error: errorAtual } = await supabase
         .from('equipe')
         .select('*')
-        .eq('cargo', 'Coordenador')
-        .maybeSingle(); // Usamos maybeSingle para não quebrar se não houver um
-
-      // 2. Busca o Histórico na tabela de mural
+        .eq('funcao_redec', 'COORDENADOR') // Nome da coluna e Valor em MAIÚSCULO
+        .eq('ativo', true)               // Garante que ele ainda está na ativa
+        .maybeSingle();
+  
+      // 2. Busca o Histórico
       const { data: exCoordenadores, error: errorHistorico } = await supabase
         .from('equipe_mural_historico')
         .select('*')
         .order('data_inicio', { ascending: false });
-
+  
       if (errorHistorico) throw errorHistorico;
-
+  
       let listaFinal = exCoordenadores || [];
-
-      // 3. Se houver um coordenador na ativa, normaliza os dados e insere no topo
+  
+      // 3. Normaliza os dados da tabela 'equipe' para o formato do mural
       if (atual) {
         const coordenadorAtualMap = {
           id: `atual-${atual.id}`,
           nome_guerra_historico: atual.nome_guerra,
           posto_graduacao_historico: atual.posto_graduacao,
           foto_historica_url: atual.avatar_url,
-          data_inicio: atual.data_admissao, // Certifique-se que este campo existe ou use outra referência de data
-          data_fim: null, // Crucial para o badge "Atual"
+          // Usando a coluna correta da sua tabela para data de início
+          data_inicio: atual.data_entrada_funcao || atual.criado_at, 
+          data_fim: null, 
         };
-
-        // Verifica se ele já não está no histórico (evitar duplicidade)
-        const jaExisteNoHistorico = listaFinal.some(ex => ex.nome_guerra_historico === atual.nome_guerra);
+  
+        // Evita duplicidade se ele já foi movido para o histórico mas continua ativo
+        const jaExiste = listaFinal.some(ex => ex.nome_guerra_historico === atual.nome_guerra);
         
-        if (!jaExisteNoHistorico) {
+        if (!jaExiste) {
           listaFinal = [coordenadorAtualMap, ...listaFinal];
         }
       }
-
+  
       setHistorico(listaFinal);
     } catch (error) {
       console.error("Erro ao processar mural:", error);
@@ -56,10 +60,10 @@ export default function MuralExCoordenadores() {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    carregarMuralCompleto();
-  }, []);
+  
+    useEffect(() => {
+      carregarMuralCompleto();
+    }, []);
 
   const formatarDataExtenso = (dataString) => {
     if (!dataString) return 'Atualmente';
