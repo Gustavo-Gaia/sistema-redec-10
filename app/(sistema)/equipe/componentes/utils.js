@@ -2,7 +2,7 @@
 
 import { format, isWithinInterval, parseISO, addDays, startOfDay, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { supabase } from "@/lib/supabase"; // Importação necessária para o upload
+import { supabase } from "@/lib/supabase";
 
 /**
  * Normaliza uma string de data para evitar problemas de fuso horário
@@ -14,34 +14,54 @@ const safeParse = (dateString) => {
 
 /**
  * Faz o upload da foto para o Supabase Storage
- * Padrão de nome: militar-{id}.jpg
+ * 🔥 PADRÃO FIXO: militar-{id}.jpg
+ * ✔ evita duplicação
+ * ✔ permite overwrite
+ * ✔ facilita remoção
  */
 export const uploadFotoMilitar = async (militarId, file) => {
   try {
-    // Definimos o nome do arquivo baseado no ID
-    // Usamos .jpg ou a extensão original, mas o nome fixo garante o overwrite
-    const fileExt = file.name.split('.').pop();
-    const fileName = `militar-${militarId}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const fileName = `militar-${militarId}.jpg`;
+    const filePath = fileName;
 
-    // Upload/Sobrescrever no bucket 'militares'
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('militares')
       .upload(filePath, file, {
-        upsert: true, // Isso garante que substitua o arquivo antigo se o nome for igual
+        upsert: true,
         cacheControl: '3600'
       });
 
     if (error) throw error;
 
-    // Retorna a URL pública para salvarmos na tabela 'equipe'
     const { data: { publicUrl } } = supabase.storage
       .from('militares')
       .getPublicUrl(filePath);
 
-    return publicUrl;
+    // 🔥 SOLUÇÃO DO CACHE (ESSENCIAL)
+    return `${publicUrl}?t=${Date.now()}`;
+
   } catch (error) {
     console.error('Erro no upload:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Remove a foto do militar do storage
+ */
+export const removerFotoMilitar = async (militarId) => {
+  try {
+    const filePath = `militar-${militarId}.jpg`;
+
+    const { error } = await supabase.storage
+      .from('militares')
+      .remove([filePath]);
+
+    if (error) throw error;
+
+    return true;
+  } catch (error) {
+    console.error('Erro ao remover foto:', error.message);
     throw error;
   }
 };
