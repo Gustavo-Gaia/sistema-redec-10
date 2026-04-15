@@ -101,17 +101,21 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     if (error) console.error("Erro ao enviar para o mural:", error.message);
   }
 
+  // Função para tratar a entrada: apenas números e máximo 3 dígitos
+  const handleInputBoletim = (campo, valor) => {
+    const apenasNumeros = valor.replace(/\D/g, "").substring(0, 3);
+    setForm({ ...form, [campo]: apenasNumeros });
+  };
+
   async function salvarMilitar() {
     setLoading(true);
     try {
         const formatarDataParaBanco = (data) => (data === "" || !data ? null : data);
         
-        // Função para reconstruir o padrão BOL-SEDEC XXX/ANO antes de salvar
         const formatarBolAoSalvar = (valor, dataRef) => {
           if (!valor) return null;
           const numeros = valor.replace(/\D/g, ""); 
           if (!numeros) return null;
-          
           const ano = dataRef ? new Date(dataRef + "T12:00:00").getFullYear() : new Date().getFullYear();
           return `BOL-SEDEC ${numeros.padStart(3, '0')}/${ano}`;
         };
@@ -136,12 +140,10 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
         const dadosParaSalvar = {
           ...form,
           avatar_url: urlFinal,
-          // Formatação dos Boletins
           bol_entrada_redec: formatarBolAoSalvar(form.bol_entrada_redec, form.data_entrada_redec),
           bol_saida_redec: formatarBolAoSalvar(form.bol_saida_redec, form.data_saida_redec),
           bol_entrada_funcao: formatarBolAoSalvar(form.bol_entrada_funcao, form.data_entrada_funcao),
           bol_saida_funcao: formatarBolAoSalvar(form.bol_saida_funcao, form.data_saida_funcao),
-          
           data_entrada_redec: formatarDataParaBanco(form.data_entrada_redec),
           data_saida_redec: formatarDataParaBanco(form.data_saida_redec),
           data_entrada_funcao: formatarDataParaBanco(form.data_entrada_funcao),
@@ -152,10 +154,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
 
         const { data, error } = await supabase.from('equipe').upsert(dadosParaSalvar).select().single();
         if (error) throw error;
-
-        if (enviarAoMural && form.data_saida_funcao) {
-            await registrarNoMural(data.id, urlFinal);
-        }
+        if (enviarAoMural && form.data_saida_funcao) await registrarNoMural(data.id, urlFinal);
 
         onSaved();
         onClose();
@@ -180,7 +179,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
   return (
     <div className="fixed inset-0 z-[60] flex justify-end">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-
       <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
         {/* HEADER */}
@@ -214,10 +212,8 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
 
         {/* CONTEÚDO */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-          
           {aba === 'dados' && (
             <div className="space-y-4 animate-in fade-in duration-300">
-              {/* ÁREA DA FOTO */}
               <div className="flex flex-col items-center justify-center pb-4">
                 <div className="relative group">
                   <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center relative">
@@ -337,12 +333,12 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm mb-1"
                       value={form.data_entrada_redec || ''} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
                     
-                    <div className="relative flex items-center">
-                      <span className="absolute left-2 text-[9px] font-black text-slate-400 select-none">BOL-SEDEC</span>
+                    <div className="relative flex items-center w-full">
+                      <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
-                        className="w-full p-2 pl-14 bg-white/80 rounded-lg border-none text-[10px] font-bold outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full p-3 pl-[65px] bg-white rounded-xl border-none text-[11px] font-black text-left text-blue-600 shadow-sm focus:ring-1 focus:ring-blue-500"
                         value={form.bol_entrada_redec?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
-                        onChange={e => setForm({...form, bol_entrada_redec: e.target.value})} 
+                        onChange={e => handleInputBoletim('bol_entrada_redec', e.target.value)} 
                       />
                     </div>
                   </div>
@@ -353,12 +349,12 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold text-red-600 shadow-sm mb-1"
                       value={form.data_saida_redec || ''} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
                     
-                    <div className="relative flex items-center">
-                      <span className="absolute left-2 text-[9px] font-black text-slate-400 select-none">BOL-SEDEC</span>
+                    <div className="relative flex items-center w-full">
+                      <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
-                        className="w-full p-2 pl-14 bg-white/80 rounded-lg border-none text-[10px] font-bold outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full p-3 pl-[65px] bg-white rounded-xl border-none text-[11px] font-black text-left text-red-600 shadow-sm focus:ring-1 focus:ring-red-500"
                         value={form.bol_saida_redec?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
-                        onChange={e => setForm({...form, bol_saida_redec: e.target.value})} 
+                        onChange={e => handleInputBoletim('bol_saida_redec', e.target.value)} 
                       />
                     </div>
                   </div>
@@ -376,12 +372,12 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm mb-1"
                       value={form.data_entrada_funcao || ''} onChange={e => setForm({...form, data_entrada_funcao: e.target.value})} />
                     
-                    <div className="relative flex items-center">
-                      <span className="absolute left-2 text-[9px] font-black text-slate-400 select-none">BOL-SEDEC</span>
+                    <div className="relative flex items-center w-full">
+                      <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
-                        className="w-full p-2 pl-14 bg-white/80 rounded-lg border-none text-[10px] font-bold outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full p-3 pl-[65px] bg-white rounded-xl border-none text-[11px] font-black text-left text-slate-600 shadow-sm focus:ring-1 focus:ring-blue-500"
                         value={form.bol_entrada_funcao?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
-                        onChange={e => setForm({...form, bol_entrada_funcao: e.target.value})} 
+                        onChange={e => handleInputBoletim('bol_entrada_funcao', e.target.value)} 
                       />
                     </div>
                   </div>
@@ -392,12 +388,12 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm mb-1"
                       value={form.data_saida_funcao || ''} onChange={e => setForm({...form, data_saida_funcao: e.target.value})} />
                     
-                    <div className="relative flex items-center">
-                      <span className="absolute left-2 text-[9px] font-black text-slate-400 select-none">BOL-SEDEC</span>
+                    <div className="relative flex items-center w-full">
+                      <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
-                        className="w-full p-2 pl-14 bg-white/80 rounded-lg border-none text-[10px] font-bold outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full p-3 pl-[65px] bg-white rounded-xl border-none text-[11px] font-black text-left text-slate-600 shadow-sm focus:ring-1 focus:ring-blue-500"
                         value={form.bol_saida_funcao?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
-                        onChange={e => setForm({...form, bol_saida_funcao: e.target.value})} 
+                        onChange={e => handleInputBoletim('bol_saida_funcao', e.target.value)} 
                       />
                     </div>
                   </div>
