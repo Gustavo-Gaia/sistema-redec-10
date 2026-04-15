@@ -105,8 +105,8 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     setLoading(true);
     try {
         const formatarDataParaBanco = (data) => (data === "" || !data ? null : data);
-
-        // Reconstrução do padrão oficial apenas no salvamento
+        
+        // Função para reconstruir o padrão BOL-SEDEC XXX/ANO antes de salvar
         const formatarBolAoSalvar = (valor, dataRef) => {
           if (!valor) return null;
           const numeros = valor.replace(/\D/g, ""); 
@@ -136,6 +136,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
         const dadosParaSalvar = {
           ...form,
           avatar_url: urlFinal,
+          // Formatação dos Boletins
           bol_entrada_redec: formatarBolAoSalvar(form.bol_entrada_redec, form.data_entrada_redec),
           bol_saida_redec: formatarBolAoSalvar(form.bol_saida_redec, form.data_saida_redec),
           bol_entrada_funcao: formatarBolAoSalvar(form.bol_entrada_funcao, form.data_entrada_funcao),
@@ -165,9 +166,21 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     }
   }
 
+  const handleExcluirAfastamento = async (id) => {
+    if (!confirm("Excluir este afastamento definitivamente?")) return;
+    try {
+      const { error } = await supabase.from('equipe_afastamentos').delete().eq('id', id);
+      if (error) throw error;
+      onSaved();
+    } catch (error) {
+      alert("Erro ao excluir: " + error.message);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex justify-end">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+
       <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
         {/* HEADER */}
@@ -204,6 +217,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
           
           {aba === 'dados' && (
             <div className="space-y-4 animate-in fade-in duration-300">
+              {/* ÁREA DA FOTO */}
               <div className="flex flex-col items-center justify-center pb-4">
                 <div className="relative group">
                   <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center relative">
@@ -212,13 +226,15 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     ) : (
                       <User size={48} className="text-slate-300" />
                     )}
-                    <button onClick={() => fileInputRef.current.click()} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1">
+                    <button onClick={() => fileInputRef.current.click()}
+                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1">
                       <Camera size={20} />
                       <span className="text-[8px] font-black uppercase">Alterar Foto</span>
                     </button>
                   </div>
                   {fotoArquivo && (
-                    <button onClick={() => { setFotoArquivo(null); setFotoPreview(form.avatar_url); }} className="absolute -top-2 -right-2 bg-amber-500 text-white p-1.5 rounded-full shadow-lg hover:bg-amber-600 transition-colors">
+                    <button onClick={() => { setFotoArquivo(null); setFotoPreview(form.avatar_url); }}
+                      className="absolute -top-2 -right-2 bg-amber-500 text-white p-1.5 rounded-full shadow-lg hover:bg-amber-600 transition-colors">
                       <RefreshCw size={14} />
                     </button>
                   )}
@@ -417,10 +433,12 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => {setAfastamentoParaEditar(afast); setShowModalAfast(true);}} className="text-slate-300 hover:text-blue-600 p-2 transition-colors">
+                        <button onClick={() => { setAfastamentoParaEditar(afast); setShowModalAfast(true); }} 
+                          className="text-slate-300 hover:text-blue-600 p-2 transition-colors">
                           <Edit2 size={18} />
                         </button>
-                        <button onClick={() => handleExcluirAfastamento(afast.id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
+                        <button onClick={() => handleExcluirAfastamento(afast.id)} 
+                          className="text-slate-300 hover:text-red-500 p-2 transition-colors">
                           <Trash2 size={18} />
                         </button>
                       </div>
