@@ -2,6 +2,7 @@
 
 import { format, isWithinInterval, parseISO, addDays, startOfDay, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from "@/lib/supabase"; // Importação necessária para o upload
 
 /**
  * Normaliza uma string de data para evitar problemas de fuso horário
@@ -9,6 +10,40 @@ import { ptBR } from 'date-fns/locale';
 const safeParse = (dateString) => {
   if (!dateString) return null;
   return parseISO(`${dateString}T00:00:00`);
+};
+
+/**
+ * Faz o upload da foto para o Supabase Storage
+ * Padrão de nome: militar-{id}.jpg
+ */
+export const uploadFotoMilitar = async (militarId, file) => {
+  try {
+    // Definimos o nome do arquivo baseado no ID
+    // Usamos .jpg ou a extensão original, mas o nome fixo garante o overwrite
+    const fileExt = file.name.split('.').pop();
+    const fileName = `militar-${militarId}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    // Upload/Sobrescrever no bucket 'militares'
+    const { data, error } = await supabase.storage
+      .from('militares')
+      .upload(filePath, file, {
+        upsert: true, // Isso garante que substitua o arquivo antigo se o nome for igual
+        cacheControl: '3600'
+      });
+
+    if (error) throw error;
+
+    // Retorna a URL pública para salvarmos na tabela 'equipe'
+    const { data: { publicUrl } } = supabase.storage
+      .from('militares')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  } catch (error) {
+    console.error('Erro no upload:', error.message);
+    throw error;
+  }
 };
 
 /**
@@ -29,7 +64,7 @@ export const formatarCPF = (value) => {
  */
 export const formatarTelefone = (value) => {
   if (!value) return "";
-  const num = value.replace(/\D/g, ""); // Remove tudo que não é número
+  const num = value.replace(/\D/g, ""); 
   const len = num.length;
 
   if (len <= 2) return `(${num}`;
@@ -39,7 +74,7 @@ export const formatarTelefone = (value) => {
 };
 
 /**
- * Verifica se o militar ainda pertence à unidade com base nas datas e status
+ * Verifica se o militar ainda pertence à unidade
  */
 export function verificarSeAtivo(militar) {
   if (!militar.ativo) return false;
@@ -47,7 +82,6 @@ export function verificarSeAtivo(militar) {
   if (militar.data_saida_redec) {
     const hoje = startOfDay(new Date());
     const dataSaida = safeParse(militar.data_saida_redec);
-    // Se a data de saída já passou ou é hoje, ele não está mais ativo no painel
     if (isBefore(dataSaida, hoje)) return false;
   }
   
@@ -100,20 +134,16 @@ export function ordenarEquipe(militares, config) {
   if (!militares) return [];
 
   return [...militares].sort((a, b) => {
-    // 1. Coordenador
     if (a.id === config?.coordenador_id) return -1;
     if (b.id === config?.coordenador_id) return 1;
 
-    // 2. Subcoordenador
     if (a.id === config?.subcoordenador_id) return -1;
     if (b.id === config?.subcoordenador_id) return 1;
 
-    // 3. Critério de 'ordem'
     if (a.ordem !== b.ordem) {
       return (a.ordem || 0) - (b.ordem || 0);
     }
 
-    // 4. Alfabeto
     return a.nome_guerra.localeCompare(b.nome_guerra);
   });
 }
