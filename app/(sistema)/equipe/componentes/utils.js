@@ -53,11 +53,20 @@ export const removerFotoMilitar = async (militarId) => {
   try {
     const filePath = `militar-${militarId}.jpg`;
 
-    const { error } = await supabase.storage
+    // 1. Remove do Storage
+    const { error: storageError } = await supabase.storage
       .from('militares')
       .remove([filePath]);
 
-    if (error) throw error;
+    if (storageError) throw storageError;
+
+    // 2. Limpa a referência no Banco de Dados
+    const { error: dbError } = await supabase
+      .from('equipe')
+      .update({ avatar_url: null })
+      .eq('id', militarId);
+
+    if (dbError) throw dbError;
 
     return true;
   } catch (error) {
