@@ -79,7 +79,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
       setForm(prev => ({ ...prev, avatar_url: '' }));
       setFotoPreview(null);
       setFotoArquivo(null);
-      onSaved(); // Atualiza a lista principal
+      onSaved(); 
     } catch (error) {
       alert("Erro ao remover: " + error.message);
     } finally {
@@ -98,6 +98,11 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     let resultado = `BOL-SEDEC ${numeroPart}`;
     if (anoPart) resultado += `/${anoPart}`;
     return resultado.toUpperCase();
+  };
+
+  const handleEditarAfastamento = (afast) => {
+    setAfastamentoParaEditar(afast);
+    setShowModalAfast(true);
   };
 
   async function registrarNoMural(militarId, urlFoto) {
@@ -121,11 +126,10 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     try {
         const formatarDataParaBanco = (data) => (data === "" || !data ? null : data);
         let urlFinal = form.avatar_url;
-
-        // Se for novo militar e tiver foto, precisamos primeiro do ID
         let militarId = militar?.id;
 
-        if (!militarId && fotoArquivo) {
+        // 1. Se for novo e tiver foto, cria o registro básico primeiro para obter ID
+        if (!militarId) {
             const { data: novo, error: errN } = await supabase
                 .from('equipe')
                 .insert([{ ...form, avatar_url: '' }])
@@ -135,10 +139,12 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
             militarId = novo.id;
         }
 
+        // 2. Upload da foto se houver novo arquivo
         if (fotoArquivo && militarId) {
             urlFinal = await uploadFotoMilitar(militarId, fotoArquivo);
         }
 
+        // 3. Update Final (ou Upsert se já existia)
         const dadosParaSalvar = {
           ...form,
           avatar_url: urlFinal,
@@ -154,6 +160,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
 
         if (error) throw error;
 
+        // 4. Mural Histórico
         if (enviarAoMural && form.data_saida_funcao) {
             await registrarNoMural(data.id, urlFinal);
         }
@@ -391,7 +398,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                 <div className="flex items-center gap-2 px-2 pt-2">
                   <input type="checkbox" id="mural" className="rounded border-slate-300 text-blue-600" 
                     checked={enviarAoMural} onChange={e => setEnviarAoMural(e.target.checked)} />
-                  <label htmlFor="mural" className="text-[10px] font-bold text-slate-500 uppercase">Enviar saída da função para o mural histórico</label>
+                  <label htmlFor="mural" className="text-[10px] font-bold text-slate-500 uppercase">Enviar saída para o mural histórico</label>
                 </div>
               </div>
             </div>
