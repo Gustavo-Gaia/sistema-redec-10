@@ -8,87 +8,78 @@ import Link from "next/link"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 
-export default function LoginPage(){
+export default function LoginPage() {
 
   const router = useRouter()
 
-  const [rg,setRg] = useState("")
-  const [senha,setSenha] = useState("")
-  const [erro,setErro] = useState("")
-  const [loading,setLoading] = useState(false)
+  const [rg, setRg] = useState("")
+  const [senha, setSenha] = useState("")
+  const [erro, setErro] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = async (e)=>{
-
+  const handleLogin = async (e) => {
     e.preventDefault()
 
     setErro("")
     setLoading(true)
 
-    /* busca email pelo RG */
+    try {
+      /* 1. BUSCAR USUÁRIO PELO RG */
+      const { data: userData, error: userError } = await supabase
+        .from("usuarios")
+        .select("id, email, ativo")
+        .eq("rg", rg)
+        .single()
 
-    const { data:userData, error:userError } = await supabase
-      .from("usuarios")
-      .select("id,email,ativo")
-      .eq("rg", rg)
-      .maybeSingle()
+      if (userError || !userData) {
+        setErro("Usuário não encontrado")
+        return
+      }
 
-    if(userError || !userData){
-      setErro("Usuário não encontrado")
+      if (!userData.ativo) {
+        setErro("Usuário desativado")
+        return
+      }
+
+      /* 2. LOGIN NO AUTH */
+      const { data: authData, error: loginError } =
+        await supabase.auth.signInWithPassword({
+          email: userData.email,
+          password: senha
+        })
+
+      if (loginError) {
+        setErro("Senha incorreta")
+        return
+      }
+
+      /* 3. GARANTIR SESSÃO */
+      const { data: sessionData } = await supabase.auth.getSession()
+
+      if (!sessionData.session) {
+        setErro("Erro ao criar sessão")
+        return
+      }
+
+      /* 4. COOKIE AUXILIAR (OPCIONAL) */
+      document.cookie = `usuario=${userData.id}; path=/; max-age=86400; SameSite=Lax`
+
+      /* 5. REDIRECIONAMENTO CORRETO */
+      router.push("/dashboard")
+
+    } catch (err) {
+      console.error(err)
+      setErro("Erro inesperado ao fazer login")
+    } finally {
       setLoading(false)
-      return
     }
-
-    if(!userData.ativo){
-      setErro("Usuário desativado")
-      setLoading(false)
-      return
-    }
-
-    /* login usando auth */
-
-    const { data:authData, error:loginError } =
-      await supabase.auth.signInWithPassword({
-        email: userData.email,
-        password: senha
-      })
-
-    if(loginError){
-      setErro("Senha incorreta")
-      setLoading(false)
-      return
-    }
-
-    /* garante sessão */
-
-    if(!authData.session){
-      setErro("Erro ao criar sessão")
-      setLoading(false)
-      return
-    }
-
-    /* cria cookie usado pelo middleware */
-
-    document.cookie = `usuario=${userData.id}; path=/; max-age=86400; SameSite=Lax`
-
-    /* pequena pausa para garantir que o cookie exista */
-
-    await new Promise(resolve => setTimeout(resolve, 800))
-
-    /* redireciona */
-
-    window.location.href = "/dashboard"
-    
-
   }
 
-  return(
-
+  return (
     <div className="min-h-screen relative flex items-center justify-center">
 
-      {/* LOGO FUNDO */}
-
+      {/* FUNDO */}
       <div className="absolute inset-0 flex items-center justify-center opacity-10">
-
         <Image
           src="/logotipo_redec_norte.png"
           alt="REDEC"
@@ -96,19 +87,14 @@ export default function LoginPage(){
           height={600}
           priority
         />
-
       </div>
-
-      {/* OVERLAY */}
 
       <div className="absolute inset-0 bg-slate-100/80"></div>
 
       {/* CARD */}
-
       <div className="relative bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
 
         <div className="text-center mb-6">
-
           <Image
             src="/logotipo_redec_norte.png"
             alt="REDEC 10"
@@ -124,7 +110,6 @@ export default function LoginPage(){
           <p className="text-sm text-slate-500">
             Gestão Estratégica em Defesa Civil
           </p>
-
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -132,7 +117,7 @@ export default function LoginPage(){
           <input
             type="text"
             value={rg}
-            onChange={(e)=>setRg(e.target.value.replace(/\D/g,""))}
+            onChange={(e) => setRg(e.target.value.replace(/\D/g, ""))}
             placeholder="RG (somente números)"
             className="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
@@ -141,7 +126,7 @@ export default function LoginPage(){
           <input
             type="password"
             value={senha}
-            onChange={(e)=>setSenha(e.target.value)}
+            onChange={(e) => setSenha(e.target.value)}
             placeholder="Senha"
             className="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
@@ -162,27 +147,16 @@ export default function LoginPage(){
         </form>
 
         <div className="flex justify-between mt-4 text-sm">
-
-          <Link
-            href="/login/recuperar-senha"
-            className="text-blue-600 hover:underline"
-          >
+          <Link href="/login/recuperar-senha" className="text-blue-600 hover:underline">
             Esqueci minha senha
           </Link>
 
-          <Link
-            href="/login/cadastro"
-            className="text-blue-600 hover:underline"
-          >
+          <Link href="/login/cadastro" className="text-blue-600 hover:underline">
             Criar conta
           </Link>
-
         </div>
 
       </div>
-
     </div>
-
   )
-
 }
