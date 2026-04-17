@@ -4,7 +4,6 @@
 
 import Sidebar from "@/components/Sidebar"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import "leaflet/dist/leaflet.css"
@@ -12,19 +11,32 @@ import "leaflet/dist/leaflet.css"
 import { MonitoramentoProvider } from "./monitoramento/MonitoramentoContext"
 
 export default function SistemaLayout({ children }) {
-  const router = useRouter()
 
   const [usuario, setUsuario] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     carregarUsuario()
+
+    // 🔥 escuta mudanças de autenticação
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      carregarUsuario()
+    })
+
+    return () => {
+      listener?.subscription.unsubscribe()
+    }
   }, [])
 
   async function carregarUsuario() {
+    setLoading(true)
+
     const { data: { user } } = await supabase.auth.getUser()
 
+    // 🔥 não redireciona aqui — middleware já faz isso
     if (!user) {
-      router.push("/login")
+      setUsuario(null)
+      setLoading(false)
       return
     }
 
@@ -35,17 +47,27 @@ export default function SistemaLayout({ children }) {
       .single()
 
     setUsuario(data)
+    setLoading(false)
   }
 
   async function handleLogout() {
     await supabase.auth.signOut()
-    router.push("/login")
+    window.location.href = "/login" // 🔥 força reload limpo
   }
 
   function getCorNivel(nivel) {
     if (nivel === "admin") return "bg-purple-100 text-purple-700"
     if (nivel === "operador") return "bg-blue-100 text-blue-700"
     return "bg-slate-100 text-slate-600"
+  }
+
+  // 🔥 loading global elegante
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-100">
+        <p className="text-slate-500 font-medium">Carregando sistema...</p>
+      </div>
+    )
   }
 
   return (
@@ -80,7 +102,7 @@ export default function SistemaLayout({ children }) {
               </p>
             </div>
 
-            {/* 🔥 USUÁRIO */}
+            {/* USUÁRIO */}
             {usuario && (
               <div className="flex items-center gap-3 bg-white border px-3 py-2 rounded-xl shadow-sm">
 
@@ -98,8 +120,8 @@ export default function SistemaLayout({ children }) {
                   </span>
                 </div>
 
-                <span className={`text-xs font-bold px-2 py-1 rounded-full ${getCorNivel(usuario.nivel)}`}>
-                  {usuario.nivel}
+                <span className={`text-xs font-bold px-2 py-1 rounded-full ${getCorNivel(usuario?.nivel)}`}>
+                  {usuario?.nivel}
                 </span>
 
               </div>
