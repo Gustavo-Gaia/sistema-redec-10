@@ -2,42 +2,48 @@
 
 import { NextResponse } from "next/server"
 
-export function middleware(request){
+export function middleware(request) {
 
-const url = request.nextUrl.clone()
+  const url = request.nextUrl.clone()
 
-const isLoginPage = url.pathname.startsWith("/login")
+  const isLoginPage = url.pathname.startsWith("/login")
 
-const accessToken = request.cookies.get("sb-access-token")
+  /* 🔥 pega TODOS os cookies possíveis do Supabase */
+  const cookies = request.cookies.getAll()
 
-const usuarioCookie = request.cookies.get("usuario")
+  const hasSupabaseSession = cookies.some(c =>
+    c.name.startsWith("sb-") && c.name.includes("auth-token")
+  )
 
-const isLogged = accessToken || usuarioCookie
+  const usuarioCookie = request.cookies.get("usuario")
 
-if(!isLogged && !isLoginPage){
-url.pathname = "/login"
-return NextResponse.redirect(url)
-}
+  const isLogged = hasSupabaseSession || usuarioCookie
 
-if(isLogged && isLoginPage){
-url.pathname = "/dashboard"
-return NextResponse.redirect(url)
-}
+  /* 🚫 não logado */
+  if (!isLogged && !isLoginPage) {
+    url.pathname = "/login"
+    return NextResponse.redirect(url)
+  }
 
-return NextResponse.next()
+  /* 🔁 já logado tentando acessar login */
+  if (isLogged && isLoginPage) {
+    url.pathname = "/dashboard"
+    return NextResponse.redirect(url)
+  }
 
+  return NextResponse.next()
 }
 
 export const config = {
-matcher:[
-"/dashboard/:path*",
-"/monitoramento/:path*",
-"/equipe/:path*",
-"/boletins/:path*",
-"/agenda/:path*",
-"/viaturas/:path*",
-"/municipios/:path*",
-"/patrimonio/:path*",
-"/configuracoes/:path*"
-]
+  matcher: [
+    "/dashboard/:path*",
+    "/monitoramento/:path*",
+    "/equipe/:path*",
+    "/boletins/:path*",
+    "/agenda/:path*",
+    "/viaturas/:path*",
+    "/municipios/:path*",
+    "/patrimonio/:path*",
+    "/configuracoes/:path*"
+  ]
 }
