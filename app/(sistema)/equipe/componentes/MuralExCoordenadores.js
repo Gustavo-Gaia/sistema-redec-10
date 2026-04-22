@@ -9,50 +9,49 @@ export default function MuralExCoordenadores() {
   const [historico, setHistorico] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  /* Substitua apenas a função carregarMuralCompleto dentro do seu arquivo */
-
   async function carregarMuralCompleto() {
     try {
       setLoading(true);
-  
-      // 1. Busca o Coordenador Atual usando os nomes corretos das colunas
+
+      // 1. Busca o Coordenador Atual na tabela 'equipe'
       const { data: atual, error: errorAtual } = await supabase
         .from('equipe')
         .select('*')
-        .eq('funcao_redec', 'COORDENADOR') // Nome da coluna e Valor em MAIÚSCULO
-        .eq('ativo', true)               // Garante que ele ainda está na ativa
+        .eq('funcao_redec', 'COORDENADOR')
+        .eq('ativo', true)
         .maybeSingle();
-  
-      // 2. Busca o Histórico
+
+      // 2. Busca o Histórico na tabela 'equipe_mural_historico'
       const { data: exCoordenadores, error: errorHistorico } = await supabase
         .from('equipe_mural_historico')
         .select('*')
         .order('data_inicio', { ascending: false });
-  
+
       if (errorHistorico) throw errorHistorico;
-  
+
       let listaFinal = exCoordenadores || [];
-  
-      // 3. Normaliza os dados da tabela 'equipe' para o formato do mural
+
+      // 3. Normaliza o Coordenador Atual para o formato da lista (usando avatar_url)
       if (atual) {
         const coordenadorAtualMap = {
           id: `atual-${atual.id}`,
           nome_guerra_historico: atual.nome_guerra,
           posto_graduacao_historico: atual.posto_graduacao,
-          foto_historica_url: atual.avatar_url,
-          // Usando a coluna correta da sua tabela para data de início
-          data_inicio: atual.data_entrada_funcao || atual.criado_at, 
-          data_fim: null, 
+          avatar_url: atual.avatar_url, // PADRONIZADO
+          data_inicio: atual.data_entrada_funcao || atual.criado_at,
+          data_fim: null,
         };
-  
-        // Evita duplicidade se ele já foi movido para o histórico mas continua ativo
-        const jaExiste = listaFinal.some(ex => ex.nome_guerra_historico === atual.nome_guerra);
-        
+
+        // Evita duplicidade visual
+        const jaExiste = listaFinal.some(ex => 
+          ex.nome_guerra_historico === atual.nome_guerra && ex.data_fim === null
+        );
+
         if (!jaExiste) {
           listaFinal = [coordenadorAtualMap, ...listaFinal];
         }
       }
-  
+
       setHistorico(listaFinal);
     } catch (error) {
       console.error("Erro ao processar mural:", error);
@@ -60,13 +59,14 @@ export default function MuralExCoordenadores() {
       setLoading(false);
     }
   }
-  
-    useEffect(() => {
-      carregarMuralCompleto();
-    }, []);
+
+  useEffect(() => {
+    carregarMuralCompleto();
+  }, []);
 
   const formatarDataExtenso = (dataString) => {
     if (!dataString) return 'Atualmente';
+    // Adicionamos o T12:00:00 para evitar problemas de fuso horário no JS
     const data = new Date(dataString + "T12:00:00");
     return data.toLocaleDateString('pt-BR', {
       day: 'numeric',
@@ -121,7 +121,7 @@ export default function MuralExCoordenadores() {
               key={item.id} 
               className="group relative bg-white rounded-[32px] p-1 border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
             >
-              {/* Badge "ATUAL" - Dispara quando data_fim é null */}
+              {/* Badge "ATUAL" */}
               {!item.data_fim && (
                 <div className="absolute top-6 right-6 z-10 animate-bounce">
                   <span className="bg-green-500 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase shadow-lg shadow-green-100 flex items-center gap-1">
@@ -135,10 +135,11 @@ export default function MuralExCoordenadores() {
                   <div className="relative">
                     <div className="w-28 h-28 rounded-[2.5rem] bg-slate-100 flex items-center justify-center border-4 border-white shadow-xl overflow-hidden group-hover:scale-105 transition-transform duration-500 relative">
                       
-                      {item.foto_historica_url ? (
+                      {/* Renderização da Foto com a nova chave avatar_url */}
+                      {item.avatar_url ? (
                         <>
                           <img 
-                            src={`${item.foto_historica_url}?t=${new Date().getTime()}`} 
+                            src={`${item.avatar_url}?t=${new Date().getTime()}`} 
                             alt={item.nome_guerra_historico} 
                             className="w-full h-full object-cover"
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
