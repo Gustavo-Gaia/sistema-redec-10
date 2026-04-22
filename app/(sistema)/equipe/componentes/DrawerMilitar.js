@@ -85,6 +85,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     }
   };
 
+  // AJUSTADO: Agora usa 'foto_url' para bater com o banco e trata o Coordenador
   async function registrarNoMural(militarId, urlFoto) {
     const dadosMural = {
       militar_id: militarId,
@@ -95,13 +96,13 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
       data_fim: form.data_saida_funcao || null,
       bol_inicio_historico: form.bol_entrada_funcao, 
       bol_fim_historico: form.bol_saida_funcao,
-      foto_historica_url: urlFoto 
+      foto_url: urlFoto // Corrigido de foto_historica_url para foto_url
     };
+    
     const { error } = await supabase.from('equipe_mural_historico').insert(dadosMural);
     if (error) console.error("Erro ao enviar para o mural:", error.message);
   }
 
-  // Função para tratar a entrada: apenas números e máximo 3 dígitos
   const handleInputBoletim = (campo, valor) => {
     const apenasNumeros = valor.replace(/\D/g, "").substring(0, 3);
     setForm({ ...form, [campo]: apenasNumeros });
@@ -123,6 +124,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
         let urlFinal = form.avatar_url;
         let militarId = militar?.id;
 
+        // Se for novo militar e tiver foto, precisamos criar o ID primeiro
         if (!militarId && fotoArquivo) {
             const { data: novo, error: errN } = await supabase
                 .from('equipe')
@@ -154,7 +156,11 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
 
         const { data, error } = await supabase.from('equipe').upsert(dadosParaSalvar).select().single();
         if (error) throw error;
-        if (enviarAoMural && form.data_saida_funcao) await registrarNoMural(data.id, urlFinal);
+
+        // LOGICA DE MURAL: Se for coordenador e a opção estiver marcada
+        if (enviarAoMural && form.funcao_redec === 'COORDENADOR') {
+            await registrarNoMural(data.id, urlFinal);
+        }
 
         onSaved();
         onClose();
@@ -327,12 +333,10 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                   <Shield size={14} /> Movimentação na Unidade
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
-                  {/* INGRESSO REDEC */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Ingresso</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm mb-1"
                       value={form.data_entrada_redec || ''} onChange={e => setForm({...form, data_entrada_redec: e.target.value})} />
-                    
                     <div className="relative flex items-center w-full">
                       <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
@@ -343,12 +347,10 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     </div>
                   </div>
 
-                  {/* DESLIGAMENTO REDEC */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-red-400 ml-1">Desligamento</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold text-red-600 shadow-sm mb-1"
                       value={form.data_saida_redec || ''} onChange={e => setForm({...form, data_saida_redec: e.target.value})} />
-                    
                     <div className="relative flex items-center w-full">
                       <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
@@ -366,12 +368,10 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                   <Fingerprint size={14} /> Datas da Função Atual
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
-                  {/* INÍCIO FUNÇÃO */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Início Função</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm mb-1"
                       value={form.data_entrada_funcao || ''} onChange={e => setForm({...form, data_entrada_funcao: e.target.value})} />
-                    
                     <div className="relative flex items-center w-full">
                       <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
@@ -382,12 +382,10 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     </div>
                   </div>
 
-                  {/* FIM FUNÇÃO */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 ml-1">Fim Função</label>
                     <input type="date" className="w-full p-3 bg-white rounded-xl border-none text-xs font-bold shadow-sm mb-1"
                       value={form.data_saida_funcao || ''} onChange={e => setForm({...form, data_saida_funcao: e.target.value})} />
-                    
                     <div className="relative flex items-center w-full">
                       <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
@@ -401,7 +399,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                 <div className="flex items-center gap-2 px-2 pt-2">
                   <input type="checkbox" id="mural" className="rounded border-slate-300 text-blue-600" 
                     checked={enviarAoMural} onChange={e => setEnviarAoMural(e.target.checked)} />
-                  <label htmlFor="mural" className="text-[10px] font-bold text-slate-500 uppercase">Enviar saída da função para o mural histórico</label>
+                  <label htmlFor="mural" className="text-[10px] font-bold text-slate-500 uppercase">Enviar para o mural (Apenas Coordenador)</label>
                 </div>
               </div>
             </div>
