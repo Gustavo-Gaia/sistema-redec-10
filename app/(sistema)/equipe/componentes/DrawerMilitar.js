@@ -96,7 +96,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
       data_fim: form.data_saida_funcao || null,
       bol_inicio_historico: form.bol_entrada_funcao, 
       bol_fim_historico: form.bol_saida_funcao,
-      foto_url: urlFoto // Corrigido de foto_historica_url para foto_url
+      avatar_url: urlFoto // PADRONIZADO: mudamos de foto_url para avatar_url
     };
     
     const { error } = await supabase.from('equipe_mural_historico').insert(dadosMural);
