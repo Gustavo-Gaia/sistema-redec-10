@@ -40,36 +40,44 @@ export default function TimelineMovimentacoes({
     }
   }
 
-  // 🔥 GERA URL SEGURA DINÂMICA
+  // 🔥 ABERTURA DE PDF — VERSÃO DEFINITIVA (SEM EXPIRAÇÃO)
   async function abrirPreview(mov) {
     if (!mov?.arquivo_url) return
 
     try {
       setLoadingPreview(true)
 
-      let url = mov.arquivo_url
+      let urlFinal = mov.arquivo_url
 
-      // ✅ COMPATIBILIDADE: se já for URL antiga
-      if (url.startsWith("http")) {
-        setPreview(url)
-        return
+      // ✅ CASO NOVO (nome do arquivo)
+      if (!urlFinal.startsWith("http")) {
+        const { data } = supabase.storage
+          .from("guias-humanitarias")
+          .getPublicUrl(urlFinal)
+
+        urlFinal = data.publicUrl
       }
 
-      // ✅ NOVO PADRÃO: gerar URL assinada
-      const { data, error } = await supabase.storage
-        .from("guias-humanitarias")
-        .createSignedUrl(url, 60 * 10) // 10 minutos
+      // ✅ CASO ANTIGO (URL assinada com token)
+      if (urlFinal.includes("/object/sign/")) {
+        const nomeArquivo = urlFinal
+          .split("guias-humanitarias/")[1]
+          ?.split("?")[0]
 
-      if (error || !data?.signedUrl) {
-        alert("Erro ao abrir documento")
-        return
+        if (nomeArquivo) {
+          const { data } = supabase.storage
+            .from("guias-humanitarias")
+            .getPublicUrl(nomeArquivo)
+
+          urlFinal = data.publicUrl
+        }
       }
 
-      setPreview(data.signedUrl)
+      setPreview(urlFinal)
 
     } catch (err) {
       console.error(err)
-      alert("Erro ao gerar visualização")
+      alert("Erro ao abrir documento")
     } finally {
       setLoadingPreview(false)
     }
@@ -228,7 +236,6 @@ export default function TimelineMovimentacoes({
 
               <div className="flex items-center gap-2">
 
-                {/* ABRIR EM NOVA ABA */}
                 <a
                   href={preview}
                   target="_blank"
@@ -238,7 +245,6 @@ export default function TimelineMovimentacoes({
                   Abrir em nova aba
                 </a>
 
-                {/* FECHAR */}
                 <button
                   onClick={() => setPreview(null)}
                   className="p-2 hover:bg-slate-200 rounded-full"
@@ -248,7 +254,6 @@ export default function TimelineMovimentacoes({
               </div>
             </div>
 
-            {/* IFRAME */}
             <iframe
               src={preview}
               className="w-full h-full border-none"
