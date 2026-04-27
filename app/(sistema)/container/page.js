@@ -21,7 +21,6 @@ export default function ContainerPage() {
 
   const [toast, setToast] = useState(null)
 
-  // 🔥 NOVO: controle do select
   const [anoSelecionado, setAnoSelecionado] = useState("total")
   const [anosDisponiveis, setAnosDisponiveis] = useState([])
 
@@ -38,7 +37,6 @@ export default function ContainerPage() {
 
     setMovimentacoes(data || [])
 
-    // 🔥 EXTRAIR ANOS AUTOMATICAMENTE
     const anos = [
       ...new Set(
         (data || []).map((m) =>
@@ -59,29 +57,36 @@ export default function ContainerPage() {
     if (data) setSaldo(data)
   }
 
+  // 🔥 UPLOAD CORRETO (SEM ESPAÇO NO NOME)
   async function uploadArquivo(file) {
     if (!file) return null
-  
+
     const fileName = `${Date.now()}-${file.name.replace(/\s/g, "_")}`
-  
+
     const { error } = await supabase.storage
       .from("guias-humanitarias")
       .upload(fileName, file)
-  
+
     if (error) {
       showToast("Erro ao enviar arquivo", "error")
       return null
     }
-  
-    // 🔥 AGORA RETORNA APENAS O NOME DO ARQUIVO
-    return fileName
+
+    return fileName // 🔥 sempre retorna só o nome
   }
 
+  // 🔥 FUNÇÃO BLINDADA (NUNCA SALVA URL)
   async function salvarMovimentacao(form, file, id = null) {
     const { data: user } = await supabase.auth.getUser()
 
-    let arquivo_url = form.arquivo_url || null
+    let arquivo_url = null
 
+    // 🔥 só aceita nome válido (nunca URL)
+    if (form.arquivo_url && !form.arquivo_url.startsWith("http")) {
+      arquivo_url = form.arquivo_url
+    }
+
+    // 🔥 novo arquivo sempre sobrescreve
     if (file) {
       arquivo_url = await uploadArquivo(file)
     }
@@ -136,7 +141,6 @@ export default function ContainerPage() {
     setModalOpen(true)
   }
 
-  // 🔥 EXPORTAÇÃO COM SUPORTE A "TOTAL"
   async function exportarRelatorio(ano) {
     const doc = new jsPDF()
 
@@ -262,7 +266,6 @@ export default function ContainerPage() {
         </h1>
       </div>
 
-      {/* 🔥 NOVO SELECT BONITO */}
       <div className="flex justify-end gap-2 items-center">
         <select
           value={anoSelecionado}
