@@ -40,43 +40,37 @@ export default function TimelineMovimentacoes({
     }
   }
 
-  // 🔥 ABERTURA DE PDF — VERSÃO DEFINITIVA (SEM EXPIRAÇÃO)
+  // 🔥 ESTRATÉGIA DEFINITIVA: URL PÚBLICA E ETERNA
   async function abrirPreview(mov) {
     if (!mov?.arquivo_url) return
 
     try {
       setLoadingPreview(true)
 
-      let urlFinal = mov.arquivo_url
+      let nomeArquivo = mov.arquivo_url
 
-      // ✅ CASO NOVO (nome do arquivo)
-      if (!urlFinal.startsWith("http")) {
-        const { data } = supabase.storage
-          .from("guias-humanitarias")
-          .getPublicUrl(urlFinal)
-
-        urlFinal = data.publicUrl
+      // 🛡️ LIMPEZA DINÂMICA: Se o que estiver no banco for uma URL antiga (com token), 
+      // extraímos apenas o nome real do arquivo para gerar o novo link público.
+      if (nomeArquivo.startsWith("http")) {
+        // Pega tudo que vem depois de 'guias-humanitarias/' e antes de qualquer '?'
+        nomeArquivo = nomeArquivo.split("guias-humanitarias/")[1]?.split("?")[0]
       }
 
-      // ✅ CASO ANTIGO (URL assinada com token)
-      if (urlFinal.includes("/object/sign/")) {
-        const nomeArquivo = urlFinal
-          .split("guias-humanitarias/")[1]
-          ?.split("?")[0]
-
-        if (nomeArquivo) {
-          const { data } = supabase.storage
-            .from("guias-humanitarias")
-            .getPublicUrl(nomeArquivo)
-
-          urlFinal = data.publicUrl
-        }
+      if (!nomeArquivo) {
+        alert("Nome do arquivo inválido ou não encontrado.")
+        return
       }
 
-      setPreview(urlFinal)
+      // ✅ GERA URL PÚBLICA (Não expira e não precisa de Signed URL)
+      // Requisito: O Bucket 'guias-humanitarias' deve estar como PUBLIC no Supabase
+      const { data } = supabase.storage
+        .from("guias-humanitarias")
+        .getPublicUrl(nomeArquivo)
+
+      setPreview(data.publicUrl)
 
     } catch (err) {
-      console.error(err)
+      console.error("Erro ao processar arquivo:", err)
       alert("Erro ao abrir documento")
     } finally {
       setLoadingPreview(false)
@@ -236,6 +230,7 @@ export default function TimelineMovimentacoes({
 
               <div className="flex items-center gap-2">
 
+                {/* ABRIR EM NOVA ABA */}
                 <a
                   href={preview}
                   target="_blank"
@@ -245,6 +240,7 @@ export default function TimelineMovimentacoes({
                   Abrir em nova aba
                 </a>
 
+                {/* FECHAR */}
                 <button
                   onClick={() => setPreview(null)}
                   className="p-2 hover:bg-slate-200 rounded-full"
@@ -254,6 +250,7 @@ export default function TimelineMovimentacoes({
               </div>
             </div>
 
+            {/* IFRAME */}
             <iframe
               src={preview}
               className="w-full h-full border-none"
