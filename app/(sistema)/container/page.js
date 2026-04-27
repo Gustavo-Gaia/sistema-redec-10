@@ -55,22 +55,35 @@ export default function ContainerPage() {
   // 🔥 UPLOAD: Mantém apenas o nome do arquivo no Storage
   async function uploadArquivo(file) {
     if (!file) return null
-
-    // Sanitização básica do nome do arquivo
-    const fileName = `${Date.now()}-${file.name.replace(/\s/g, "_")}`
-
-    const { error } = await supabase.storage
-      .from("guias-humanitarias")
-      .upload(fileName, file)
-
-    if (error) {
-      showToast("Erro ao enviar arquivo", "error")
+  
+    try {
+      // 🛡️ Nome 100% limpo
+      const nomeLimpo = file.name
+        .normalize("NFD")                  // remove acentos
+        .replace(/[\u0300-\u036f]/g, "")   // remove acentos (continuação)
+        .replace(/\s+/g, "_")              // espaços -> _
+        .replace(/[^\w.-]/g, "")           // remove caracteres inválidos
+  
+      const fileName = `${Date.now()}-${nomeLimpo}`
+  
+      const { error } = await supabase.storage
+        .from("guias-humanitarias")
+        .upload(fileName, file)
+  
+      if (error) {
+        console.error("Erro upload:", error)
+        showToast("Erro ao enviar arquivo", "error")
+        return null
+      }
+  
+      return fileName
+  
+    } catch (err) {
+      console.error("Erro inesperado:", err)
+      showToast("Erro inesperado no upload", "error")
       return null
     }
-
-    return fileName 
   }
-
   // 🔥 SALVAR: Agora totalmente blindado contra URLs com Token
   async function salvarMovimentacao(form, file, id = null) {
     const { data: { user } } = await supabase.auth.getUser()
