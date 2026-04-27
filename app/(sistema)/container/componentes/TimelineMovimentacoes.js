@@ -49,7 +49,7 @@ export default function TimelineMovimentacoes({
   
       let nomeArquivo = mov.arquivo_url
   
-      // 🔥 1. Extrai apenas o nome se vier URL completa
+      // 1. Extrai nome se vier URL completa
       if (nomeArquivo.startsWith("http")) {
         nomeArquivo = nomeArquivo
           .split("guias-humanitarias/")[1]
@@ -61,27 +61,34 @@ export default function TimelineMovimentacoes({
         return
       }
   
-      // 🔥 2. Tenta decodificar (com proteção)
-      try {
-        nomeArquivo = decodeURIComponent(nomeArquivo)
-      } catch {
-        // se falhar, usa original
-      }
-  
-      // 🔥 3. Garante consistência (remove espaços estranhos)
       nomeArquivo = nomeArquivo.trim()
   
-      // 🔥 4. Gera URL pública (SEM EXPIRAÇÃO)
-      const { data } = supabase.storage
+      // 🔥 2. Tenta primeiro como está (PRIORIDADE)
+      let { data } = supabase.storage
         .from("guias-humanitarias")
         .getPublicUrl(nomeArquivo)
   
-      if (!data?.publicUrl) {
-        alert("Erro ao gerar URL do documento")
+      let finalUrl = data?.publicUrl
+  
+      // 🔥 3. Se falhar, tenta versão decodificada
+      if (!finalUrl || finalUrl.includes("InvalidKey")) {
+        try {
+          const nomeDecodificado = decodeURIComponent(nomeArquivo)
+  
+          const tentativa = supabase.storage
+            .from("guias-humanitarias")
+            .getPublicUrl(nomeDecodificado)
+  
+          finalUrl = tentativa.data?.publicUrl
+        } catch {}
+      }
+  
+      if (!finalUrl) {
+        alert("Arquivo não encontrado")
         return
       }
   
-      setPreview(data.publicUrl)
+      setPreview(finalUrl)
   
     } catch (err) {
       console.error(err)
