@@ -49,11 +49,9 @@ export default function TimelineMovimentacoes({
   
       let nomeArquivo = mov.arquivo_url
   
-      // 1. Extrai nome se vier URL completa
+      // 1. Extrai o nome se for uma URL antiga/completa
       if (nomeArquivo.startsWith("http")) {
-        nomeArquivo = nomeArquivo
-          .split("guias-humanitarias/")[1]
-          ?.split("?")[0]
+        nomeArquivo = nomeArquivo.split("guias-humanitarias/")[1]?.split("?")[0]
       }
   
       if (!nomeArquivo) {
@@ -61,37 +59,24 @@ export default function TimelineMovimentacoes({
         return
       }
   
-      nomeArquivo = nomeArquivo.trim()
+      // 🔥 2. A CHAVE DO PROBLEMA:
+      // Decodificamos primeiro para remover %20, %25, etc.
+      // Depois, usamos o nome "puro". O SDK do Supabase se encarrega de 
+      // codificar corretamente na hora de gerar a Public URL.
+      const nomeLimpo = decodeURIComponent(nomeArquivo).trim()
   
-      // 🔥 2. Tenta primeiro como está (PRIORIDADE)
-      let { data } = supabase.storage
+      const { data } = supabase.storage
         .from("guias-humanitarias")
-        .getPublicUrl(nomeArquivo)
+        .getPublicUrl(nomeLimpo)
   
-      let finalUrl = data?.publicUrl
-  
-      // 🔥 3. Se falhar, tenta versão decodificada
-      if (!finalUrl || finalUrl.includes("InvalidKey")) {
-        try {
-          const nomeDecodificado = decodeURIComponent(nomeArquivo)
-  
-          const tentativa = supabase.storage
-            .from("guias-humanitarias")
-            .getPublicUrl(nomeDecodificado)
-  
-          finalUrl = tentativa.data?.publicUrl
-        } catch {}
+      if (!data?.publicUrl) {
+        throw new Error("Erro ao gerar URL")
       }
   
-      if (!finalUrl) {
-        alert("Arquivo não encontrado")
-        return
-      }
-  
-      setPreview(finalUrl)
+      setPreview(data.publicUrl)
   
     } catch (err) {
-      console.error(err)
+      console.error("Erro no preview:", err)
       alert("Erro ao abrir documento")
     } finally {
       setLoadingPreview(false)
