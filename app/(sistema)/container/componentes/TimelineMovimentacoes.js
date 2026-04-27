@@ -43,34 +43,48 @@ export default function TimelineMovimentacoes({
   // 🔥 ESTRATÉGIA DEFINITIVA: URL PÚBLICA E ETERNA
   async function abrirPreview(mov) {
     if (!mov?.arquivo_url) return
-
+  
     try {
       setLoadingPreview(true)
-
+  
       let nomeArquivo = mov.arquivo_url
-
-      // 🛡️ LIMPEZA DINÂMICA: Se o que estiver no banco for uma URL antiga (com token), 
-      // extraímos apenas o nome real do arquivo para gerar o novo link público.
+  
+      // 🔥 1. Extrai apenas o nome se vier URL completa
       if (nomeArquivo.startsWith("http")) {
-        // Pega tudo que vem depois de 'guias-humanitarias/' e antes de qualquer '?'
-        nomeArquivo = nomeArquivo.split("guias-humanitarias/")[1]?.split("?")[0]
+        nomeArquivo = nomeArquivo
+          .split("guias-humanitarias/")[1]
+          ?.split("?")[0]
       }
-
+  
       if (!nomeArquivo) {
-        alert("Nome do arquivo inválido ou não encontrado.")
+        alert("Nome do arquivo inválido")
         return
       }
-
-      // ✅ GERA URL PÚBLICA (Não expira e não precisa de Signed URL)
-      // Requisito: O Bucket 'guias-humanitarias' deve estar como PUBLIC no Supabase
+  
+      // 🔥 2. Tenta decodificar (com proteção)
+      try {
+        nomeArquivo = decodeURIComponent(nomeArquivo)
+      } catch {
+        // se falhar, usa original
+      }
+  
+      // 🔥 3. Garante consistência (remove espaços estranhos)
+      nomeArquivo = nomeArquivo.trim()
+  
+      // 🔥 4. Gera URL pública (SEM EXPIRAÇÃO)
       const { data } = supabase.storage
         .from("guias-humanitarias")
         .getPublicUrl(nomeArquivo)
-
+  
+      if (!data?.publicUrl) {
+        alert("Erro ao gerar URL do documento")
+        return
+      }
+  
       setPreview(data.publicUrl)
-
+  
     } catch (err) {
-      console.error("Erro ao processar arquivo:", err)
+      console.error(err)
       alert("Erro ao abrir documento")
     } finally {
       setLoadingPreview(false)
