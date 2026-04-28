@@ -12,6 +12,7 @@ export default function ModalMulta({
   viaturas
 }) {
 
+  // ---------------- STATE ----------------
   const [form, setForm] = useState({
     viatura_id: "",
     data_infracao: "",
@@ -20,18 +21,38 @@ export default function ModalMulta({
     valor: "",
     orgao: "",
     status: "PENDENTE",
+    numero_auto: "",
     observacao: ""
   })
 
   const [loading, setLoading] = useState(false)
 
-  // ---------------- LOAD EDIÇÃO ----------------
+  // ---------------- LOAD (EDIÇÃO) ----------------
   useEffect(() => {
     if (multa) {
       setForm({
-        ...multa,
+        viatura_id: multa.viatura_id || "",
         data_infracao: multa.data_infracao?.slice(0, 10) || "",
-        hora: multa.hora ? multa.hora.slice(0, 5) : ""
+        hora: multa.hora ? multa.hora.slice(0, 5) : "",
+        local: multa.local || "",
+        valor: multa.valor ?? "",
+        orgao: multa.orgao || "",
+        status: multa.status || "PENDENTE",
+        numero_auto: multa.numero_auto || "",
+        observacao: multa.observacao || ""
+      })
+    } else {
+      // reset ao abrir novo
+      setForm({
+        viatura_id: "",
+        data_infracao: "",
+        hora: "",
+        local: "",
+        valor: "",
+        orgao: "",
+        status: "PENDENTE",
+        numero_auto: "",
+        observacao: ""
       })
     }
   }, [multa])
@@ -39,7 +60,7 @@ export default function ModalMulta({
   // ---------------- INPUT ----------------
   function handleChange(e) {
     const { name, value } = e.target
-    setForm((prev) => ({
+    setForm(prev => ({
       ...prev,
       [name]: value
     }))
@@ -66,13 +87,14 @@ export default function ModalMulta({
       )
 
     } catch (err) {
-      console.error(err)
+      console.error("Erro ao salvar multa:", err)
     } finally {
       setLoading(false)
     }
   }
 
-  const input = "w-full border rounded-xl px-4 py-2 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-400"
+  const input =
+    "w-full border rounded-xl px-4 py-2 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-400"
 
   // ---------------- UI ----------------
   return (
@@ -80,9 +102,8 @@ export default function ModalMulta({
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       onClick={onClose}
     >
-
       <div
-        className="bg-white rounded-2xl w-full max-w-lg shadow-lg relative"
+        className="bg-white rounded-2xl w-full max-w-lg shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
 
@@ -104,6 +125,7 @@ export default function ModalMulta({
         {/* FORM */}
         <div className="p-4 space-y-3">
 
+          {/* VIATURA */}
           <select
             name="viatura_id"
             value={form.viatura_id}
@@ -118,6 +140,7 @@ export default function ModalMulta({
             ))}
           </select>
 
+          {/* DATA */}
           <input
             type="date"
             name="data_infracao"
@@ -126,6 +149,7 @@ export default function ModalMulta({
             className={input}
           />
 
+          {/* HORA */}
           <input
             type="time"
             name="hora"
@@ -134,31 +158,45 @@ export default function ModalMulta({
             className={input}
           />
 
+          {/* LOCAL */}
           <input
             name="local"
-            placeholder="Local"
+            placeholder="Local da infração"
             value={form.local}
             onChange={handleChange}
             className={input}
           />
 
+          {/* VALOR */}
           <input
             type="number"
+            step="0.01"
             name="valor"
-            placeholder="Valor"
+            placeholder="Valor (R$)"
             value={form.valor}
             onChange={handleChange}
             className={input}
           />
 
+          {/* ÓRGÃO */}
           <input
             name="orgao"
-            placeholder="Órgão"
+            placeholder="Órgão emissor"
             value={form.orgao}
             onChange={handleChange}
             className={input}
           />
 
+          {/* NUMERO AUTO */}
+          <input
+            name="numero_auto"
+            placeholder="Número do auto de infração"
+            value={form.numero_auto}
+            onChange={handleChange}
+            className={input}
+          />
+
+          {/* STATUS */}
           <select
             name="status"
             value={form.status}
@@ -170,9 +208,10 @@ export default function ModalMulta({
             <option value="RECURSO">RECURSO</option>
           </select>
 
+          {/* OBSERVAÇÃO */}
           <textarea
             name="observacao"
-            placeholder="Observação"
+            placeholder="Observações adicionais"
             value={form.observacao}
             onChange={handleChange}
             className={input}
