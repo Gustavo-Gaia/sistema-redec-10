@@ -1,5 +1,7 @@
 /* app/(sistema)/viaturas/componentes/ModalManutencao.js */
 
+/* app/(sistema)/viaturas/componentes/ModalManutencao.js */
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -19,13 +21,17 @@ export default function ModalManutencao({
     data: "",
     execucao: "PARTICULAR",
     odometro: "",
-    motivo: "",
+    defeito: "", // ✅ CORRIGIDO
     observacao: ""
   })
 
   useEffect(() => {
     if (manutencao) {
-      setForm(manutencao)
+      setForm({
+        ...manutencao,
+        // 🔥 garante formato correto da data
+        data: manutencao.data ? manutencao.data.slice(0, 10) : ""
+      })
     }
   }, [manutencao])
 
@@ -36,10 +42,23 @@ export default function ModalManutencao({
 
   async function handleSubmit() {
     if (loading) return
+
+    // 🔥 validação básica
+    if (!form.viatura_id) {
+      alert("Selecione a viatura")
+      return
+    }
+
     setLoading(true)
 
     try {
-      await onSave(form, manutencao?.id)
+      await onSave(
+        {
+          ...form,
+          odometro: form.odometro ? Number(form.odometro) : null // ✅ garante integer
+        },
+        manutencao?.id
+      )
     } catch (err) {
       console.error(err)
     } finally {
@@ -105,11 +124,12 @@ export default function ModalManutencao({
             onChange={handleChange}
             className={input}
           >
-            <option>PARTICULAR</option>
-            <option>CSM</option>
+            <option value="PARTICULAR">PARTICULAR</option>
+            <option value="CSM">CSM</option>
           </select>
 
           <input
+            type="number"
             name="odometro"
             placeholder="Odômetro"
             value={form.odometro}
@@ -117,10 +137,11 @@ export default function ModalManutencao({
             className={input}
           />
 
+          {/* ✅ CORRIGIDO AQUI */}
           <input
-            name="motivo"
+            name="defeito"
             placeholder="Defeito / Motivo"
-            value={form.motivo}
+            value={form.defeito}
             onChange={handleChange}
             className={input}
           />
