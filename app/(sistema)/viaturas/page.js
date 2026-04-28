@@ -10,11 +10,15 @@ import ModalViatura from "./componentes/ModalViatura"
 import TimelineManutencoes from "./componentes/TimelineManutencoes"
 import ModalManutencao from "./componentes/ModalManutencao"
 
+import TimelineMultas from "./componentes/TimelineMultas"
+import ModalMulta from "./componentes/ModalMulta"
+
 export default function ViaturasPage() {
 
   // ---------------- STATES ----------------
   const [viaturas, setViaturas] = useState([])
   const [manutencoes, setManutencoes] = useState([])
+  const [multas, setMultas] = useState([])
 
   const [loading, setLoading] = useState(true)
 
@@ -22,13 +26,14 @@ export default function ViaturasPage() {
 
   const [modalViaturaOpen, setModalViaturaOpen] = useState(false)
   const [modalManutOpen, setModalManutOpen] = useState(false)
+  const [modalMultaOpen, setModalMultaOpen] = useState(false)
 
   const [editandoViatura, setEditandoViatura] = useState(null)
   const [editandoManut, setEditandoManut] = useState(null)
+  const [editandoMulta, setEditandoMulta] = useState(null)
 
   const [toast, setToast] = useState(null)
 
-  // ✅ NOVO: filtro
   const [filtroViatura, setFiltroViatura] = useState("")
 
   // ---------------- TOAST ----------------
@@ -55,10 +60,7 @@ export default function ViaturasPage() {
   async function buscarManutencoes() {
     const { data, error } = await supabase
       .from("viaturas_manutencoes")
-      .select(`
-        *,
-        viaturas ( prefixo )
-      `)
+      .select(`*, viaturas ( prefixo )`)
       .order("data", { ascending: false })
 
     if (error) {
@@ -69,14 +71,29 @@ export default function ViaturasPage() {
     }
   }
 
+  async function buscarMultas() {
+    const { data, error } = await supabase
+      .from("viaturas_multas")
+      .select(`*, viaturas ( prefixo )`)
+      .order("data_infracao", { ascending: false })
+
+    if (error) {
+      console.error(error)
+      showToast("Erro ao buscar multas", "error")
+    } else {
+      setMultas(data || [])
+    }
+  }
+
   async function carregarTudo() {
     setLoading(true)
     await buscarViaturas()
     await buscarManutencoes()
+    await buscarMultas()
     setLoading(false)
   }
 
-  // ---------------- VIATURA CRUD ----------------
+  // ---------------- VIATURA ----------------
   async function salvarViatura(form) {
     try {
       if (editandoViatura) {
@@ -118,7 +135,7 @@ export default function ViaturasPage() {
       if (error) throw error
 
       showToast("Viatura excluída")
-      await buscarViaturas()
+      await carregarTudo()
 
     } catch (err) {
       console.error(err)
@@ -126,7 +143,7 @@ export default function ViaturasPage() {
     }
   }
 
-  // ---------------- MANUTENÇÃO CRUD ----------------
+  // ---------------- MANUTENÇÃO ----------------
   async function salvarManutencao(form, id = null) {
     try {
       const payload = {
@@ -186,15 +203,80 @@ export default function ViaturasPage() {
     }
   }
 
+  // ---------------- MULTAS ----------------
+  async function salvarMulta(form, id = null) {
+    try {
+      const payload = {
+        viatura_id: form.viatura_id,
+        data_infracao: form.data_infracao || null,
+        hora: form.hora || null,
+        local: form.local || null,
+        valor: form.valor ? Number(form.valor) : null,
+        orgao: form.orgao || null,
+        status: form.status || "PENDENTE",
+        observacao: form.observacao || null
+      }
+
+      if (id) {
+        const { error } = await supabase
+          .from("viaturas_multas")
+          .update(payload)
+          .eq("id", id)
+
+        if (error) throw error
+        showToast("Multa atualizada")
+      } else {
+        const { error } = await supabase
+          .from("viaturas_multas")
+          .insert([payload])
+
+        if (error) throw error
+        showToast("Multa cadastrada")
+      }
+
+      await buscarMultas()
+      setModalMultaOpen(false)
+      setEditandoMulta(null)
+
+    } catch (err) {
+      console.error(err)
+      showToast(err.message, "error")
+    }
+  }
+
+  async function deletarMulta(id) {
+    if (!confirm("Excluir multa?")) return
+
+    try {
+      const { error } = await supabase
+        .from("viaturas_multas")
+        .delete()
+        .eq("id", id)
+
+      if (error) throw error
+
+      showToast("Multa excluída")
+      await buscarMultas()
+
+    } catch (err) {
+      console.error(err)
+      showToast("Erro ao excluir", "error")
+    }
+  }
+
   // ---------------- INIT ----------------
   useEffect(() => {
     carregarTudo()
   }, [])
 
-  // ---------------- FILTRO APLICADO ----------------
+  // ---------------- FILTROS ----------------
   const manutencoesFiltradas = filtroViatura
     ? manutencoes.filter(m => m.viatura_id === filtroViatura)
     : manutencoes
+
+  const multasFiltradas = filtroViatura
+    ? multas.filter(m => m.viatura_id === filtroViatura)
+    : multas
 
   // ---------------- UI ----------------
   return (
@@ -219,59 +301,49 @@ export default function ViaturasPage() {
 
       {/* ABAS */}
       <div className="flex gap-2">
-        <button
-          onClick={() => setAba("viaturas")}
-          className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${
-            aba === "viaturas" ? "bg-slate-700 text-white" : "bg-white border"
-          }`}
-        >
-          <Car size={16} /> Viaturas
+        <button onClick={() => setAba("viaturas")} className={`px-4 py-2 rounded-xl ${aba === "viaturas" ? "bg-slate-700 text-white" : "bg-white border"}`}>
+          <Car size={16}/> Viaturas
         </button>
 
-        <button
-          onClick={() => setAba("manutencoes")}
-          className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${
-            aba === "manutencoes" ? "bg-slate-700 text-white" : "bg-white border"
-          }`}
-        >
-          <Wrench size={16} /> Manutenções
+        <button onClick={() => setAba("manutencoes")} className={`px-4 py-2 rounded-xl ${aba === "manutencoes" ? "bg-slate-700 text-white" : "bg-white border"}`}>
+          <Wrench size={16}/> Manutenções
         </button>
 
-        <button
-          onClick={() => setAba("multas")}
-          className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${
-            aba === "multas" ? "bg-slate-700 text-white" : "bg-white border"
-          }`}
-        >
-          <FileWarning size={16} /> Multas
+        <button onClick={() => setAba("multas")} className={`px-4 py-2 rounded-xl ${aba === "multas" ? "bg-slate-700 text-white" : "bg-white border"}`}>
+          <FileWarning size={16}/> Multas
         </button>
       </div>
 
+      {/* FILTRO GLOBAL */}
+      {(aba === "manutencoes" || aba === "multas") && (
+        <div className="bg-white p-4 rounded-2xl border flex gap-3 items-center">
+          <select
+            value={filtroViatura}
+            onChange={(e) => setFiltroViatura(e.target.value)}
+            className="border rounded-xl px-3 py-2"
+          >
+            <option value="">Todas as viaturas</option>
+            {viaturas.map(v => (
+              <option key={v.id} value={v.id}>{v.prefixo}</option>
+            ))}
+          </select>
+
+          {filtroViatura && (
+            <button onClick={() => setFiltroViatura("")} className="text-red-500 text-sm">
+              Limpar filtro
+            </button>
+          )}
+        </div>
+      )}
+
       {/* VIATURAS */}
       {aba === "viaturas" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-          {loading && <p>Carregando...</p>}
-
-          {viaturas.map((v) => (
-            <div
-              key={v.id}
-              onClick={() => {
-                setEditandoViatura(v)
-                setModalViaturaOpen(true)
-              }}
-              className="bg-white p-5 rounded-2xl border cursor-pointer relative group"
-            >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  deletarViatura(v.id)
-                }}
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100"
-              >
-                ✕
-              </button>
-
+        <div className="grid grid-cols-3 gap-4">
+          {viaturas.map(v => (
+            <div key={v.id} onClick={() => {
+              setEditandoViatura(v)
+              setModalViaturaOpen(true)
+            }} className="bg-white p-4 border rounded-xl cursor-pointer">
               <h2 className="font-bold">{v.prefixo}</h2>
               <p className="text-sm">{v.marca} {v.modelo}</p>
             </div>
@@ -281,63 +353,26 @@ export default function ViaturasPage() {
 
       {/* MANUTENÇÕES */}
       {aba === "manutencoes" && (
-        <div className="space-y-4">
-
-          {/* FILTRO */}
-          <div className="bg-white p-4 rounded-2xl border flex gap-3 items-center">
-
-            <select
-              value={filtroViatura}
-              onChange={(e) => setFiltroViatura(e.target.value)}
-              className="border rounded-xl px-3 py-2"
-            >
-              <option value="">Todas as viaturas</option>
-
-              {viaturas.map(v => (
-                <option key={v.id} value={v.id}>
-                  {v.prefixo}
-                </option>
-              ))}
-            </select>
-
-            {filtroViatura && (
-              <button
-                onClick={() => setFiltroViatura("")}
-                className="text-sm text-red-500"
-              >
-                Limpar filtro
-              </button>
-            )}
-          </div>
-
-          {/* INFO */}
-          {filtroViatura && (
-            <p className="text-sm text-slate-600">
-              Mostrando manutenções de:{" "}
-              <strong>
-                {viaturas.find(v => v.id === filtroViatura)?.prefixo}
-              </strong>
-            </p>
-          )}
-
-          {/* LISTA */}
-          <TimelineManutencoes
-            manutencoes={manutencoesFiltradas}
-            onDelete={deletarManutencao}
-            onEdit={(m) => {
-              setEditandoManut(m)
-              setModalManutOpen(true)
-            }}
-          />
-
-        </div>
+        <TimelineManutencoes
+          manutencoes={manutencoesFiltradas}
+          onDelete={deletarManutencao}
+          onEdit={(m) => {
+            setEditandoManut(m)
+            setModalManutOpen(true)
+          }}
+        />
       )}
 
       {/* MULTAS */}
       {aba === "multas" && (
-        <div className="bg-white p-6 rounded-2xl border">
-          🚧 Em breve
-        </div>
+        <TimelineMultas
+          multas={multasFiltradas}
+          onDelete={deletarMulta}
+          onEdit={(m) => {
+            setEditandoMulta(m)
+            setModalMultaOpen(true)
+          }}
+        />
       )}
 
       {/* BOTÃO */}
@@ -347,10 +382,13 @@ export default function ViaturasPage() {
             setEditandoViatura(null)
             setModalViaturaOpen(true)
           }
-
           if (aba === "manutencoes") {
             setEditandoManut(null)
             setModalManutOpen(true)
+          }
+          if (aba === "multas") {
+            setEditandoMulta(null)
+            setModalMultaOpen(true)
           }
         }}
         className="fixed bottom-20 right-6 bg-slate-700 text-white p-4 rounded-full shadow-lg"
@@ -361,10 +399,7 @@ export default function ViaturasPage() {
       {/* MODAIS */}
       {modalViaturaOpen && (
         <ModalViatura
-          onClose={() => {
-            setModalViaturaOpen(false)
-            setEditandoViatura(null)
-          }}
+          onClose={() => setModalViaturaOpen(false)}
           onSave={salvarViatura}
           viatura={editandoViatura}
         />
@@ -372,12 +407,18 @@ export default function ViaturasPage() {
 
       {modalManutOpen && (
         <ModalManutencao
-          onClose={() => {
-            setModalManutOpen(false)
-            setEditandoManut(null)
-          }}
+          onClose={() => setModalManutOpen(false)}
           onSave={salvarManutencao}
           manutencao={editandoManut}
+          viaturas={viaturas}
+        />
+      )}
+
+      {modalMultaOpen && (
+        <ModalMulta
+          onClose={() => setModalMultaOpen(false)}
+          onSave={salvarMulta}
+          multa={editandoMulta}
           viaturas={viaturas}
         />
       )}
