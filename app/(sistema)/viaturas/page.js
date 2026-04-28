@@ -51,7 +51,7 @@ export default function ViaturasPage() {
 
   async function buscarManutencoes() {
     const { data, error } = await supabase
-      .from("manutencoes")
+      .from("viaturas_manutencoes")
       .select(`
         *,
         viaturas ( prefixo )
@@ -126,47 +126,57 @@ export default function ViaturasPage() {
   // ---------------- MANUTENÇÃO CRUD ----------------
   async function salvarManutencao(form, id = null) {
     try {
+      const payload = {
+        viatura_id: form.viatura_id,
+        numero_os: form.numero_os || null,
+        data: form.data || null,
+        execucao: form.execucao || null,
+        odometro: form.odometro || null,
+        defeito: form.defeito || null,
+        observacao: form.observacao || null
+      }
+  
       if (id) {
         const { error } = await supabase
-          .from("manutencoes")
-          .update(form)
+          .from("viaturas_manutencoes") // ✅ CORRIGIDO
+          .update(payload)
           .eq("id", id)
-
+  
         if (error) throw error
         showToast("Manutenção atualizada")
       } else {
         const { error } = await supabase
-          .from("manutencoes")
-          .insert([form])
-
+          .from("viaturas_manutencoes") // ✅ CORRIGIDO
+          .insert([payload])
+  
         if (error) throw error
         showToast("Manutenção cadastrada")
       }
-
+  
       await buscarManutencoes()
       setModalManutOpen(false)
       setEditandoManut(null)
-
+  
     } catch (err) {
-      console.error(err)
-      showToast("Erro ao salvar manutenção", "error")
+      console.error("ERRO REAL:", err)
+      showToast(err.message, "error")
     }
   }
 
   async function deletarManutencao(id) {
     if (!confirm("Excluir manutenção?")) return
-
+  
     try {
       const { error } = await supabase
-        .from("manutencoes")
+        .from("viaturas_manutencoes") // ✅ CORRIGIDO
         .delete()
         .eq("id", id)
-
+  
       if (error) throw error
-
+  
       showToast("Excluído com sucesso")
       await buscarManutencoes()
-
+  
     } catch (err) {
       console.error(err)
       showToast("Erro ao excluir", "error")
