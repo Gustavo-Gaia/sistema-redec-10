@@ -10,6 +10,7 @@ export default function TimelineMultas({
   onEdit
 }) {
 
+  // ---------------- FORMATADORES ----------------
   function formatarData(dataISO) {
     if (!dataISO) return "Data não informada"
 
@@ -29,18 +30,61 @@ export default function TimelineMultas({
     })
   }
 
+  // ---------------- STATUS UI ----------------
+  function getStatusStyle(status) {
+    switch (status) {
+      case "PAGO":
+        return "bg-green-100 text-green-700"
+      case "RECURSO":
+        return "bg-yellow-100 text-yellow-700"
+      default:
+        return "bg-red-100 text-red-700"
+    }
+  }
+
+  function getCardHighlight(status) {
+    return status === "PENDENTE"
+      ? "border-red-400 bg-red-50/40"
+      : "border-slate-200"
+  }
+
+  // ---------------- TOTALIZADORES ----------------
+  const totalMultas = multas.reduce((acc, m) => acc + (Number(m.valor) || 0), 0)
+
+  const totalPendentes = multas
+    .filter(m => m.status === "PENDENTE")
+    .reduce((acc, m) => acc + (Number(m.valor) || 0), 0)
+
+  // ---------------- UI ----------------
   return (
     <div className="bg-white rounded-3xl shadow-sm border overflow-hidden flex flex-col h-full">
 
       {/* HEADER */}
-      <div className="bg-slate-50 border-b px-6 py-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-slate-800">
-          Multas
-        </h2>
+      <div className="bg-slate-50 border-b px-6 py-4 space-y-3">
 
-        <span className="text-xs font-bold px-2 py-1 bg-slate-200 rounded-full">
-          {multas.length} registros
-        </span>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-800">
+            Multas
+          </h2>
+
+          <span className="text-xs font-bold px-2 py-1 bg-slate-200 rounded-full">
+            {multas.length} registros
+          </span>
+        </div>
+
+        {/* TOTALIZADORES */}
+        <div className="flex gap-4 text-sm flex-wrap">
+
+          <div className="bg-slate-100 px-3 py-1 rounded-lg">
+            💰 Total: <strong>{formatarValor(totalMultas)}</strong>
+          </div>
+
+          <div className="bg-red-100 text-red-700 px-3 py-1 rounded-lg">
+            ⚠️ Pendentes: <strong>{formatarValor(totalPendentes)}</strong>
+          </div>
+
+        </div>
+
       </div>
 
       {/* LISTA */}
@@ -58,7 +102,7 @@ export default function TimelineMultas({
         {multas.map((m) => (
           <div
             key={m.id}
-            className="group border rounded-2xl p-4 hover:shadow-md transition"
+            className={`group border rounded-2xl p-4 hover:shadow-md transition ${getCardHighlight(m.status)}`}
           >
             <div className="flex gap-4">
 
@@ -70,13 +114,18 @@ export default function TimelineMultas({
               {/* CONTEÚDO */}
               <div className="flex-1">
 
-                <div className="text-xs text-slate-400 flex gap-2 items-center">
+                <div className="text-xs text-slate-400 flex gap-2 items-center flex-wrap">
                   <Calendar size={12} />
                   {formatarData(m.data_infracao)}
                   {m.hora && ` - ${m.hora}`}
+
+                  {/* STATUS */}
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusStyle(m.status)}`}>
+                    {m.status || "—"}
+                  </span>
                 </div>
 
-                <h3 className="font-bold text-slate-800">
+                <h3 className="font-bold text-slate-800 text-lg">
                   {formatarValor(m.valor)}
                 </h3>
 
@@ -88,18 +137,20 @@ export default function TimelineMultas({
                 <div className="text-sm mt-2 space-y-1">
                   <p><strong>Local:</strong> {m.local || "-"}</p>
                   <p><strong>Órgão:</strong> {m.orgao || "-"}</p>
-                  <p><strong>Status:</strong> {m.status || "-"}</p>
+                  {m.numero_auto && (
+                    <p><strong>Auto:</strong> {m.numero_auto}</p>
+                  )}
                 </div>
 
                 {m.observacao && (
                   <p className="text-xs mt-2 italic bg-slate-50 p-2 rounded">
-                    "{m.observacao}"
+                    {m.observacao}
                   </p>
                 )}
               </div>
 
               {/* AÇÕES */}
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 opacity-70 group-hover:opacity-100">
                 <button onClick={() => onEdit(m)}>
                   <Pencil size={18} />
                 </button>
@@ -111,6 +162,7 @@ export default function TimelineMultas({
             </div>
           </div>
         ))}
+
       </div>
     </div>
   )
