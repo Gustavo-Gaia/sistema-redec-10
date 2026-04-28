@@ -94,7 +94,7 @@ export default function TimelineManutencoes({
 
                   <p>
                     <strong>Motivo:</strong>{" "}
-                    {m.motivo || "-"}
+                    {m.defeito || "-"}
                   </p>
 
                 </div>
