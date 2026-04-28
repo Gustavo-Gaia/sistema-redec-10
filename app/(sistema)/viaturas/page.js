@@ -2,13 +2,14 @@
 
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { Plus, Wrench, Car, FileWarning, Eye, Trash2, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Plus, Wrench, Car, FileWarning } from "lucide-react"
 
 import ModalViatura from "./componentes/ModalViatura"
 import TimelineManutencoes from "./componentes/TimelineManutencoes"
 import ModalManutencao from "./componentes/ModalManutencao"
+
 import TimelineMultas from "./componentes/TimelineMultas"
 import ModalMulta from "./componentes/ModalMulta"
 
@@ -39,63 +40,81 @@ export default function ViaturasPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  // ---------------- BUSCAS OTIMIZADAS ----------------
-  // Agora disparando em paralelo para maior velocidade
-  async function carregarTudo() {
-    setLoading(true)
-    try {
-      const [vRes, mRes, mtRes] = await Promise.all([
-        supabase.from("viaturas").select("*").order("prefixo"),
-        supabase.from("viaturas_manutencoes").select(`*, viaturas ( prefixo )`).order("data", { ascending: false }),
-        supabase.from("viaturas_multas").select(`*, viaturas ( prefixo )`).order("data_infracao", { ascending: false })
-      ])
+  // ---------------- BUSCAS ----------------
+  async function buscarViaturas() {
+    const { data, error } = await supabase
+      .from("viaturas")
+      .select("*")
+      .order("prefixo")
 
-      if (vRes.error) throw vRes.error
-      if (mRes.error) throw mRes.error
-      if (mtRes.error) throw mtRes.error
-
-      setViaturas(vRes.data || [])
-      setManutencoes(mRes.data || [])
-      setMultas(mtRes.data || [])
-    } catch (error) {
+    if (error) {
       console.error(error)
-      showToast("Erro ao carregar dados", "error")
-    } finally {
-      setLoading(false)
+      showToast("Erro ao buscar viaturas", "error")
+    } else {
+      setViaturas(data || [])
     }
   }
 
-  // Funções de busca individuais (mantidas para atualização pós-save)
-  async function buscarViaturas() {
-    const { data, error } = await supabase.from("viaturas").select("*").order("prefixo")
-    if (!error) setViaturas(data || [])
-  }
-
   async function buscarManutencoes() {
-    const { data, error } = await supabase.from("viaturas_manutencoes").select(`*, viaturas ( prefixo )`).order("data", { ascending: false })
-    if (!error) setManutencoes(data || [])
+    const { data, error } = await supabase
+      .from("viaturas_manutencoes")
+      .select(`*, viaturas ( prefixo )`)
+      .order("data", { ascending: false })
+
+    if (error) {
+      console.error(error)
+      showToast("Erro ao buscar manutenções", "error")
+    } else {
+      setManutencoes(data || [])
+    }
   }
 
   async function buscarMultas() {
-    const { data, error } = await supabase.from("viaturas_multas").select(`*, viaturas ( prefixo )`).order("data_infracao", { ascending: false })
-    if (!error) setMultas(data || [])
+    const { data, error } = await supabase
+      .from("viaturas_multas")
+      .select(`*, viaturas ( prefixo )`)
+      .order("data_infracao", { ascending: false })
+
+    if (error) {
+      console.error(error)
+      showToast("Erro ao buscar multas", "error")
+    } else {
+      setMultas(data || [])
+    }
+  }
+
+  async function carregarTudo() {
+    setLoading(true)
+    await buscarViaturas()
+    await buscarManutencoes()
+    await buscarMultas()
+    setLoading(false)
   }
 
   // ---------------- VIATURA ----------------
   async function salvarViatura(form) {
     try {
       if (editandoViatura) {
-        const { error } = await supabase.from("viaturas").update(form).eq("id", editandoViatura.id)
+        const { error } = await supabase
+          .from("viaturas")
+          .update(form)
+          .eq("id", editandoViatura.id)
+
         if (error) throw error
         showToast("Viatura atualizada")
       } else {
-        const { error } = await supabase.from("viaturas").insert([form])
+        const { error } = await supabase
+          .from("viaturas")
+          .insert([form])
+
         if (error) throw error
         showToast("Viatura cadastrada")
       }
+
       await buscarViaturas()
       setModalViaturaOpen(false)
       setEditandoViatura(null)
+
     } catch (err) {
       console.error(err)
       showToast("Erro ao salvar viatura", "error")
@@ -104,11 +123,18 @@ export default function ViaturasPage() {
 
   async function deletarViatura(id) {
     if (!confirm("Deseja excluir esta viatura?")) return
+
     try {
-      const { error } = await supabase.from("viaturas").delete().eq("id", id)
+      const { error } = await supabase
+        .from("viaturas")
+        .delete()
+        .eq("id", id)
+
       if (error) throw error
+
       showToast("Viatura excluída")
       await carregarTudo()
+
     } catch (err) {
       console.error(err)
       showToast("Erro ao excluir", "error")
@@ -129,17 +155,26 @@ export default function ViaturasPage() {
       }
 
       if (id) {
-        const { error } = await supabase.from("viaturas_manutencoes").update(payload).eq("id", id)
+        const { error } = await supabase
+          .from("viaturas_manutencoes")
+          .update(payload)
+          .eq("id", id)
+
         if (error) throw error
         showToast("Manutenção atualizada")
       } else {
-        const { error } = await supabase.from("viaturas_manutencoes").insert([payload])
+        const { error } = await supabase
+          .from("viaturas_manutencoes")
+          .insert([payload])
+
         if (error) throw error
         showToast("Manutenção cadastrada")
       }
+
       await buscarManutencoes()
       setModalManutOpen(false)
       setEditandoManut(null)
+
     } catch (err) {
       console.error(err)
       showToast(err.message, "error")
@@ -148,11 +183,18 @@ export default function ViaturasPage() {
 
   async function deletarManutencao(id) {
     if (!confirm("Excluir manutenção?")) return
+
     try {
-      const { error } = await supabase.from("viaturas_manutencoes").delete().eq("id", id)
+      const { error } = await supabase
+        .from("viaturas_manutencoes")
+        .delete()
+        .eq("id", id)
+
       if (error) throw error
+
       showToast("Excluído com sucesso")
       await buscarManutencoes()
+
     } catch (err) {
       console.error(err)
       showToast("Erro ao excluir", "error")
@@ -170,22 +212,31 @@ export default function ViaturasPage() {
         valor: form.valor ? Number(form.valor) : null,
         orgao: form.orgao || null,
         status: form.status || "PENDENTE",
-        numero_auto: form.numero_auto || null,
+        numero_auto: form.numero_auto || null, // ✅ CORREÇÃO
         observacao: form.observacao || null
       }
 
       if (id) {
-        const { error } = await supabase.from("viaturas_multas").update(payload).eq("id", id)
+        const { error } = await supabase
+          .from("viaturas_multas")
+          .update(payload)
+          .eq("id", id)
+
         if (error) throw error
         showToast("Multa atualizada")
       } else {
-        const { error } = await supabase.from("viaturas_multas").insert([payload])
+        const { error } = await supabase
+          .from("viaturas_multas")
+          .insert([payload])
+
         if (error) throw error
         showToast("Multa cadastrada")
       }
+
       await buscarMultas()
       setModalMultaOpen(false)
       setEditandoMulta(null)
+
     } catch (err) {
       console.error(err)
       showToast(err.message, "error")
@@ -194,11 +245,18 @@ export default function ViaturasPage() {
 
   async function deletarMulta(id) {
     if (!confirm("Excluir multa?")) return
+
     try {
-      const { error } = await supabase.from("viaturas_multas").delete().eq("id", id)
+      const { error } = await supabase
+        .from("viaturas_multas")
+        .delete()
+        .eq("id", id)
+
       if (error) throw error
+
       showToast("Multa excluída")
       await buscarMultas()
+
     } catch (err) {
       console.error(err)
       showToast("Erro ao excluir", "error")
@@ -210,192 +268,133 @@ export default function ViaturasPage() {
     carregarTudo()
   }, [])
 
-  // ---------------- FILTROS (USEMEMO PARA PERFORMANCE) ----------------
-  const manutencoesFiltradas = useMemo(() => {
-    return filtroViatura ? manutencoes.filter(m => m.viatura_id === filtroViatura) : manutencoes
-  }, [filtroViatura, manutencoes])
+  // ---------------- FILTROS ----------------
+  const manutencoesFiltradas = filtroViatura
+    ? manutencoes.filter(m => m.viatura_id === filtroViatura)
+    : manutencoes
 
-  const multasFiltradas = useMemo(() => {
-    return filtroViatura ? multas.filter(m => m.viatura_id === filtroViatura) : multas
-  }, [filtroViatura, multas])
-
-  // Navegação contextual: Ver histórico direto do card
-  const verHistoricoViatura = (id) => {
-    setFiltroViatura(id)
-    setAba("manutencoes")
-  }
+  const multasFiltradas = filtroViatura
+    ? multas.filter(m => m.viatura_id === filtroViatura)
+    : multas
 
   // ---------------- UI ----------------
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-6 space-y-6">
 
       {/* TOAST */}
       {toast && (
-        <div className={`fixed top-6 right-6 px-6 py-3 rounded-2xl text-white z-[100] shadow-2xl transition-all animate-in fade-in slide-in-from-top-4 ${
-          toast.type === "error" ? "bg-red-500" : "bg-emerald-600"
+        <div className={`fixed top-6 right-6 px-4 py-2 rounded-lg text-white z-50 ${
+          toast.type === "error" ? "bg-red-500" : "bg-green-600"
         }`}>
           {toast.msg}
         </div>
       )}
 
-      {/* HEADER PROFISSIONAL */}
-      <div className="bg-gradient-to-br from-slate-700 to-slate-900 p-8 rounded-3xl text-white shadow-lg relative overflow-hidden">
-        <div className="relative z-10">
-          <h1 className="text-3xl font-black tracking-tight uppercase">Gestão de Frota</h1>
-          <p className="text-slate-300 font-medium">Controle Logístico REDEC 10 - Norte</p>
-        </div>
-        <Car className="absolute -right-4 -bottom-4 text-white/10 w-48 h-48" />
+      {/* HEADER */}
+      <div className="bg-gradient-to-br from-slate-600 to-slate-800 p-6 rounded-2xl text-white">
+        <h1 className="text-2xl font-bold">Gestão de Viaturas</h1>
+        <p className="text-sm opacity-80">
+          Cadastro, manutenção e controle da frota
+        </p>
       </div>
 
-      {/* NAVEGAÇÃO POR ABAS ESTILIZADA */}
-      <div className="flex flex-wrap gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit">
+      {/* ABAS CORRIGIDAS */}
+      <div className="flex gap-2">
         {[
           { key: "viaturas", label: "Viaturas", icon: Car },
           { key: "manutencoes", label: "Manutenções", icon: Wrench },
           { key: "multas", label: "Multas", icon: FileWarning }
         ].map(tab => {
           const Icon = tab.icon
-          const ativo = aba === tab.key
           return (
             <button
               key={tab.key}
               onClick={() => setAba(tab.key)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${
-                ativo 
-                  ? "bg-white text-slate-800 shadow-sm scale-105" 
-                  : "text-slate-500 hover:bg-white/50"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition ${
+                aba === tab.key
+                  ? "bg-slate-700 text-white shadow"
+                  : "bg-white border hover:bg-slate-100"
               }`}
             >
-              <Icon size={18} />
+              <Icon size={16} />
               {tab.label}
             </button>
           )
         })}
       </div>
 
-      {/* FILTROS E BUSCA */}
+      {/* FILTRO */}
       {(aba === "manutencoes" || aba === "multas") && (
-        <div className="bg-white p-4 rounded-3xl border shadow-sm flex flex-wrap gap-3 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-slate-400 uppercase ml-2">Filtrar por:</span>
-            <select
-              value={filtroViatura}
-              onChange={(e) => setFiltroViatura(e.target.value)}
-              className="bg-slate-50 border-none rounded-xl px-4 py-2 font-bold text-slate-700 focus:ring-2 ring-slate-200 outline-none cursor-pointer"
-            >
-              <option value="">Todas as viaturas</option>
-              {viaturas.map(v => (
-                <option key={v.id} value={v.id}>{v.prefixo}</option>
-              ))}
-            </select>
-            {filtroViatura && (
-              <button 
-                onClick={() => setFiltroViatura("")} 
-                className="text-red-500 text-xs font-black hover:underline"
-              >
-                LIMPAR FILTRO
-              </button>
-            )}
-          </div>
+        <div className="bg-white p-4 rounded-2xl border flex gap-3 items-center">
+          <select
+            value={filtroViatura}
+            onChange={(e) => setFiltroViatura(e.target.value)}
+            className="border rounded-xl px-3 py-2"
+          >
+            <option value="">Todas as viaturas</option>
+            {viaturas.map(v => (
+              <option key={v.id} value={v.id}>{v.prefixo}</option>
+            ))}
+          </select>
+
+          {filtroViatura && (
+            <button onClick={() => setFiltroViatura("")} className="text-red-500 text-sm">
+              Limpar filtro
+            </button>
+          )}
         </div>
       )}
 
-      {/* ÁREA DE CONTEÚDO */}
-      <div className="min-h-[400px]">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-4">
-            <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-            <p className="text-slate-400 font-bold animate-pulse">Sincronizando dados...</p>
-          </div>
-        ) : (
-          <>
-            {aba === "viaturas" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {viaturas.map(v => (
-                  <div key={v.id} className="bg-white border rounded-[2rem] overflow-hidden group hover:shadow-2xl transition-all duration-300">
-                    <div 
-                      className="p-6 cursor-pointer" 
-                      onClick={() => { setEditandoViatura(v); setModalViaturaOpen(true); }}
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div className={`p-3 rounded-2xl ${v.situacao === 'OPERANTE' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                          <Car size={24}/>
-                        </div>
-                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                          v.situacao === 'OPERANTE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {v.situacao === 'OPERANTE' ? <CheckCircle2 size={12}/> : <AlertCircle size={12}/>}
-                          {v.situacao || 'S/ STATUS'}
-                        </div>
-                      </div>
-                      
-                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">{v.prefixo}</h2>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-tighter">{v.marca} {v.modelo}</p>
-                      
-                      <div className="mt-4 flex gap-2">
-                        <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-md border border-slate-200">
-                          {v.placa || "S/ PLACA"}
-                        </span>
-                      </div>
-                    </div>
+      {/* CONTEÚDO */}
+      {aba === "viaturas" && (
+        <div className="grid grid-cols-3 gap-4">
+          {viaturas.map(v => (
+            <div key={v.id} onClick={() => {
+              setEditandoViatura(v)
+              setModalViaturaOpen(true)
+            }} className="bg-white p-4 border rounded-xl cursor-pointer">
+              <h2 className="font-bold">{v.prefixo}</h2>
+              <p className="text-sm">{v.marca} {v.modelo}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
-                    <div className="bg-slate-50 px-6 py-4 flex justify-between items-center border-t border-slate-100">
-                      <button 
-                        onClick={() => verHistoricoViatura(v.id)}
-                        className="flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-slate-900 transition-colors"
-                      >
-                        <Eye size={16}/> HISTÓRICO
-                      </button>
-                      <button 
-                        onClick={() => deletarViatura(v.id)}
-                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                      >
-                        <Trash2 size={18}/>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+      {aba === "manutencoes" && (
+        <TimelineManutencoes
+          manutencoes={manutencoesFiltradas}
+          onDelete={deletarManutencao}
+          onEdit={(m) => {
+            setEditandoManut(m)
+            setModalManutOpen(true)
+          }}
+        />
+      )}
 
-            {aba === "manutencoes" && (
-              <TimelineManutencoes
-                manutencoes={manutencoesFiltradas}
-                onDelete={deletarManutencao}
-                onEdit={(m) => {
-                  setEditandoManut(m)
-                  setModalManutOpen(true)
-                }}
-              />
-            )}
+      {aba === "multas" && (
+        <TimelineMultas
+          multas={multasFiltradas}
+          onDelete={deletarMulta}
+          onEdit={(m) => {
+            setEditandoMulta(m)
+            setModalMultaOpen(true)
+          }}
+        />
+      )}
 
-            {aba === "multas" && (
-              <TimelineMultas
-                multas={multasFiltradas}
-                onDelete={deletarMulta}
-                onEdit={(m) => {
-                  setEditandoMulta(m)
-                  setModalMultaOpen(true)
-                }}
-              />
-            )}
-          </>
-        )}
-      </div>
-
-      {/* BOTÃO FLUTUANTE DE AÇÃO */}
+      {/* BOTÃO */}
       <button
         onClick={() => {
-          if (aba === "viaturas") { setEditandoViatura(null); setModalViaturaOpen(true); }
-          if (aba === "manutencoes") { setEditandoManut(null); setModalManutOpen(true); }
-          if (aba === "multas") { setEditandoMulta(null); setModalMultaOpen(true); }
+          if (aba === "viaturas") setModalViaturaOpen(true)
+          if (aba === "manutencoes") setModalManutOpen(true)
+          if (aba === "multas") setModalMultaOpen(true)
         }}
-        className="fixed bottom-10 right-10 bg-slate-800 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50 border-4 border-white"
+        className="fixed bottom-20 right-6 bg-slate-700 text-white p-4 rounded-full shadow-lg"
       >
-        <Plus size={32} strokeWidth={3} />
+        <Plus />
       </button>
 
-      {/* MODAIS (Lógica original preservada) */}
+      {/* MODAIS */}
       {modalViaturaOpen && (
         <ModalViatura
           onClose={() => setModalViaturaOpen(false)}
