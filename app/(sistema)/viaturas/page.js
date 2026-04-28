@@ -28,6 +28,9 @@ export default function ViaturasPage() {
 
   const [toast, setToast] = useState(null)
 
+  // ✅ NOVO: filtro
+  const [filtroViatura, setFiltroViatura] = useState("")
+
   // ---------------- TOAST ----------------
   function showToast(msg, type = "success") {
     setToast({ msg, type })
@@ -135,48 +138,48 @@ export default function ViaturasPage() {
         defeito: form.defeito || null,
         observacao: form.observacao || null
       }
-  
+
       if (id) {
         const { error } = await supabase
-          .from("viaturas_manutencoes") // ✅ CORRIGIDO
+          .from("viaturas_manutencoes")
           .update(payload)
           .eq("id", id)
-  
+
         if (error) throw error
         showToast("Manutenção atualizada")
       } else {
         const { error } = await supabase
-          .from("viaturas_manutencoes") // ✅ CORRIGIDO
+          .from("viaturas_manutencoes")
           .insert([payload])
-  
+
         if (error) throw error
         showToast("Manutenção cadastrada")
       }
-  
+
       await buscarManutencoes()
       setModalManutOpen(false)
       setEditandoManut(null)
-  
+
     } catch (err) {
-      console.error("ERRO REAL:", err)
+      console.error(err)
       showToast(err.message, "error")
     }
   }
 
   async function deletarManutencao(id) {
     if (!confirm("Excluir manutenção?")) return
-  
+
     try {
       const { error } = await supabase
-        .from("viaturas_manutencoes") // ✅ CORRIGIDO
+        .from("viaturas_manutencoes")
         .delete()
         .eq("id", id)
-  
+
       if (error) throw error
-  
+
       showToast("Excluído com sucesso")
       await buscarManutencoes()
-  
+
     } catch (err) {
       console.error(err)
       showToast("Erro ao excluir", "error")
@@ -187,6 +190,11 @@ export default function ViaturasPage() {
   useEffect(() => {
     carregarTudo()
   }, [])
+
+  // ---------------- FILTRO APLICADO ----------------
+  const manutencoesFiltradas = filtroViatura
+    ? manutencoes.filter(m => m.viatura_id === filtroViatura)
+    : manutencoes
 
   // ---------------- UI ----------------
   return (
@@ -273,14 +281,56 @@ export default function ViaturasPage() {
 
       {/* MANUTENÇÕES */}
       {aba === "manutencoes" && (
-        <TimelineManutencoes
-          manutencoes={manutencoes}
-          onDelete={deletarManutencao}
-          onEdit={(m) => {
-            setEditandoManut(m)
-            setModalManutOpen(true)
-          }}
-        />
+        <div className="space-y-4">
+
+          {/* FILTRO */}
+          <div className="bg-white p-4 rounded-2xl border flex gap-3 items-center">
+
+            <select
+              value={filtroViatura}
+              onChange={(e) => setFiltroViatura(e.target.value)}
+              className="border rounded-xl px-3 py-2"
+            >
+              <option value="">Todas as viaturas</option>
+
+              {viaturas.map(v => (
+                <option key={v.id} value={v.id}>
+                  {v.prefixo}
+                </option>
+              ))}
+            </select>
+
+            {filtroViatura && (
+              <button
+                onClick={() => setFiltroViatura("")}
+                className="text-sm text-red-500"
+              >
+                Limpar filtro
+              </button>
+            )}
+          </div>
+
+          {/* INFO */}
+          {filtroViatura && (
+            <p className="text-sm text-slate-600">
+              Mostrando manutenções de:{" "}
+              <strong>
+                {viaturas.find(v => v.id === filtroViatura)?.prefixo}
+              </strong>
+            </p>
+          )}
+
+          {/* LISTA */}
+          <TimelineManutencoes
+            manutencoes={manutencoesFiltradas}
+            onDelete={deletarManutencao}
+            onEdit={(m) => {
+              setEditandoManut(m)
+              setModalManutOpen(true)
+            }}
+          />
+
+        </div>
       )}
 
       {/* MULTAS */}
