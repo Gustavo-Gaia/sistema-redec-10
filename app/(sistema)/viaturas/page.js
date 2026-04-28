@@ -5,10 +5,14 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { Plus } from "lucide-react"
+import ModalViatura from "./componentes/ModalViatura"
 
 export default function ViaturasPage() {
   const [viaturas, setViaturas] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editando, setEditando] = useState(null)
 
   async function buscarViaturas() {
     setLoading(true)
@@ -25,6 +29,33 @@ export default function ViaturasPage() {
     }
 
     setLoading(false)
+  }
+
+  async function salvarViatura(form) {
+    try {
+      if (editando) {
+        const { error } = await supabase
+          .from("viaturas")
+          .update(form)
+          .eq("id", editando.id)
+
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from("viaturas")
+          .insert([form])
+
+        if (error) throw error
+      }
+
+      await buscarViaturas()
+      setModalOpen(false)
+      setEditando(null)
+
+    } catch (err) {
+      console.error("Erro ao salvar:", err)
+      alert("Erro ao salvar viatura")
+    }
   }
 
   useEffect(() => {
@@ -56,7 +87,11 @@ export default function ViaturasPage() {
         {viaturas.map((v) => (
           <div
             key={v.id}
-            className="bg-white rounded-2xl border p-5 shadow-sm hover:shadow-lg transition"
+            onClick={() => {
+              setEditando(v)
+              setModalOpen(true)
+            }}
+            className="bg-white rounded-2xl border p-5 shadow-sm hover:shadow-lg transition cursor-pointer"
           >
             <h2 className="text-lg font-bold text-slate-800">
               {v.prefixo}
@@ -85,10 +120,26 @@ export default function ViaturasPage() {
 
       {/* BOTÃO FLUTUANTE */}
       <button
-        className="fixed bottom-20 right-6 bg-slate-700 text-white p-4 rounded-full shadow-lg"
+        onClick={() => {
+          setEditando(null)
+          setModalOpen(true)
+        }}
+        className="fixed bottom-20 right-6 bg-slate-700 hover:bg-slate-800 text-white p-4 rounded-full shadow-lg transition"
       >
         <Plus />
       </button>
+
+      {/* MODAL */}
+      {modalOpen && (
+        <ModalViatura
+          onClose={() => {
+            setModalOpen(false)
+            setEditando(null)
+          }}
+          onSave={salvarViatura}
+          viatura={editando}
+        />
+      )}
 
     </div>
   )
