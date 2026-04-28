@@ -5,49 +5,82 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { Plus, Wrench, Car, FileWarning } from "lucide-react"
+
 import ModalViatura from "./componentes/ModalViatura"
+import TimelineManutencoes from "./componentes/TimelineManutencoes"
+import ModalManutencao from "./componentes/ModalManutencao"
 
 export default function ViaturasPage() {
-  const [viaturas, setViaturas] = useState([])
-  const [loading, setLoading] = useState(true)
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editando, setEditando] = useState(null)
+  // ---------------- STATES ----------------
+  const [viaturas, setViaturas] = useState([])
+  const [manutencoes, setManutencoes] = useState([])
+
+  const [loading, setLoading] = useState(true)
 
   const [aba, setAba] = useState("viaturas")
 
+  const [modalViaturaOpen, setModalViaturaOpen] = useState(false)
+  const [modalManutOpen, setModalManutOpen] = useState(false)
+
+  const [editandoViatura, setEditandoViatura] = useState(null)
+  const [editandoManut, setEditandoManut] = useState(null)
+
   const [toast, setToast] = useState(null)
 
+  // ---------------- TOAST ----------------
   function showToast(msg, type = "success") {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
   }
 
+  // ---------------- BUSCAS ----------------
   async function buscarViaturas() {
-    setLoading(true)
-
     const { data, error } = await supabase
       .from("viaturas")
       .select("*")
       .order("prefixo")
 
     if (error) {
-      console.error("Erro ao buscar viaturas:", error)
+      console.error(error)
       showToast("Erro ao buscar viaturas", "error")
     } else {
       setViaturas(data || [])
     }
+  }
 
+  async function buscarManutencoes() {
+    const { data, error } = await supabase
+      .from("manutencoes")
+      .select(`
+        *,
+        viaturas ( prefixo )
+      `)
+      .order("data", { ascending: false })
+
+    if (error) {
+      console.error(error)
+      showToast("Erro ao buscar manutenções", "error")
+    } else {
+      setManutencoes(data || [])
+    }
+  }
+
+  async function carregarTudo() {
+    setLoading(true)
+    await buscarViaturas()
+    await buscarManutencoes()
     setLoading(false)
   }
 
+  // ---------------- VIATURA CRUD ----------------
   async function salvarViatura(form) {
     try {
-      if (editando) {
+      if (editandoViatura) {
         const { error } = await supabase
           .from("viaturas")
           .update(form)
-          .eq("id", editando.id)
+          .eq("id", editandoViatura.id)
 
         if (error) throw error
         showToast("Viatura atualizada")
@@ -61,11 +94,11 @@ export default function ViaturasPage() {
       }
 
       await buscarViaturas()
-      setModalOpen(false)
-      setEditando(null)
+      setModalViaturaOpen(false)
+      setEditandoViatura(null)
 
     } catch (err) {
-      console.error("Erro ao salvar:", err)
+      console.error(err)
       showToast("Erro ao salvar viatura", "error")
     }
   }
@@ -90,10 +123,62 @@ export default function ViaturasPage() {
     }
   }
 
+  // ---------------- MANUTENÇÃO CRUD ----------------
+  async function salvarManutencao(form, id = null) {
+    try {
+      if (id) {
+        const { error } = await supabase
+          .from("manutencoes")
+          .update(form)
+          .eq("id", id)
+
+        if (error) throw error
+        showToast("Manutenção atualizada")
+      } else {
+        const { error } = await supabase
+          .from("manutencoes")
+          .insert([form])
+
+        if (error) throw error
+        showToast("Manutenção cadastrada")
+      }
+
+      await buscarManutencoes()
+      setModalManutOpen(false)
+      setEditandoManut(null)
+
+    } catch (err) {
+      console.error(err)
+      showToast("Erro ao salvar manutenção", "error")
+    }
+  }
+
+  async function deletarManutencao(id) {
+    if (!confirm("Excluir manutenção?")) return
+
+    try {
+      const { error } = await supabase
+        .from("manutencoes")
+        .delete()
+        .eq("id", id)
+
+      if (error) throw error
+
+      showToast("Excluído com sucesso")
+      await buscarManutencoes()
+
+    } catch (err) {
+      console.error(err)
+      showToast("Erro ao excluir", "error")
+    }
+  }
+
+  // ---------------- INIT ----------------
   useEffect(() => {
-    buscarViaturas()
+    carregarTudo()
   }, [])
 
+  // ---------------- UI ----------------
   return (
     <div className="p-6 space-y-6">
 
@@ -116,137 +201,124 @@ export default function ViaturasPage() {
 
       {/* ABAS */}
       <div className="flex gap-2">
-
         <button
           onClick={() => setAba("viaturas")}
           className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${
-            aba === "viaturas"
-              ? "bg-slate-700 text-white"
-              : "bg-white border text-slate-600"
+            aba === "viaturas" ? "bg-slate-700 text-white" : "bg-white border"
           }`}
         >
-          <Car size={16} />
-          Viaturas
+          <Car size={16} /> Viaturas
         </button>
 
         <button
           onClick={() => setAba("manutencoes")}
           className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${
-            aba === "manutencoes"
-              ? "bg-slate-700 text-white"
-              : "bg-white border text-slate-600"
+            aba === "manutencoes" ? "bg-slate-700 text-white" : "bg-white border"
           }`}
         >
-          <Wrench size={16} />
-          Manutenções
+          <Wrench size={16} /> Manutenções
         </button>
 
         <button
           onClick={() => setAba("multas")}
           className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${
-            aba === "multas"
-              ? "bg-slate-700 text-white"
-              : "bg-white border text-slate-600"
+            aba === "multas" ? "bg-slate-700 text-white" : "bg-white border"
           }`}
         >
-          <FileWarning size={16} />
-          Multas
+          <FileWarning size={16} /> Multas
         </button>
-
       </div>
 
-      {/* CONTEÚDO DAS ABAS */}
+      {/* VIATURAS */}
       {aba === "viaturas" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-          {loading && <p className="text-slate-500">Carregando...</p>}
-
-          {!loading && viaturas.length === 0 && (
-            <p className="text-slate-500">Nenhuma viatura cadastrada.</p>
-          )}
+          {loading && <p>Carregando...</p>}
 
           {viaturas.map((v) => (
             <div
               key={v.id}
               onClick={() => {
-                setEditando(v)
-                setModalOpen(true)
+                setEditandoViatura(v)
+                setModalViaturaOpen(true)
               }}
-              className="bg-white rounded-2xl border p-5 shadow-sm hover:shadow-lg transition cursor-pointer relative group"
+              className="bg-white p-5 rounded-2xl border cursor-pointer relative group"
             >
-
-              {/* EXCLUIR */}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   deletarViatura(v.id)
                 }}
-                className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition text-red-500 hover:bg-red-50 p-1 rounded"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100"
               >
                 ✕
               </button>
 
-              <h2 className="text-lg font-bold text-slate-800">
-                {v.prefixo}
-              </h2>
-
-              <p className="text-sm text-slate-500">
-                {v.marca} {v.modelo}
-              </p>
-
-              <div className="mt-3 text-sm">
-                <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                  v.situacao === "OPERANTE"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
-                }`}>
-                  {v.situacao}
-                </span>
-              </div>
-
-              <p className="mt-2 text-xs text-slate-400">
-                Placa: {v.placa || "-"}
-              </p>
-
+              <h2 className="font-bold">{v.prefixo}</h2>
+              <p className="text-sm">{v.marca} {v.modelo}</p>
             </div>
           ))}
         </div>
       )}
 
+      {/* MANUTENÇÕES */}
       {aba === "manutencoes" && (
-        <div className="bg-white rounded-2xl p-6 border text-slate-500">
-          🚧 Em breve: controle de manutenções
-        </div>
-      )}
-
-      {aba === "multas" && (
-        <div className="bg-white rounded-2xl p-6 border text-slate-500">
-          🚧 Em breve: controle de multas
-        </div>
-      )}
-
-      {/* BOTÃO FLUTUANTE */}
-      {aba === "viaturas" && (
-        <button
-          onClick={() => {
-            setEditando(null)
-            setModalOpen(true)
+        <TimelineManutencoes
+          manutencoes={manutencoes}
+          onDelete={deletarManutencao}
+          onEdit={(m) => {
+            setEditandoManut(m)
+            setModalManutOpen(true)
           }}
-          className="fixed bottom-20 right-6 bg-slate-700 hover:bg-slate-800 text-white p-4 rounded-full shadow-lg transition"
-        >
-          <Plus />
-        </button>
+        />
       )}
 
-      {/* MODAL */}
-      {modalOpen && (
+      {/* MULTAS */}
+      {aba === "multas" && (
+        <div className="bg-white p-6 rounded-2xl border">
+          🚧 Em breve
+        </div>
+      )}
+
+      {/* BOTÃO */}
+      <button
+        onClick={() => {
+          if (aba === "viaturas") {
+            setEditandoViatura(null)
+            setModalViaturaOpen(true)
+          }
+
+          if (aba === "manutencoes") {
+            setEditandoManut(null)
+            setModalManutOpen(true)
+          }
+        }}
+        className="fixed bottom-20 right-6 bg-slate-700 text-white p-4 rounded-full shadow-lg"
+      >
+        <Plus />
+      </button>
+
+      {/* MODAIS */}
+      {modalViaturaOpen && (
         <ModalViatura
           onClose={() => {
-            setModalOpen(false)
-            setEditando(null)
+            setModalViaturaOpen(false)
+            setEditandoViatura(null)
           }}
           onSave={salvarViatura}
-          viatura={editando}
+          viatura={editandoViatura}
+        />
+      )}
+
+      {modalManutOpen && (
+        <ModalManutencao
+          onClose={() => {
+            setModalManutOpen(false)
+            setEditandoManut(null)
+          }}
+          onSave={salvarManutencao}
+          manutencao={editandoManut}
+          viaturas={viaturas}
         />
       )}
 
