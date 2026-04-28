@@ -21,7 +21,6 @@ export default function ViaturasPage() {
   const [multas, setMultas] = useState([])
 
   const [loading, setLoading] = useState(true)
-
   const [aba, setAba] = useState("viaturas")
 
   const [modalViaturaOpen, setModalViaturaOpen] = useState(false)
@@ -33,7 +32,6 @@ export default function ViaturasPage() {
   const [editandoMulta, setEditandoMulta] = useState(null)
 
   const [toast, setToast] = useState(null)
-
   const [filtroViatura, setFiltroViatura] = useState("")
 
   // ---------------- TOAST ----------------
@@ -214,6 +212,7 @@ export default function ViaturasPage() {
         valor: form.valor ? Number(form.valor) : null,
         orgao: form.orgao || null,
         status: form.status || "PENDENTE",
+        numero_auto: form.numero_auto || null, // ✅ CORREÇÃO
         observacao: form.observacao || null
       }
 
@@ -299,22 +298,32 @@ export default function ViaturasPage() {
         </p>
       </div>
 
-      {/* ABAS */}
+      {/* ABAS CORRIGIDAS */}
       <div className="flex gap-2">
-        <button onClick={() => setAba("viaturas")} className={`px-4 py-2 rounded-xl ${aba === "viaturas" ? "bg-slate-700 text-white" : "bg-white border"}`}>
-          <Car size={16}/> Viaturas
-        </button>
-
-        <button onClick={() => setAba("manutencoes")} className={`px-4 py-2 rounded-xl ${aba === "manutencoes" ? "bg-slate-700 text-white" : "bg-white border"}`}>
-          <Wrench size={16}/> Manutenções
-        </button>
-
-        <button onClick={() => setAba("multas")} className={`px-4 py-2 rounded-xl ${aba === "multas" ? "bg-slate-700 text-white" : "bg-white border"}`}>
-          <FileWarning size={16}/> Multas
-        </button>
+        {[
+          { key: "viaturas", label: "Viaturas", icon: Car },
+          { key: "manutencoes", label: "Manutenções", icon: Wrench },
+          { key: "multas", label: "Multas", icon: FileWarning }
+        ].map(tab => {
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setAba(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition ${
+                aba === tab.key
+                  ? "bg-slate-700 text-white shadow"
+                  : "bg-white border hover:bg-slate-100"
+              }`}
+            >
+              <Icon size={16} />
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
 
-      {/* FILTRO GLOBAL */}
+      {/* FILTRO */}
       {(aba === "manutencoes" || aba === "multas") && (
         <div className="bg-white p-4 rounded-2xl border flex gap-3 items-center">
           <select
@@ -336,7 +345,7 @@ export default function ViaturasPage() {
         </div>
       )}
 
-      {/* VIATURAS */}
+      {/* CONTEÚDO */}
       {aba === "viaturas" && (
         <div className="grid grid-cols-3 gap-4">
           {viaturas.map(v => (
@@ -351,7 +360,6 @@ export default function ViaturasPage() {
         </div>
       )}
 
-      {/* MANUTENÇÕES */}
       {aba === "manutencoes" && (
         <TimelineManutencoes
           manutencoes={manutencoesFiltradas}
@@ -363,7 +371,6 @@ export default function ViaturasPage() {
         />
       )}
 
-      {/* MULTAS */}
       {aba === "multas" && (
         <TimelineMultas
           multas={multasFiltradas}
@@ -378,18 +385,9 @@ export default function ViaturasPage() {
       {/* BOTÃO */}
       <button
         onClick={() => {
-          if (aba === "viaturas") {
-            setEditandoViatura(null)
-            setModalViaturaOpen(true)
-          }
-          if (aba === "manutencoes") {
-            setEditandoManut(null)
-            setModalManutOpen(true)
-          }
-          if (aba === "multas") {
-            setEditandoMulta(null)
-            setModalMultaOpen(true)
-          }
+          if (aba === "viaturas") setModalViaturaOpen(true)
+          if (aba === "manutencoes") setModalManutOpen(true)
+          if (aba === "multas") setModalMultaOpen(true)
         }}
         className="fixed bottom-20 right-6 bg-slate-700 text-white p-4 rounded-full shadow-lg"
       >
