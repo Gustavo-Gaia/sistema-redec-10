@@ -5,30 +5,36 @@
 import { useEffect, useState } from "react"
 import { X, Truck } from "lucide-react"
 
+// Estado inicial definido fora para reutilização
+const initialState = {
+  prefixo: "",
+  situacao: "OPERANTE",
+  placa: "",
+  renavan: "",
+  chassi: "",
+  ano_fabricacao: "",
+  marca: "",
+  modelo: "",
+  observacao: ""
+}
+
 export default function ModalViatura({ onClose, onSave, viatura }) {
   const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState(initialState)
 
-  const [form, setForm] = useState({
-    prefixo: "",
-    situacao: "OPERANTE",
-    placa: "",
-    renavan: "",
-    chassi: "",
-    ano_fabricacao: "",
-    marca: "",
-    modelo: "",
-    observacao: ""
-  })
-
+  // Sincroniza o formulário quando a prop 'viatura' muda
   useEffect(() => {
     if (viatura) {
       setForm(viatura)
+    } else {
+      // Se viatura for null (clicou no +), reseta obrigatoriamente os campos
+      setForm(initialState)
     }
   }, [viatura])
 
   function handleChange(e) {
     const { name, value } = e.target
-    setForm({ ...form, [name]: value })
+    setForm((prev) => ({ ...prev, [name]: value }))
   }
 
   async function handleSubmit() {
@@ -37,18 +43,18 @@ export default function ModalViatura({ onClose, onSave, viatura }) {
 
     await onSave({
       ...form,
-      ano_fabricacao: Number(form.ano_fabricacao) || null
+      ano_fabricacao: form.ano_fabricacao ? Number(form.ano_fabricacao) : null
     })
 
     setLoading(false)
   }
 
-  const inputStyle = "w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm"
+  const inputStyle = "w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm transition-all"
   const labelStyle = "block text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1"
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-100">
+      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
 
         {/* HEADER */}
         <div className="bg-slate-50 border-b px-6 py-4 flex justify-between items-center">
@@ -61,13 +67,16 @@ export default function ModalViatura({ onClose, onSave, viatura }) {
             </h2>
           </div>
 
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-red-500 transition-colors p-1"
+          >
             <X size={24} />
           </button>
         </div>
 
         {/* FORM */}
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
@@ -104,7 +113,7 @@ export default function ModalViatura({ onClose, onSave, viatura }) {
 
             <div>
               <label className={labelStyle}>Ano de Fabricação</label>
-              <input name="ano_fabricacao" type="number" value={form.ano_fabricacao} onChange={handleChange} placeholder="Ex: 2024" className={inputStyle} />
+              <input name="ano_fabricacao" type="number" value={form.ano_fabricacao || ""} onChange={handleChange} placeholder="Ex: 2024" className={inputStyle} />
             </div>
 
             {/* Marca e Modelo */}
@@ -138,7 +147,7 @@ export default function ModalViatura({ onClose, onSave, viatura }) {
         <div className="p-6 bg-slate-50 border-t flex justify-end gap-3">
           <button 
             onClick={onClose} 
-            className="px-5 py-2.5 text-slate-500 font-medium hover:bg-slate-100 rounded-xl transition-all"
+            className="px-5 py-2.5 text-slate-500 font-medium hover:bg-slate-200 rounded-xl transition-all"
           >
             Cancelar
           </button>
@@ -146,9 +155,9 @@ export default function ModalViatura({ onClose, onSave, viatura }) {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className={`${loading ? 'bg-slate-400' : 'bg-blue-600 hover:bg-blue-700'} text-white px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95`}
+            className={`${loading ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'} text-white px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all`}
           >
-            {loading ? "Processando..." : "Salvar Viatura"}
+            {loading ? "Processando..." : (viatura ? "Atualizar Viatura" : "Salvar Viatura")}
           </button>
         </div>
 
