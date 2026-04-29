@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { Plus, Wrench, Car, FileWarning } from "lucide-react"
+import { Plus, Wrench, Car, Trash2, FileWarning } from "lucide-react"
 
 import ModalViatura from "./componentes/ModalViatura"
 import TimelineManutencoes from "./componentes/TimelineManutencoes"
