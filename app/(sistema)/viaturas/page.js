@@ -420,11 +420,20 @@ export default function ViaturasPage() {
       {/* BOTÃO */}
       <button
         onClick={() => {
-          if (aba === "viaturas") setModalViaturaOpen(true)
-          if (aba === "manutencoes") setModalManutOpen(true)
-          if (aba === "multas") setModalMultaOpen(true)
+          if (aba === "viaturas") {
+            setEditandoViatura(null); // <--- ADICIONE ESTA LINHA
+            setModalViaturaOpen(true);
+          }
+          if (aba === "manutencoes") {
+            setEditandoManut(null);   // <--- ADICIONE ESTA LINHA
+            setModalManutOpen(true);
+          }
+          if (aba === "multas") {
+            setEditandoMulta(null);   // <--- ADICIONE ESTA LINHA
+            setModalMultaOpen(true);
+          }
         }}
-        className="fixed bottom-20 right-6 bg-slate-700 text-white p-4 rounded-full shadow-lg"
+        className="fixed bottom-20 right-6 bg-slate-700 text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform"
       >
         <Plus />
       </button>
@@ -432,24 +441,33 @@ export default function ViaturasPage() {
       {/* MODAIS */}
       {modalViaturaOpen && (
         <ModalViatura
-          onClose={() => setModalViaturaOpen(false)}
+          onClose={() => {
+            setModalViaturaOpen(false);
+            setEditandoViatura(null); // <--- LIMPA AO FECHAR
+          }}
           onSave={salvarViatura}
           viatura={editandoViatura}
         />
       )}
-
+      
       {modalManutOpen && (
         <ModalManutencao
-          onClose={() => setModalManutOpen(false)}
+          onClose={() => {
+            setModalManutOpen(false);
+            setEditandoManut(null); // <--- LIMPA AO FECHAR
+          }}
           onSave={salvarManutencao}
           manutencao={editandoManut}
           viaturas={viaturas}
         />
       )}
-
+      
       {modalMultaOpen && (
         <ModalMulta
-          onClose={() => setModalMultaOpen(false)}
+          onClose={() => {
+            setModalMultaOpen(false);
+            setEditandoMulta(null); // <--- LIMPA AO FECHAR
+          }}
           onSave={salvarMulta}
           multa={editandoMulta}
           viaturas={viaturas}
