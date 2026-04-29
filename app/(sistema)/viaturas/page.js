@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { Plus, Wrench, Car, Trash2, FileWarning } from "lucide-react"
+import { Plus, Wrench, Car, FileWarning, Eye, Trash2, AlertCircle, CheckCircle2 } from "lucide-react"
 
 import ModalViatura from "./componentes/ModalViatura"
 import TimelineManutencoes from "./componentes/TimelineManutencoes"
@@ -347,73 +347,43 @@ export default function ViaturasPage() {
 
       {/* CONTEÚDO */}
       {aba === "viaturas" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {viaturas.map(v => (
-            <div
-              key={v.id}
-              className="bg-white border rounded-[2rem] overflow-hidden group hover:shadow-2xl transition-all duration-300"
-            >
-              {/* ÁREA PRINCIPAL */}
-              <div
-                className="p-6 cursor-pointer"
-                onClick={() => {
-                  setEditandoViatura(v)
-                  setModalViaturaOpen(true)
-                }}
+            <div key={v.id} className="bg-white border rounded-[2rem] overflow-hidden group hover:shadow-2xl transition-all duration-300">
+              <div 
+                className="p-6 cursor-pointer" 
+                onClick={() => { setEditandoViatura(v); setModalViaturaOpen(true); }}
               >
                 <div className="flex justify-between items-start mb-4">
-                  
-                  {/* Ícone */}
-                  <div className={`p-3 rounded-2xl ${
-                    v.situacao === 'OPERANTE'
-                      ? 'bg-emerald-50 text-emerald-600'
-                      : 'bg-red-50 text-red-600'
-                  }`}>
+                  <div className={`p-3 rounded-2xl ${v.situacao === 'OPERANTE' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
                     <Car size={24}/>
                   </div>
-      
-                  {/* STATUS */}
                   <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                    v.situacao === 'OPERANTE'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-red-100 text-red-700'
+                    v.situacao === 'OPERANTE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                   }`}>
-                    {v.situacao || "SEM STATUS"}
+                    {v.situacao === 'OPERANTE' ? <CheckCircle2 size={12}/> : <AlertCircle size={12}/>}
+                    {v.situacao || 'S/ STATUS'}
                   </div>
                 </div>
-      
-                {/* TÍTULO */}
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-                  {v.prefixo}
-                </h2>
-      
-                {/* SUBINFO */}
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-tighter">
-                  {v.marca} {v.modelo}
-                </p>
-      
-                {/* TAGS */}
+                
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight">{v.prefixo}</h2>
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-tighter">{v.marca} {v.modelo}</p>
+                
                 <div className="mt-4 flex gap-2">
                   <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-md border border-slate-200">
                     {v.placa || "S/ PLACA"}
                   </span>
                 </div>
               </div>
-      
-              {/* FOOTER DO CARD */}
+
               <div className="bg-slate-50 px-6 py-4 flex justify-between items-center border-t border-slate-100">
-                
-                <button
-                  onClick={() => {
-                    setFiltroViatura(v.id)
-                    setAba("manutencoes")
-                  }}
+                <button 
+                  onClick={() => verHistoricoViatura(v.id)}
                   className="flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-slate-900 transition-colors"
                 >
-                  VER HISTÓRICO
+                  <Eye size={16}/> Manutenções
                 </button>
-      
-                <button
+                <button 
                   onClick={() => deletarViatura(v.id)}
                   className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                 >
