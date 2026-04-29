@@ -1,0 +1,18 @@
+/* redec-extensao-detran/manifest.json */
+
+{
+  "manifest_version": 3,
+  "name": "REDEC 10 - Sincronizador DETRAN",
+  "version": "1.1",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://www.detran.rj.gov.br/*",
+    "https://sistema-redec-10.vercel.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.detran.rj.gov.br/consultas/consultas-drv/nada-consta.html*"],
+      "js": ["content.js"]
+    }
+  ]
+}
