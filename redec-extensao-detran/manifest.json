@@ -1,27 +1,17 @@
 {
   "manifest_version": 3,
   "name": "REDEC 10 - Sincronizador DETRAN",
-  "version": "2.1",
-  "description": "Preenchimento automatizado via parâmetros de URL para o DETRAN-RJ.",
-
-  "permissions": [],
-
+  "version": "2.2",
+  "permissions": ["storage"],
   "host_permissions": [
     "https://*.detran.rj.gov.br/*"
   ],
-
   "content_scripts": [
     {
-      "matches": [
-        "https://*.detran.rj.gov.br/*"
-      ],
+      "matches": ["https://*.detran.rj.gov.br/*"],
       "js": ["content.js"],
       "all_frames": true,
       "run_at": "document_start"
     }
-  ],
-
-  "action": {
-    "default_title": "REDEC 10 Ativo"
-  }
+  ]
 }
