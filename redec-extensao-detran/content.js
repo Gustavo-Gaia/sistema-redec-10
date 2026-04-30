@@ -5,41 +5,34 @@ const CNPJ_PADRAO = "28176998000441";
 const API_URL = "https://sistema-redec-10.vercel.app/api/viaturas/sync-multas";
 
 // ===============================
-// 1. PREENCHER CAMPOS
+// 1. PREENCHER CAMPOS (COM ID REAL)
 // ===============================
 chrome.storage.local.get(["renavam_sync"], (result) => {
   if (!result.renavam_sync) return;
 
   const renavam = result.renavam_sync;
 
-  const tentarPreencher = setInterval(() => {
-    const campoRenavam =
-      document.querySelector("#MultasRenavam") ||
-      document.querySelector("input[name='renavam']");
-
-    const campoCnpj =
-      document.querySelector("#MultasCnpj") ||
-      document.querySelector("input[name='cnpj']");
+  const intervalo = setInterval(() => {
+    const campoRenavam = document.querySelector("#MultasRenavam");
+    const campoCnpj = document.querySelector("#MultasCpfcnpj");
 
     if (campoRenavam && campoCnpj) {
-      console.log("Campos encontrados");
+      console.log("Campos encontrados!");
 
-      // Preenche
       campoRenavam.value = renavam;
       campoCnpj.value = CNPJ_PADRAO;
 
-      // IMPORTANTE: dispara eventos (por causa da máscara)
-      campoRenavam.dispatchEvent(new Event("input", { bubbles: true }));
-      campoCnpj.dispatchEvent(new Event("input", { bubbles: true }));
+      // ESSENCIAL (máscara do site)
+      ["input", "change", "keyup"].forEach(evt => {
+        campoRenavam.dispatchEvent(new Event(evt, { bubbles: true }));
+        campoCnpj.dispatchEvent(new Event(evt, { bubbles: true }));
+      });
 
-      campoRenavam.dispatchEvent(new Event("change", { bubbles: true }));
-      campoCnpj.dispatchEvent(new Event("change", { bubbles: true }));
+      clearInterval(intervalo);
 
-      clearInterval(tentarPreencher);
-
-      exibirAviso("🤖 REDEC: Campos preenchidos. Resolva o captcha e clique em CONSULTAR.");
+      exibirAviso("🤖 REDEC: Campos preenchidos automaticamente!");
     }
-  }, 800);
+  }, 500);
 });
 
 
@@ -59,7 +52,7 @@ observer.observe(document.body, {
 
 
 // ===============================
-// 3. CAPTURAR E ENVIAR MULTAS
+// 3. CAPTURAR MULTAS
 // ===============================
 async function enviarDadosParaOSistema() {
   if (window.sincronizado) return;
@@ -114,12 +107,12 @@ async function enviarDadosParaOSistema() {
       exibirAviso("✅ Multas sincronizadas com sucesso!");
       chrome.storage.local.remove("renavam_sync");
     } else {
-      exibirAviso("❌ Erro ao enviar para API.");
+      exibirAviso("❌ Erro ao enviar para API");
     }
 
   } catch (err) {
     console.error(err);
-    exibirAviso("❌ Falha na conexão com o sistema.");
+    exibirAviso("❌ Falha na conexão com o sistema");
   }
 }
 
@@ -146,7 +139,6 @@ function exibirAviso(txt) {
       font-weight: bold;
       box-shadow: 0 10px 20px rgba(0,0,0,0.4);
       border: 2px solid #3b82f6;
-      max-width: 300px;
     `;
 
     document.body.appendChild(div);
