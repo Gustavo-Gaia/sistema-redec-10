@@ -1,92 +1,76 @@
 // content.js
-console.log("🚀 REDEC: Sincronizador via URL carregado");
+console.log("🚀 REDEC: modo storage inteligente");
 
 const CNPJ_PADRAO = "28176998000441";
-let tentativas = 0;
-const MAX_TENTATIVAS = 20;
+let renavamCache = null;
 
-// ---------------- FUNÇÃO PARA PEGAR DADO DA URL ----------------
-function obterRenavamDaURL() {
-    try {
-        // Buscamos o parâmetro na URL principal (a que aparece no navegador)
-        const urlPrincipal = window.top.location.href;
-        const urlObj = new URL(urlPrincipal);
-        const renavam = urlObj.searchParams.get("renavam");
-        
-        if (renavam) {
-            console.log("✅ Renavam capturado da URL:", renavam);
-            return renavam;
-        }
-    } catch (e) {
-        console.error("❌ Erro ao ler URL principal:", e);
-    }
-    return null;
+// ---------------- CAPTURA NO FRAME PRINCIPAL ----------------
+if (window === window.top) {
+  const params = new URLSearchParams(window.location.search);
+  const renavam = params.get("renavam");
+
+  if (renavam) {
+    chrome.storage.local.set({ renavam_temp: renavam });
+    console.log("📦 Renavam salvo:", renavam);
+  }
 }
 
-// ---------------- LOOP DE PREENCHIMENTO ----------------
-const intervalo = setInterval(() => {
+// ---------------- BUSCA DO STORAGE (UMA VEZ SÓ) ----------------
+function carregarRenavam() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["renavam_temp"], (res) => {
+      resolve(res?.renavam_temp || null);
+    });
+  });
+}
+
+// ---------------- LOOP PRINCIPAL ----------------
+async function iniciar() {
+  renavamCache = await carregarRenavam();
+
+  let tentativas = 0;
+  const MAX = 20;
+
+  const interval = setInterval(() => {
     tentativas++;
-    
-    // Seleciona os campos (id exato do Detran-RJ)
+
     const campoRenavam = document.querySelector("#MultasRenavam");
     const campoCnpj = document.querySelector("#MultasCpfcnpj");
 
-    // Se encontrou ao menos um dos campos
-    if (campoCnpj || campoRenavam) {
-        
-        // 1. Preenche o CNPJ (sempre o mesmo)
-        if (campoCnpj && campoCnpj.value !== CNPJ_PADRAO) {
-            campoCnpj.value = CNPJ_PADRAO;
-            campoCnpj.dispatchEvent(new Event("input", { bubbles: true }));
-            campoCnpj.dispatchEvent(new Event("change", { bubbles: true }));
-            console.log("✅ CNPJ preenchido");
-        }
+    if (!campoRenavam && !campoCnpj) return;
 
-        // 2. Preenche o Renavam (vindo da URL)
-        if (campoRenavam) {
-            const renavam = obterRenavamDaURL();
-            if (renavam && campoRenavam.value !== renavam) {
-                campoRenavam.value = renavam;
-                campoRenavam.dispatchEvent(new Event("input", { bubbles: true }));
-                campoRenavam.dispatchEvent(new Event("change", { bubbles: true }));
-                console.log("✅ Renavam preenchido");
-            }
-        }
-
-        // Se ambos estiverem preenchidos, podemos parar o loop
-        if (campoCnpj?.value === CNPJ_PADRAO && (campoRenavam ? campoRenavam.value.length > 0 : true)) {
-            exibirAviso("🤖 Campos preenchidos via REDEC 10");
-            clearInterval(intervalo);
-        }
+    // CNPJ
+    if (campoCnpj && campoCnpj.value !== CNPJ_PADRAO) {
+      campoCnpj.value = CNPJ_PADRAO;
+      campoCnpj.dispatchEvent(new Event("input", { bubbles: true }));
+      campoCnpj.dispatchEvent(new Event("change", { bubbles: true }));
+      console.log("✅ CNPJ preenchido");
     }
 
-    if (tentativas >= MAX_TENTATIVAS) {
-        clearInterval(intervalo);
-        console.log("⏳ Fim das tentativas de busca de campos.");
+    // RENAVAM
+    if (campoRenavam && renavamCache && campoRenavam.value !== renavamCache) {
+      campoRenavam.value = renavamCache;
+      campoRenavam.dispatchEvent(new Event("input", { bubbles: true }));
+      campoRenavam.dispatchEvent(new Event("change", { bubbles: true }));
+      console.log("✅ Renavam preenchido");
     }
-}, 1000);
 
-// ---------------- AVISO VISUAL ----------------
-function exibirAviso(txt) {
-    let div = document.getElementById("redec-aviso");
-    if (!div) {
-        div = document.createElement("div");
-        div.id = "redec-aviso";
-        div.style = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #0f172a;
-            color: #3b82f6;
-            padding: 12px 20px;
-            border-radius: 12px;
-            z-index: 999999;
-            font-weight: bold;
-            font-family: sans-serif;
-            border: 2px solid #3b82f6;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-        `;
-        document.body.appendChild(div);
+    // SUCESSO
+    if (
+      campoCnpj?.value &&
+      campoRenavam?.value
+    ) {
+      console.log("🎉 SUCESSO TOTAL");
+      clearInterval(interval);
     }
-    div.innerText = txt;
+
+    // TIMEOUT
+    if (tentativas >= MAX) {
+      console.log("❌ Timeout");
+      clearInterval(interval);
+    }
+
+  }, 800);
 }
+
+iniciar();
