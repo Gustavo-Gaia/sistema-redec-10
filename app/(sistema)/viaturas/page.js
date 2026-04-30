@@ -42,7 +42,7 @@ export default function ViaturasPage() {
 
   // ---------------- INTEGRAÇÃO DETRAN (EXTENSÃO) ----------------
   async function consultarDetran(viatura) {
-    if (!viatura.renavan) {
+    if (!viatura.renavam) {
       showToast("Esta viatura não possui Renavam cadastrado!", "error");
       return;
     }
@@ -51,10 +51,10 @@ export default function ViaturasPage() {
 
     // Envia o Renavam para a "memória" da extensão
     if (typeof chrome !== "undefined" && chrome.storage) {
-      chrome.storage.local.set({ renavam_sync: viatura.renavan });
+      chrome.storage.local.set({ renavam_sync: viatura.renavam });
     } else {
       // Fallback para teste manual ou local
-      window.localStorage.setItem("renavam_sync", viatura.renavan);
+      window.localStorage.setItem("renavam_sync", viatura.renavam);
     }
 
     // Abre o site do DETRAN em uma nova aba
@@ -375,9 +375,9 @@ export default function ViaturasPage() {
                   <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-md border border-slate-200">
                     {v.placa || "S/ PLACA"}
                   </span>
-                  {v.renavan && (
+                  {v.renavam && (
                      <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-md border border-blue-100">
-                        REN: {v.renavan}
+                        REN: {v.renavam}
                      </span>
                   )}
                 </div>
