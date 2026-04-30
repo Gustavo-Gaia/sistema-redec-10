@@ -1,16 +1,31 @@
 {
   "manifest_version": 3,
   "name": "REDEC 10 - Sincronizador DETRAN",
-  "version": "1.1",
-  "permissions": ["storage"],
+  "version": "1.2",
+
+  "description": "Preenche automaticamente dados no DETRAN RJ e sincroniza multas com o sistema REDEC 10.",
+
+  "permissions": [
+    "storage"
+  ],
+
   "host_permissions": [
     "https://www.detran.rj.gov.br/*",
     "https://sistema-redec-10.vercel.app/*"
   ],
+
   "content_scripts": [
     {
-      "matches": ["https://www.detran.rj.gov.br/consultas/consultas-drv/nada-consta.html*"],
-      "js": ["content.js"]
+      "matches": [
+        "https://www.detran.rj.gov.br/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
     }
-  ]
+  ],
+
+  "action": {
+    "default_title": "REDEC 10"
+  }
 }
