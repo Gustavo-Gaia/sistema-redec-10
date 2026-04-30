@@ -1,128 +1,61 @@
 console.log("🚀 REDEC extensão carregada");
 
 const CNPJ_PADRAO = "28176998000441";
-const API_URL = "https://sistema-redec-10.vercel.app/api/viaturas/sync-multas";
+
+// ---------------- PREENCHER CAMPOS ----------------
+const intervalo = setInterval(() => {
+  const campoRenavam =
+    document.querySelector("#MultasRenavam");
+
+  const campoCnpj =
+    document.querySelector("#MultasCpfcnpj");
+
+  if (campoCnpj) {
+    campoCnpj.value = CNPJ_PADRAO;
+    campoCnpj.dispatchEvent(new Event("input", { bubbles: true }));
+    console.log("✅ CNPJ preenchido");
+  }
+
+  if (campoRenavam) {
+    pegarRenavam((renavam) => {
+      if (renavam) {
+        campoRenavam.value = renavam;
+        campoRenavam.dispatchEvent(new Event("input", { bubbles: true }));
+        console.log("✅ Renavam preenchido");
+      }
+    });
+  }
+
+  if (campoRenavam && campoCnpj) {
+    exibirAviso("🤖 Campos preenchidos automaticamente");
+    clearInterval(intervalo);
+  }
+
+}, 1000);
 
 // ---------------- PEGAR RENAVAM ----------------
-function obterRenavam(callback) {
-  // tenta via chrome.storage
+function pegarRenavam(callback) {
   if (typeof chrome !== "undefined" && chrome.storage) {
-    chrome.storage.local.get(["renavam_sync"], (result) => {
-      if (result?.renavam_sync) {
-        console.log("✅ Renavam via chrome.storage:", result.renavam_sync);
-        callback(result.renavam_sync);
+    chrome.storage.local.get(["renavam_sync"], (res) => {
+      if (res?.renavam_sync) {
+        console.log("📦 Renavam via chrome:", res.renavam_sync);
+        callback(res.renavam_sync);
       } else {
-        // fallback localStorage
-        const renavam = localStorage.getItem("renavam_sync");
-        if (renavam) {
-          console.log("✅ Renavam via localStorage:", renavam);
-          callback(renavam);
+        const local = localStorage.getItem("renavam_sync");
+        if (local) {
+          console.log("💾 Renavam via localStorage:", local);
+          callback(local);
         } else {
           console.log("⚠️ Nenhum renavam encontrado");
         }
       }
     });
   } else {
-    // ambiente fora da extensão
-    const renavam = localStorage.getItem("renavam_sync");
-    if (renavam) {
-      console.log("✅ Renavam via localStorage:", renavam);
-      callback(renavam);
+    const local = localStorage.getItem("renavam_sync");
+    if (local) {
+      console.log("💾 Renavam via localStorage:", local);
+      callback(local);
     }
-  }
-}
-
-// ---------------- PREENCHER CAMPOS ----------------
-obterRenavam((renavam) => {
-  const intervalo = setInterval(() => {
-    const campoRenavam =
-      document.querySelector("#MultasRenavam") ||
-      document.querySelector("input[name='renavam']");
-
-    const campoCnpj =
-      document.querySelector("#MultasCpfcnpj") ||
-      document.querySelector("input[name='cnpj']");
-
-    if (campoRenavam && campoCnpj) {
-      campoRenavam.value = renavam;
-      campoCnpj.value = CNPJ_PADRAO;
-
-      // dispara eventos (IMPORTANTE por causa do mask)
-      campoRenavam.dispatchEvent(new Event("input", { bubbles: true }));
-      campoCnpj.dispatchEvent(new Event("input", { bubbles: true }));
-
-      console.log("✅ Campos preenchidos automaticamente");
-
-      exibirAviso("🤖 Campos preenchidos! Resolva o captcha.");
-
-      clearInterval(intervalo);
-    }
-  }, 1000);
-});
-
-// ---------------- OBSERVAR RESULTADO ----------------
-const observer = new MutationObserver(() => {
-  if (document.body.innerText.includes("Auto de Infração")) {
-    enviarDadosParaOSistema();
-  }
-});
-
-observer.observe(document.body, { childList: true, subtree: true });
-
-// ---------------- ENVIAR DADOS ----------------
-async function enviarDadosParaOSistema() {
-  if (window.sincronizado) return;
-
-  const multas = [];
-  const renavamIdentificado =
-    document.body.innerText.match(/Renavam:\s*(\d+)/)?.[1];
-
-  const tabelas = [...document.querySelectorAll("table")]
-    .filter((t) => t.innerText.includes("Auto de Infração"));
-
-  tabelas.forEach((t) => {
-    const texto = t.innerText;
-
-    const getField = (label) =>
-      texto.match(new RegExp(`${label}:\\s*([^\\n]+)`))?.[1]?.trim();
-
-    const auto = getField("Auto de Infração");
-
-    if (auto) {
-      multas.push({
-        numero_auto: auto,
-        data_infracao: getField("Data da Infração"),
-        valor: getField("Valor a ser pago R\\$"),
-        local: getField("Local da Infração"),
-        orgao: getField("Órgão Emissor"),
-      });
-    }
-  });
-
-  window.sincronizado = true;
-
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        multas,
-        renavam: renavamIdentificado,
-      }),
-    });
-
-    if (res.ok) {
-      exibirAviso("✅ Multas sincronizadas!");
-      localStorage.removeItem("renavam_sync");
-
-      if (chrome?.storage) {
-        chrome.storage.local.remove("renavam_sync");
-      }
-    } else {
-      exibirAviso("❌ Erro ao salvar no sistema");
-    }
-  } catch (err) {
-    exibirAviso("❌ Erro de conexão");
   }
 }
 
