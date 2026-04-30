@@ -1,7 +1,5 @@
 /* app/(sistema)/viaturas/componentes/ModalManutencao.js */
 
-/* app/(sistema)/viaturas/componentes/ModalManutencao.js */
-
 "use client"
 
 import { useState, useEffect } from "react"
