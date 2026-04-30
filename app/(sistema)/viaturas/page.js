@@ -47,21 +47,14 @@ export default function ViaturasPage() {
       return;
     }
 
-    showToast("Preparando consulta no DETRAN...", "info");
+    showToast("Redirecionando para o DETRAN...", "info");
 
-    // Envia o Renavam para a "memória" da extensão
-    if (typeof chrome !== "undefined" && chrome.storage) {
-      chrome.storage.local.set({ renavam_sync: viatura.renavam });
-    } else {
-      // Fallback para teste manual ou local
-      window.localStorage.setItem("renavam_sync", viatura.renavam);
-    }
+    // Construímos a URL passando o renavam como um parâmetro de busca (?renavam=...)
+    // Isso permite que a extensão "leia" o valor diretamente da barra de endereços.
+    const urlComParametro = `https://www.detran.rj.gov.br/consultas/consultas-drv/nada-consta.html?renavam=${viatura.renavam}`;
 
-    // Abre o site do DETRAN em uma nova aba
-    window.open(
-      "https://www.detran.rj.gov.br/consultas/consultas-drv/nada-consta.html",
-      "_blank"
-    );
+    // Abre o site do DETRAN com o dado "pendurado" na URL
+    window.open(urlComParametro, "_blank");
   }
 
   // ---------------- BUSCAS ----------------
