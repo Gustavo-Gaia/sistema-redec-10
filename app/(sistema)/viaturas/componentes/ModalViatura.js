@@ -10,7 +10,7 @@ const initialState = {
   prefixo: "",
   situacao: "OPERANTE",
   placa: "",
-  renavan: "",
+  renavam: "",
   chassi: "",
   ano_fabricacao: "",
   marca: "",
