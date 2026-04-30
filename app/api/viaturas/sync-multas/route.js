@@ -23,7 +23,7 @@ export async function POST(req) {
     const { data: viatura, error: vError } = await supabase
       .from("viaturas")
       .select("id")
-      .eq("renavan", renavam?.trim())
+      .eq("renavam", renavam?.trim())
       .single();
 
     if (!viatura || vError) {
