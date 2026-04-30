@@ -40,6 +40,30 @@ export default function ViaturasPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
+  // ---------------- INTEGRAÇÃO DETRAN (EXTENSÃO) ----------------
+  async function consultarDetran(viatura) {
+    if (!viatura.renavan) {
+      showToast("Esta viatura não possui Renavam cadastrado!", "error");
+      return;
+    }
+
+    showToast("Preparando consulta no DETRAN...", "info");
+
+    // Envia o Renavam para a "memória" da extensão
+    if (typeof chrome !== "undefined" && chrome.storage) {
+      chrome.storage.local.set({ renavam_sync: viatura.renavan });
+    } else {
+      // Fallback para teste manual ou local
+      window.localStorage.setItem("renavam_sync", viatura.renavan);
+    }
+
+    // Abre o site do DETRAN em uma nova aba
+    window.open(
+      "https://www.detran.rj.gov.br/consultas/consultas-drv/nada-consta.html",
+      "_blank"
+    );
+  }
+
   // ---------------- BUSCAS ----------------
   async function buscarViaturas() {
     const { data, error } = await supabase
@@ -212,7 +236,7 @@ export default function ViaturasPage() {
         valor: form.valor ? Number(form.valor) : null,
         orgao: form.orgao || null,
         status: form.status || "PENDENTE",
-        numero_auto: form.numero_auto || null, // ✅ CORREÇÃO
+        numero_auto: form.numero_auto || null,
         observacao: form.observacao || null
       }
 
@@ -283,8 +307,8 @@ export default function ViaturasPage() {
 
       {/* TOAST */}
       {toast && (
-        <div className={`fixed top-6 right-6 px-4 py-2 rounded-lg text-white z-50 ${
-          toast.type === "error" ? "bg-red-500" : "bg-green-600"
+        <div className={`fixed top-6 right-6 px-4 py-2 rounded-lg text-white z-[9999] shadow-xl ${
+          toast.type === "error" ? "bg-red-500" : toast.type === "info" ? "bg-blue-500" : "bg-green-600"
         }`}>
           {toast.msg}
         </div>
@@ -298,7 +322,7 @@ export default function ViaturasPage() {
         </p>
       </div>
 
-      {/* ABAS CORRIGIDAS */}
+      {/* ABAS */}
       <div className="flex gap-2">
         {[
           { key: "viaturas", label: "Viaturas", icon: Car },
@@ -323,29 +347,7 @@ export default function ViaturasPage() {
         })}
       </div>
 
-      {/* FILTRO */}
-      {(aba === "manutencoes" || aba === "multas") && (
-        <div className="bg-white p-4 rounded-2xl border flex gap-3 items-center">
-          <select
-            value={filtroViatura}
-            onChange={(e) => setFiltroViatura(e.target.value)}
-            className="border rounded-xl px-3 py-2"
-          >
-            <option value="">Todas as viaturas</option>
-            {viaturas.map(v => (
-              <option key={v.id} value={v.id}>{v.prefixo}</option>
-            ))}
-          </select>
-
-          {filtroViatura && (
-            <button onClick={() => setFiltroViatura("")} className="text-red-500 text-sm">
-              Limpar filtro
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* CONTEÚDO */}
+      {/* CONTEÚDO VIATURAS */}
       {aba === "viaturas" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {viaturas.map(v => (
@@ -373,28 +375,55 @@ export default function ViaturasPage() {
                   <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-md border border-slate-200">
                     {v.placa || "S/ PLACA"}
                   </span>
+                  {v.renavan && (
+                     <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-md border border-blue-100">
+                        REN: {v.renavan}
+                     </span>
+                  )}
                 </div>
               </div>
 
+              {/* BOTÕES DE AÇÃO DO CARD */}
               <div className="bg-slate-50 px-6 py-4 flex justify-between items-center border-t border-slate-100">
-                <button 
-                  onClick={() => verHistoricoViatura(v.id)}
-                  className="flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  <Eye size={16}/> Manutenções
-                </button>
-                <button 
-                  onClick={() => deletarViatura(v.id)}
-                  className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                >
-                  <Trash2 size={18}/>
-                </button>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setAba("manutencoes")}
+                    className="flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-slate-900 transition-colors"
+                  >
+                    <Eye size={16}/> Histórico
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {/* NOVO BOTÃO DA SIRENE (DETRAN) */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      consultarDetran(v);
+                    }}
+                    className="p-2 text-orange-500 hover:bg-orange-50 rounded-xl transition-all"
+                    title="Sincronizar com DETRAN"
+                  >
+                    <AlertCircle size={18} className="text-orange-600" />
+                  </button>
+
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deletarViatura(v.id);
+                    }}
+                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                  >
+                    <Trash2 size={18}/>
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* OUTRAS ABAS (TIMELINES) */}
       {aba === "manutencoes" && (
         <TimelineManutencoes
           manutencoes={manutencoesFiltradas}
@@ -417,23 +446,23 @@ export default function ViaturasPage() {
         />
       )}
 
-      {/* BOTÃO */}
+      {/* BOTÃO FLUTUANTE ADICIONAR */}
       <button
         onClick={() => {
           if (aba === "viaturas") {
-            setEditandoViatura(null); // <--- ADICIONE ESTA LINHA
+            setEditandoViatura(null);
             setModalViaturaOpen(true);
           }
           if (aba === "manutencoes") {
-            setEditandoManut(null);   // <--- ADICIONE ESTA LINHA
+            setEditandoManut(null);
             setModalManutOpen(true);
           }
           if (aba === "multas") {
-            setEditandoMulta(null);   // <--- ADICIONE ESTA LINHA
+            setEditandoMulta(null);
             setModalMultaOpen(true);
           }
         }}
-        className="fixed bottom-20 right-6 bg-slate-700 text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform"
+        className="fixed bottom-20 right-6 bg-slate-700 text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform z-40"
       >
         <Plus />
       </button>
@@ -441,10 +470,7 @@ export default function ViaturasPage() {
       {/* MODAIS */}
       {modalViaturaOpen && (
         <ModalViatura
-          onClose={() => {
-            setModalViaturaOpen(false);
-            setEditandoViatura(null); // <--- LIMPA AO FECHAR
-          }}
+          onClose={() => { setModalViaturaOpen(false); setEditandoViatura(null); }}
           onSave={salvarViatura}
           viatura={editandoViatura}
         />
@@ -452,10 +478,7 @@ export default function ViaturasPage() {
       
       {modalManutOpen && (
         <ModalManutencao
-          onClose={() => {
-            setModalManutOpen(false);
-            setEditandoManut(null); // <--- LIMPA AO FECHAR
-          }}
+          onClose={() => { setModalManutOpen(false); setEditandoManut(null); }}
           onSave={salvarManutencao}
           manutencao={editandoManut}
           viaturas={viaturas}
@@ -464,16 +487,12 @@ export default function ViaturasPage() {
       
       {modalMultaOpen && (
         <ModalMulta
-          onClose={() => {
-            setModalMultaOpen(false);
-            setEditandoMulta(null); // <--- LIMPA AO FECHAR
-          }}
+          onClose={() => { setModalMultaOpen(false); setEditandoMulta(null); }}
           onSave={salvarMulta}
           multa={editandoMulta}
           viaturas={viaturas}
         />
       )}
-
     </div>
   )
 }
