@@ -25,6 +25,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     nome_completo: '',
     nome_guerra: '',
     posto_graduacao: '',
+    qbmp: '',
     funcao_redec: '',
     email: '',
     rg: '',
@@ -314,6 +315,16 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                   <input type="text" className="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-medium"
                     value={form.rg} onChange={e => setForm({...form, rg: e.target.value})} />
                 </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">QBMP</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: QOC/12"
+                    className="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-bold text-blue-700"
+                    value={form.qbmp || ''} 
+                    onChange={e => setForm({...form, qbmp: e.target.value})} 
+                  />
+                </div>                      
                 <div className="col-span-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
                     <Phone size={12} className="text-green-600" /> Telefone / WhatsApp
