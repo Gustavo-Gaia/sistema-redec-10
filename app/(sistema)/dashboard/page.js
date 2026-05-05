@@ -123,7 +123,7 @@ export default function Dashboard() {
       ] 
     },
     { title: "Equipe REDEC", icon: Users, color: "from-orange-500 to-orange-800", link: "/equipe", info: ["Servidores: 42", "Em campo: 4"] },
-    { title: "Ocorrências", icon: AlertTriangle, color: "from-red-500 to-red-900", link: "/comdecs", info: ["Afetados: 5", "Desalojados: 208"] },
+    { title: "Ocorrências", icon: AlertTriangle, color: "from-red-500 to-red-900", link: "/municipios", info: ["Afetados: 5", "Desalojados: 208"] },
     { 
       title: "Agenda", 
       icon: Calendar, 
