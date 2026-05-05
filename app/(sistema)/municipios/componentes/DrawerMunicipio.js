@@ -36,21 +36,22 @@ export default function DrawerMunicipio({
     nome: "",
     prefeito: "",
     prefeito_contato: "",
-    prefeito_contato_2: "", // Novo
+    prefeito_contato_2: "",
     vice: "",
     vice_contato: "",
-    vice_contato_2: "", // Novo
+    vice_contato_2: "",
     chefe_gabinete: "",
     chefe_gabinete_contato: "",
-    chefe_gabinete_contato_2: "", // Novo
+    chefe_gabinete_contato_2: "",
     endereco_prefeitura: "",
     email_prefeitura: "",
     secretario_dc: "",
+    funcao_gestor_dc: "Secretário", // Novo campo adicionado
     secretario_dc_contato: "",
-    secretario_dc_contato_2: "", // Novo
+    secretario_dc_contato_2: "",
     subsecretario_dc: "",
     subsecretario_dc_contato: "",
-    subsecretario_dc_contato_2: "", // Novo
+    subsecretario_dc_contato_2: "",
     endereco_dc: "",
     email_dc: "",
     possui_barragem: false
@@ -308,14 +309,25 @@ export default function DrawerMunicipio({
                   <AlertTriangle size={12} /> Gestão de Defesa Civil
                 </h3>
                 
-                {/* Secretário */}
+                {/* Gestor DC com Seletor de Função */}
                 <div className="space-y-2">
-                  <input
-                    placeholder="Secretário Municipal"
-                    className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
-                    value={form.secretario_dc}
-                    onChange={(e) => setForm(prev => ({ ...prev, secretario_dc: e.target.value }))}
-                  />
+                  <div className="flex gap-2">
+                    <select 
+                      className="w-1/3 p-3 bg-white border border-blue-100 rounded-xl text-xs font-bold uppercase outline-none"
+                      value={form.funcao_gestor_dc}
+                      onChange={(e) => setForm(prev => ({ ...prev, funcao_gestor_dc: e.target.value }))}
+                    >
+                      <option value="Secretário">Secretário(a)</option>
+                      <option value="Coordenador">Coordenador(a)</option>
+                      <option value="Diretor">Diretor(a)</option>
+                    </select>
+                    <input
+                      placeholder="Nome do Gestor"
+                      className="w-2/3 p-3 bg-white border border-blue-100 rounded-xl text-sm"
+                      value={form.secretario_dc}
+                      onChange={(e) => setForm(prev => ({ ...prev, secretario_dc: e.target.value }))}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       placeholder="Contato 1"
@@ -335,7 +347,7 @@ export default function DrawerMunicipio({
                 {/* Subsecretário */}
                 <div className="space-y-2 pt-2 border-t border-blue-100">
                   <input
-                    placeholder="Subsecretário"
+                    placeholder="Subsecretário / Adjunto"
                     className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                     value={form.subsecretario_dc}
                     onChange={(e) => setForm(prev => ({ ...prev, subsecretario_dc: e.target.value }))}
