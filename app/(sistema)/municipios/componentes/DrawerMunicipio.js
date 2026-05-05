@@ -79,7 +79,12 @@ export default function DrawerMunicipio({
   // Efeito para carregar dados do município
   useEffect(() => {
     if (municipio) {
-      setForm(prev => ({ ...estadoInicial, ...municipio }))
+      setForm({ 
+        ...estadoInicial, 
+        ...municipio,
+        // O segredo está aqui: se for null/undefined, vira false. Se for true, continua true.
+        possui_barragem: !!municipio.possui_barragem 
+      })
     } else {
       setForm(estadoInicial)
     }
