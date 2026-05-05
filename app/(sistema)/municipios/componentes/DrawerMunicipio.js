@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase"
 
 import ListaDocumentos from "./documentos/ListaDocumentos"
 import UploadDocumento from "./documentos/UploadDocumento"
-import ListaBarragens from "./barragens/ListaBarragens" // 🔥 Nova Integração
+import ListaBarragens from "./barragens/ListaBarragens"
 
 import {
   X,
@@ -16,7 +16,7 @@ import {
   Building2,
   FileText,
   AlertTriangle,
-  Waves // Ícone para barragens
+  Waves 
 } from "lucide-react"
 
 export default function DrawerMunicipio({
@@ -31,7 +31,7 @@ export default function DrawerMunicipio({
   const [aba, setAba] = useState("dados")
   const [loading, setLoading] = useState(false)
 
-  const [form, setForm] = useState({
+  const estadoInicial = {
     id: null,
     nome: "",
     prefeito: "",
@@ -49,37 +49,42 @@ export default function DrawerMunicipio({
     endereco_dc: "",
     email_dc: "",
     possui_barragem: false
-  })
+  }
 
+  const [form, setForm] = useState(estadoInicial)
   const [documentos, setDocumentos] = useState([])
+
+  // ===============================
+  // MÁSCARA DE TELEFONE (XX) XXXXX-XXXX
+  // ===============================
+  const maskPhone = (value) => {
+    if (!value) return ""
+    value = value.replace(/\D/g, "")
+    value = value.replace(/^(\={0,2})(\d)/g, "($1$2")
+    value = value.replace(/^(\(\d{2})(\d)/, "$1) $2")
+    value = value.replace(/(\d{5})(\d)/, "$1-$2")
+    return value.length > 15 ? value.substring(0, 15) : value
+  }
+
+  const handlePhoneChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: maskPhone(value) }))
+  }
 
   // ===============================
   // CARREGAR MUNICÍPIO
   // ===============================
   useEffect(() => {
     if (municipio) {
-      setForm({ ...municipio })
+      // Sugestão do amigo: manter defaults + evitar bugs de campos faltantes
+      setForm(prev => ({ 
+        ...estadoInicial, 
+        ...municipio 
+      }))
     } else {
-      setForm({
-        id: null,
-        nome: "",
-        prefeito: "",
-        prefeito_contato: "",
-        vice: "",
-        vice_contato: "",
-        chefe_gabinete: "",
-        chefe_gabinete_contato: "",
-        endereco_prefeitura: "",
-        email_prefeitura: "",
-        secretario_dc: "",
-        secretario_dc_contato: "",
-        subsecretario_dc: "",
-        subsecretario_dc_contato: "",
-        endereco_dc: "",
-        email_dc: "",
-        possui_barragem: false
-      })
+      setForm(estadoInicial)
     }
+    // Melhoria opcional: Resetar aba ao abrir novo ou trocar
+    setAba("dados")
   }, [municipio])
 
   // ===============================
@@ -165,19 +170,14 @@ export default function DrawerMunicipio({
     }
   }
 
-  // ===============================
-  // UI
-  // ===============================
   return (
     <div className="fixed inset-0 z-[60] flex justify-end">
 
-      {/* OVERLAY */}
       <div
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* DRAWER */}
       <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col">
 
         {/* HEADER */}
@@ -199,19 +199,20 @@ export default function DrawerMunicipio({
         {/* TABS */}
         <div className="flex border-b px-4 bg-slate-50 overflow-x-auto no-scrollbar">
           {[
-            { id: "dados", label: "Dados", icon: Building2 },
-            { id: "barragens", label: "Barragens", icon: Waves }, // 🔥 Aba Nova
-            { id: "eventos", label: "Eventos", icon: AlertTriangle },
-            { id: "documentos", label: "Docs", icon: FileText }
+            { id: "dados", label: "Dados", icon: Building2, disabled: false },
+            { id: "barragens", label: "Barragens", icon: Waves, disabled: !municipio }, 
+            { id: "eventos", label: "Eventos", icon: AlertTriangle, disabled: !municipio },
+            { id: "documentos", label: "Docs", icon: FileText, disabled: !municipio }
           ].map((t) => (
             <button
               key={t.id}
-              onClick={() => setAba(t.id)}
+              onClick={() => !t.disabled && setAba(t.id)}
+              disabled={t.disabled}
               className={`flex items-center gap-2 py-4 px-4 text-[10px] font-black uppercase border-b-2 whitespace-nowrap transition-colors ${
                 aba === t.id
                   ? "border-blue-600 text-blue-600"
                   : "border-transparent text-slate-400"
-              }`}
+              } ${t.disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <t.icon size={14} />
               {t.label}
@@ -233,7 +234,7 @@ export default function DrawerMunicipio({
                 <input
                   className="w-full p-4 bg-slate-100 rounded-xl font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
                   value={form.nome}
-                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                  onChange={(e) => setForm(prev => ({ ...prev, nome: e.target.value }))}
                 />
               </div>
 
@@ -247,51 +248,51 @@ export default function DrawerMunicipio({
                   placeholder="Nome do Prefeito"
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.prefeito}
-                  onChange={(e) => setForm({ ...form, prefeito: e.target.value })}
+                  onChange={(e) => setForm(prev => ({ ...prev, prefeito: e.target.value }))}
                 />
                 <input
-                  placeholder="Contato Prefeito"
+                  placeholder="Contato Prefeito (DDD) 00000-0000"
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.prefeito_contato}
-                  onChange={(e) => setForm({ ...form, prefeito_contato: e.target.value })}
+                  onChange={(e) => handlePhoneChange('prefeito_contato', e.target.value)}
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     placeholder="Vice-Prefeito"
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                     value={form.vice}
-                    onChange={(e) => setForm({ ...form, vice: e.target.value })}
+                    onChange={(e) => setForm(prev => ({ ...prev, vice: e.target.value }))}
                   />
                   <input
                     placeholder="Contato Vice"
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                     value={form.vice_contato}
-                    onChange={(e) => setForm({ ...form, vice_contato: e.target.value })}
+                    onChange={(e) => handlePhoneChange('vice_contato', e.target.value)}
                   />
                 </div>
                 <input
                   placeholder="Chefe de Gabinete"
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.chefe_gabinete}
-                  onChange={(e) => setForm({ ...form, chefe_gabinete: e.target.value })}
+                  onChange={(e) => setForm(prev => ({ ...prev, chefe_gabinete: e.target.value }))}
                 />
                 <input
                   placeholder="Contato Gabinete"
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.chefe_gabinete_contato}
-                  onChange={(e) => setForm({ ...form, chefe_gabinete_contato: e.target.value })}
+                  onChange={(e) => handlePhoneChange('chefe_gabinete_contato', e.target.value)}
                 />
                 <input
                   placeholder="Endereço Prefeitura"
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.endereco_prefeitura}
-                  onChange={(e) => setForm({ ...form, endereco_prefeitura: e.target.value })}
+                  onChange={(e) => setForm(prev => ({ ...prev, endereco_prefeitura: e.target.value }))}
                 />
                 <input
                   placeholder="Email institucional"
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.email_prefeitura}
-                  onChange={(e) => setForm({ ...form, email_prefeitura: e.target.value })}
+                  onChange={(e) => setForm(prev => ({ ...prev, email_prefeitura: e.target.value }))}
                 />
               </div>
 
@@ -305,50 +306,49 @@ export default function DrawerMunicipio({
                   placeholder="Secretário Municipal"
                   className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                   value={form.secretario_dc}
-                  onChange={(e) => setForm({ ...form, secretario_dc: e.target.value })}
+                  onChange={(e) => setForm(prev => ({ ...prev, secretario_dc: e.target.value }))}
                 />
                 <input
                   placeholder="Contato Secretário"
                   className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                   value={form.secretario_dc_contato}
-                  onChange={(e) => setForm({ ...form, secretario_dc_contato: e.target.value })}
+                  onChange={(e) => handlePhoneChange('secretario_dc_contato', e.target.value)}
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     placeholder="Subsecretário"
                     className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                     value={form.subsecretario_dc}
-                    onChange={(e) => setForm({ ...form, subsecretario_dc: e.target.value })}
+                    onChange={(e) => setForm(prev => ({ ...prev, subsecretario_dc: e.target.value }))}
                   />
                   <input
                     placeholder="Contato Sub"
                     className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                     value={form.subsecretario_dc_contato}
-                    onChange={(e) => setForm({ ...form, subsecretario_dc_contato: e.target.value })}
+                    onChange={(e) => handlePhoneChange('subsecretario_dc_contato', e.target.value)}
                   />
                 </div>
                 <input
                   placeholder="Endereço da Defesa Civil"
                   className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                   value={form.endereco_dc}
-                  onChange={(e) => setForm({ ...form, endereco_dc: e.target.value })}
+                  onChange={(e) => setForm(prev => ({ ...prev, endereco_dc: e.target.value }))}
                 />
                 <input
                   placeholder="Email Defesa Civil"
                   className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                   value={form.email_dc}
-                  onChange={(e) => setForm({ ...form, email_dc: e.target.value })}
+                  onChange={(e) => setForm(prev => ({ ...prev, email_dc: e.target.value }))}
                 />
               </div>
 
-              {/* CHECKBOX BARRAGEM */}
               <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
                 <input
                   type="checkbox"
                   id="chk_barragem"
                   className="w-5 h-5 rounded-md accent-amber-600"
                   checked={form.possui_barragem}
-                  onChange={(e) => setForm({ ...form, possui_barragem: e.target.checked })}
+                  onChange={(e) => setForm(prev => ({ ...prev, possui_barragem: e.target.checked }))}
                 />
                 <label htmlFor="chk_barragem" className="text-xs font-black uppercase text-amber-700 cursor-pointer">
                   Município possui barragem cadastrada
@@ -357,109 +357,80 @@ export default function DrawerMunicipio({
             </div>
           )}
 
-          {/* ================= 🔥 BARRAGENS ================= */}
-          {aba === "barragens" && (
+          {/* ================= BARRAGENS ================= */}
+          {aba === "barragens" && municipio && (
             <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-              {!municipio && (
-                <div className="flex flex-col items-center justify-center h-40 text-center space-y-2">
-                   <AlertTriangle className="text-amber-500" size={32} />
-                   <p className="text-xs text-amber-600 font-black uppercase">
-                     Salve o município primeiro para gerenciar barragens
-                   </p>
-                </div>
-              )}
-
-              {municipio && !form.possui_barragem && (
+              {!form.possui_barragem ? (
                 <div className="flex flex-col items-center justify-center h-40 text-center space-y-2">
                    <Waves className="text-slate-300" size={32} />
                    <p className="text-xs text-slate-400 font-bold uppercase">
-                     Este município não possui barragens cadastradas no sistema
+                     Habilite o check de barragens nos dados gerais
                    </p>
                 </div>
-              )}
-
-              {municipio && form.possui_barragem && (
+              ) : (
                 <ListaBarragens municipioId={municipio.id} />
               )}
             </div>
           )}
 
           {/* ================= EVENTOS ================= */}
-          {aba === "eventos" && (
+          {aba === "eventos" && municipio && (
             <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-              {!municipio ? (
-                <p className="text-[10px] text-amber-500 font-black uppercase text-center py-10">
-                  Salve o município para visualizar o histórico de eventos
-                </p>
+              {getEventosDoMunicipio().length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-[10px] text-slate-400 font-black uppercase">
+                    Nenhum evento registrado nesta localidade
+                  </p>
+                </div>
               ) : (
-                <>
-                  {getEventosDoMunicipio().length === 0 ? (
-                    <div className="text-center py-10">
-                      <p className="text-[10px] text-slate-400 font-black uppercase">
-                        Nenhum evento registrado nesta localidade
-                      </p>
+                getEventosDoMunicipio().map(ev => (
+                  <div key={ev.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-xs font-black uppercase text-slate-700 leading-tight">
+                        {ev.titulo}
+                      </h3>
+                      <span className={`text-[8px] font-black px-2 py-1 rounded-full ${ev.tipo === 'SE' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                        {ev.tipo}
+                      </span>
                     </div>
-                  ) : (
-                    getEventosDoMunicipio().map(ev => (
-                      <div key={ev.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                        <div className="flex justify-between items-start">
-                          <h3 className="text-xs font-black uppercase text-slate-700 leading-tight">
-                            {ev.titulo}
-                          </h3>
-                          <span className={`text-[8px] font-black px-2 py-1 rounded-full ${ev.tipo === 'SE' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                            {ev.tipo}
-                          </span>
+                    <p className="text-[9px] font-bold text-blue-600 mt-1">{ev.cobrade}</p>
+                    {ev.dados && (
+                      <div className="mt-3 grid grid-cols-3 gap-2 pt-3 border-t border-slate-50">
+                        <div className="text-center">
+                          <p className="text-[8px] text-slate-400 font-bold uppercase">Desaloj.</p>
+                          <p className="text-xs font-black text-slate-700">{ev.dados.desalojados}</p>
                         </div>
-                        <p className="text-[9px] font-bold text-blue-600 mt-1">{ev.cobrade}</p>
-                        
-                        {ev.dados && (
-                          <div className="mt-3 grid grid-cols-3 gap-2 pt-3 border-t border-slate-50">
-                            <div className="text-center">
-                              <p className="text-[8px] text-slate-400 font-bold uppercase">Desaloj.</p>
-                              <p className="text-xs font-black text-slate-700">{ev.dados.desalojados}</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-[8px] text-slate-400 font-bold uppercase">Desabr.</p>
-                              <p className="text-xs font-black text-slate-700">{ev.dados.desabrigados}</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-[8px] text-slate-400 font-bold uppercase">Afetad.</p>
-                              <p className="text-xs font-black text-slate-700">{ev.dados.afetados}</p>
-                            </div>
-                          </div>
-                        )}
+                        <div className="text-center">
+                          <p className="text-[8px] text-slate-400 font-bold uppercase">Desabr.</p>
+                          <p className="text-xs font-black text-slate-700">{ev.dados.desabrigados}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[8px] text-slate-400 font-bold uppercase">Afetad.</p>
+                          <p className="text-xs font-black text-slate-700">{ev.dados.afetados}</p>
+                        </div>
                       </div>
-                    ))
-                  )}
-                </>
+                    )}
+                  </div>
+                ))
               )}
             </div>
           )}
 
           {/* ================= DOCUMENTOS ================= */}
-          {aba === "documentos" && (
+          {aba === "documentos" && municipio && (
             <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-              {!municipio ? (
-                <p className="text-[10px] text-amber-500 font-black uppercase text-center py-10">
-                  Salve o município antes de anexar arquivos
-                </p>
-              ) : (
-                <>
-                  <UploadDocumento
-                    municipioId={municipio.id}
-                    onUploaded={carregarDocs}
-                  />
-                  <div className="pt-4">
-                    <ListaDocumentos
-                      documentos={documentos}
-                      onDelete={deletarDocumento}
-                    />
-                  </div>
-                </>
-              )}
+              <UploadDocumento
+                municipioId={municipio.id}
+                onUploaded={carregarDocs}
+              />
+              <div className="pt-4">
+                <ListaDocumentos
+                  documentos={documentos}
+                  onDelete={deletarDocumento}
+                />
+              </div>
             </div>
           )}
-
         </div>
 
         {/* FOOTER */}
