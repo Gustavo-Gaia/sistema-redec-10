@@ -5,11 +5,12 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 
-// Componentes (vamos criar depois)
+// COMPONENTES
 import ListaMunicipios from "./componentes/ListaMunicipios"
 import DrawerMunicipio from "./componentes/DrawerMunicipio"
+import ListaEventos from "./componentes/eventos/ListaEventos"
 
-// Ícones padrão do seu sistema
+// ICONES
 import { 
   Plus, 
   RefreshCw, 
@@ -20,18 +21,14 @@ import {
 export default function MunicipiosPage() {
 
   // ===============================
-  // ESTADOS PRINCIPAIS (DADOS)
+  // ESTADOS
   // ===============================
   const [municipios, setMunicipios] = useState([])
   const [eventos, setEventos] = useState([])
   const [eventosMunicipios, setEventosMunicipios] = useState([])
-  const [dadosEventos, setDadosEventos] = useState([])
 
   const [loading, setLoading] = useState(true)
 
-  // ===============================
-  // ESTADOS DE UI
-  // ===============================
   const [abaAtiva, setAbaAtiva] = useState("painel")
 
   const [municipioSelecionado, setMunicipioSelecionado] = useState(null)
@@ -45,7 +42,7 @@ export default function MunicipiosPage() {
   }
 
   // ===============================
-  // 🔄 CARREGAR DADOS
+  // CARREGAR DADOS
   // ===============================
   async function carregarDados() {
     try {
@@ -65,17 +62,12 @@ export default function MunicipiosPage() {
         .from("eventos_municipios")
         .select("*")
 
-      const { data: deData } = await supabase
-        .from("dados_eventos_municipios")
-        .select("*")
-
       setMunicipios(mData || [])
       setEventos(eData || [])
       setEventosMunicipios(emData || [])
-      setDadosEventos(deData || [])
 
     } catch (error) {
-      console.error("Erro ao carregar municípios:", error)
+      console.error(error)
       showToast("Erro ao carregar dados", "error")
     } finally {
       setLoading(false)
@@ -87,55 +79,66 @@ export default function MunicipiosPage() {
   }, [])
 
   // ===============================
-  // 📊 FUNÇÕES AUXILIARES
+  // AUXILIAR
   // ===============================
   function getEventosDoMunicipio(municipioId) {
-    const vinculos = eventosMunicipios.filter(em => em.municipio_id === municipioId)
-    return vinculos.map(v => eventos.find(e => e.id === v.evento_id)).filter(Boolean)
+    const vinculos = eventosMunicipios.filter(
+      (em) => em.municipio_id === municipioId
+    )
+
+    return vinculos
+      .map((v) => eventos.find((e) => e.id === v.evento_id))
+      .filter(Boolean)
   }
 
   // ===============================
-  // 🎨 RENDER
+  // RENDER
   // ===============================
   return (
     <div className="p-6 space-y-6 min-h-screen bg-gray-50/50 pb-24">
 
       {/* ================= TOAST ================= */}
       {toast && (
-        <div className={`fixed top-6 right-6 px-4 py-2 rounded-lg text-white font-medium shadow-2xl z-[100] transition-all animate-in fade-in slide-in-from-top-4 ${
+        <div className={`fixed top-6 right-6 px-4 py-2 rounded-lg text-white font-medium shadow-2xl z-[100] animate-in fade-in slide-in-from-top-4 ${
           toast.type === "error" ? "bg-red-500" : "bg-green-600"
         }`}>
           {toast.msg}
         </div>
       )}
 
-      {/* ================= HEADER ================= */}
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-4">
-          
+      {/* ================= HEADER NOVO ================= */}
+      <div className="relative rounded-3xl overflow-hidden">
+
+        <div className="absolute inset-0 bg-gradient-to-br from-red-500/90 via-red-600/80 to-red-700/90" />
+        <div className="absolute inset-0 backdrop-blur-xl bg-white/10" />
+
+        <div className="relative z-10 p-8 flex flex-col md:flex-row justify-between md:items-center gap-6 text-white">
+
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-5 h-5 text-orange-400" />
-              <span className="text-orange-200 text-xs font-bold uppercase tracking-widest">
-                Gestão de Municípios
+              <AlertTriangle className="w-5 h-5 text-white/80" />
+              <span className="text-white/80 text-xs font-bold uppercase tracking-widest">
+                Municípios
               </span>
             </div>
 
-            <h1 className="text-3xl font-black tracking-tight uppercase leading-none">
-              REDEC 10 - Norte
+            <h1 className="text-3xl font-black uppercase">
+              Gestão Municipal
             </h1>
 
-            <p className="text-slate-400 text-sm mt-1 font-medium italic">
-              Monitoramento e apoio municipal
+            <p className="text-white/70 text-sm mt-1 italic">
+              Monitoramento, eventos e documentação
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={carregarDados}
-              className={`p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all ${loading ? 'animate-spin' : ''}`}
+              className={`p-3 rounded-xl bg-white/20 hover:bg-white/30 border border-white/20 backdrop-blur-md transition-all ${
+                loading ? "animate-spin" : ""
+              }`}
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className="w-5 h-5 text-white" />
             </button>
           </div>
 
@@ -143,7 +146,7 @@ export default function MunicipiosPage() {
       </div>
 
       {/* ================= TABS ================= */}
-      <div className="flex flex-wrap gap-2 p-1.5 bg-slate-200/50 w-fit rounded-2xl border border-slate-200">
+      <div className="flex flex-wrap gap-2 p-1.5 bg-white rounded-2xl border shadow-sm w-fit">
         {[
           { id: "painel", label: "Painel Geral", icon: LayoutDashboard },
           { id: "eventos", label: "Eventos", icon: AlertTriangle },
@@ -151,10 +154,10 @@ export default function MunicipiosPage() {
           <button
             key={tab.id}
             onClick={() => setAbaAtiva(tab.id)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-tighter transition-all ${
-              abaAtiva === tab.id 
-                ? "bg-white text-slate-900 shadow-md ring-1 ring-slate-200" 
-                : "text-slate-500 hover:bg-white/50"
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-xs uppercase transition-all ${
+              abaAtiva === tab.id
+                ? "bg-slate-900 text-white shadow-md"
+                : "text-slate-500 hover:bg-slate-100"
             }`}
           >
             <tab.icon className="w-4 h-4" />
@@ -166,7 +169,7 @@ export default function MunicipiosPage() {
       {/* ================= CONTEÚDO ================= */}
       <div className="animate-in fade-in duration-500">
 
-        {/* ===== PAINEL ===== */}
+        {/* PAINEL */}
         {abaAtiva === "painel" && (
           <ListaMunicipios
             municipios={municipios}
@@ -180,24 +183,15 @@ export default function MunicipiosPage() {
           />
         )}
 
-        {/* ===== EVENTOS ===== */}
+        {/* EVENTOS (AGORA REAL) */}
         {abaAtiva === "eventos" && (
-          <div className="space-y-4">
-
-            <div className="text-center py-12">
-              <AlertTriangle size={32} className="mx-auto text-slate-200 mb-2" />
-              <p className="text-[10px] text-slate-400 font-bold uppercase">
-                Lista de eventos será implementada no próximo passo
-              </p>
-            </div>
-
-          </div>
+          <ListaEventos municipios={municipios} />
         )}
 
       </div>
 
-      {/* ================= BOTÃO FLUTUANTE ================= */}
-      <button 
+      {/* ================= FAB ================= */}
+      <button
         onClick={() => {
           setMunicipioSelecionado(null)
           setDrawerOpen(true)
@@ -213,7 +207,6 @@ export default function MunicipiosPage() {
           municipio={municipioSelecionado}
           eventos={eventos}
           eventosMunicipios={eventosMunicipios}
-          dadosEventos={dadosEventos}
           onClose={() => {
             setDrawerOpen(false)
             setMunicipioSelecionado(null)
@@ -221,8 +214,8 @@ export default function MunicipiosPage() {
           onSaved={() => {
             carregarDados()
             showToast(
-              municipioSelecionado 
-                ? "Município atualizado" 
+              municipioSelecionado
+                ? "Município atualizado"
                 : "Município criado"
             )
           }}
