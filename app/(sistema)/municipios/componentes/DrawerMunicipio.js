@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase"
 
 import ListaDocumentos from "./documentos/ListaDocumentos"
 import UploadDocumento from "./documentos/UploadDocumento"
+import ListaBarragens from "./barragens/ListaBarragens" // 🔥 Nova Integração
 
 import {
   X,
@@ -14,7 +15,8 @@ import {
   Loader2,
   Building2,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Waves // Ícone para barragens
 } from "lucide-react"
 
 export default function DrawerMunicipio({
@@ -34,8 +36,18 @@ export default function DrawerMunicipio({
     nome: "",
     prefeito: "",
     prefeito_contato: "",
+    vice: "",
+    vice_contato: "",
+    chefe_gabinete: "",
+    chefe_gabinete_contato: "",
+    endereco_prefeitura: "",
+    email_prefeitura: "",
     secretario_dc: "",
     secretario_dc_contato: "",
+    subsecretario_dc: "",
+    subsecretario_dc_contato: "",
+    endereco_dc: "",
+    email_dc: "",
     possui_barragem: false
   })
 
@@ -53,8 +65,18 @@ export default function DrawerMunicipio({
         nome: "",
         prefeito: "",
         prefeito_contato: "",
+        vice: "",
+        vice_contato: "",
+        chefe_gabinete: "",
+        chefe_gabinete_contato: "",
+        endereco_prefeitura: "",
+        email_prefeitura: "",
         secretario_dc: "",
         secretario_dc_contato: "",
+        subsecretario_dc: "",
+        subsecretario_dc_contato: "",
+        endereco_dc: "",
+        email_dc: "",
         possui_barragem: false
       })
     }
@@ -95,7 +117,7 @@ export default function DrawerMunicipio({
   }
 
   // ===============================
-  // 🔥 EVENTOS DO MUNICÍPIO
+  // EVENTOS DO MUNICÍPIO
   // ===============================
   function getEventosDoMunicipio() {
     if (!municipio) return []
@@ -169,23 +191,23 @@ export default function DrawerMunicipio({
             </p>
           </div>
 
-          <button onClick={onClose}>
-            <X />
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+            <X size={20} />
           </button>
         </div>
 
         {/* TABS */}
-        <div className="flex border-b px-4 bg-slate-50 overflow-x-auto">
-
+        <div className="flex border-b px-4 bg-slate-50 overflow-x-auto no-scrollbar">
           {[
             { id: "dados", label: "Dados", icon: Building2 },
+            { id: "barragens", label: "Barragens", icon: Waves }, // 🔥 Aba Nova
             { id: "eventos", label: "Eventos", icon: AlertTriangle },
-            { id: "documentos", label: "Documentos", icon: FileText }
+            { id: "documentos", label: "Docs", icon: FileText }
           ].map((t) => (
             <button
               key={t.id}
               onClick={() => setAba(t.id)}
-              className={`flex items-center gap-2 py-4 px-4 text-[10px] font-black uppercase border-b-2 ${
+              className={`flex items-center gap-2 py-4 px-4 text-[10px] font-black uppercase border-b-2 whitespace-nowrap transition-colors ${
                 aba === t.id
                   ? "border-blue-600 text-blue-600"
                   : "border-transparent text-slate-400"
@@ -195,259 +217,260 @@ export default function DrawerMunicipio({
               {t.label}
             </button>
           ))}
-
         </div>
 
         {/* CONTEÚDO */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
 
           {/* ================= DADOS ================= */}
           {aba === "dados" && (
-            <div className="space-y-6">
-          
-              {/* ================= NOME ================= */}
+            <div className="space-y-6 animate-in fade-in duration-300">
+              
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase">
-                  Município
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
+                  Nome do Município
                 </label>
                 <input
-                  className="w-full p-4 bg-slate-100 rounded-xl"
+                  className="w-full p-4 bg-slate-100 rounded-xl font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
                   value={form.nome}
                   onChange={(e) => setForm({ ...form, nome: e.target.value })}
                 />
               </div>
-          
-              {/* ================= PREFEITURA ================= */}
-              <div className="bg-slate-50 p-4 rounded-2xl space-y-4 border">
-                <h3 className="text-xs font-black text-slate-500 uppercase">
-                  Prefeitura
+
+              {/* PREFEITURA */}
+              <div className="bg-slate-50 p-4 rounded-2xl space-y-4 border border-slate-100">
+                <h3 className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">
+                  <Building2 size={12} /> Estrutura Política
                 </h3>
-          
+                
                 <input
-                  placeholder="Prefeito"
-                  className="w-full p-3 bg-white rounded-xl"
+                  placeholder="Nome do Prefeito"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.prefeito}
                   onChange={(e) => setForm({ ...form, prefeito: e.target.value })}
                 />
-          
                 <input
                   placeholder="Contato Prefeito"
-                  className="w-full p-3 bg-white rounded-xl"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.prefeito_contato}
                   onChange={(e) => setForm({ ...form, prefeito_contato: e.target.value })}
                 />
-          
-                <input
-                  placeholder="Vice"
-                  className="w-full p-3 bg-white rounded-xl"
-                  value={form.vice}
-                  onChange={(e) => setForm({ ...form, vice: e.target.value })}
-                />
-          
-                <input
-                  placeholder="Contato Vice"
-                  className="w-full p-3 bg-white rounded-xl"
-                  value={form.vice_contato}
-                  onChange={(e) => setForm({ ...form, vice_contato: e.target.value })}
-                />
-          
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    placeholder="Vice-Prefeito"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                    value={form.vice}
+                    onChange={(e) => setForm({ ...form, vice: e.target.value })}
+                  />
+                  <input
+                    placeholder="Contato Vice"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                    value={form.vice_contato}
+                    onChange={(e) => setForm({ ...form, vice_contato: e.target.value })}
+                  />
+                </div>
                 <input
                   placeholder="Chefe de Gabinete"
-                  className="w-full p-3 bg-white rounded-xl"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.chefe_gabinete}
                   onChange={(e) => setForm({ ...form, chefe_gabinete: e.target.value })}
                 />
-          
                 <input
-                  placeholder="Contato Chefe de Gabinete"
-                  className="w-full p-3 bg-white rounded-xl"
+                  placeholder="Contato Gabinete"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.chefe_gabinete_contato}
-                  onChange={(e) =>
-                    setForm({ ...form, chefe_gabinete_contato: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, chefe_gabinete_contato: e.target.value })}
                 />
-          
                 <input
-                  placeholder="Endereço da Prefeitura"
-                  className="w-full p-3 bg-white rounded-xl"
+                  placeholder="Endereço Prefeitura"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.endereco_prefeitura}
-                  onChange={(e) =>
-                    setForm({ ...form, endereco_prefeitura: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, endereco_prefeitura: e.target.value })}
                 />
-          
                 <input
-                  placeholder="Email da Prefeitura"
-                  className="w-full p-3 bg-white rounded-xl"
+                  placeholder="Email institucional"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                   value={form.email_prefeitura}
-                  onChange={(e) =>
-                    setForm({ ...form, email_prefeitura: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, email_prefeitura: e.target.value })}
                 />
               </div>
-          
-              {/* ================= DEFESA CIVIL ================= */}
-              <div className="bg-blue-50 p-4 rounded-2xl space-y-4 border">
-                <h3 className="text-xs font-black text-blue-600 uppercase">
-                  Defesa Civil
+
+              {/* DEFESA CIVIL */}
+              <div className="bg-blue-50/50 p-4 rounded-2xl space-y-4 border border-blue-100">
+                <h3 className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
+                  <AlertTriangle size={12} /> Gestão de Defesa Civil
                 </h3>
-          
+                
                 <input
-                  placeholder="Secretário"
-                  className="w-full p-3 bg-white rounded-xl"
+                  placeholder="Secretário Municipal"
+                  className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                   value={form.secretario_dc}
-                  onChange={(e) =>
-                    setForm({ ...form, secretario_dc: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, secretario_dc: e.target.value })}
                 />
-          
                 <input
                   placeholder="Contato Secretário"
-                  className="w-full p-3 bg-white rounded-xl"
+                  className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                   value={form.secretario_dc_contato}
-                  onChange={(e) =>
-                    setForm({ ...form, secretario_dc_contato: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, secretario_dc_contato: e.target.value })}
                 />
-          
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    placeholder="Subsecretário"
+                    className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
+                    value={form.subsecretario_dc}
+                    onChange={(e) => setForm({ ...form, subsecretario_dc: e.target.value })}
+                  />
+                  <input
+                    placeholder="Contato Sub"
+                    className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
+                    value={form.subsecretario_dc_contato}
+                    onChange={(e) => setForm({ ...form, subsecretario_dc_contato: e.target.value })}
+                  />
+                </div>
                 <input
-                  placeholder="Subsecretário"
-                  className="w-full p-3 bg-white rounded-xl"
-                  value={form.subsecretario_dc}
-                  onChange={(e) =>
-                    setForm({ ...form, subsecretario_dc: e.target.value })
-                  }
-                />
-          
-                <input
-                  placeholder="Contato Subsecretário"
-                  className="w-full p-3 bg-white rounded-xl"
-                  value={form.subsecretario_dc_contato}
-                  onChange={(e) =>
-                    setForm({ ...form, subsecretario_dc_contato: e.target.value })
-                  }
-                />
-          
-                <input
-                  placeholder="Endereço Defesa Civil"
-                  className="w-full p-3 bg-white rounded-xl"
+                  placeholder="Endereço da Defesa Civil"
+                  className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                   value={form.endereco_dc}
-                  onChange={(e) =>
-                    setForm({ ...form, endereco_dc: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, endereco_dc: e.target.value })}
                 />
-          
                 <input
                   placeholder="Email Defesa Civil"
-                  className="w-full p-3 bg-white rounded-xl"
+                  className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                   value={form.email_dc}
-                  onChange={(e) =>
-                    setForm({ ...form, email_dc: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, email_dc: e.target.value })}
                 />
               </div>
-          
-              {/* ================= BARRAGEM ================= */}
-              <div className="flex items-center gap-3 pt-2">
+
+              {/* CHECKBOX BARRAGEM */}
+              <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
                 <input
                   type="checkbox"
+                  id="chk_barragem"
+                  className="w-5 h-5 rounded-md accent-amber-600"
                   checked={form.possui_barragem}
-                  onChange={(e) =>
-                    setForm({ ...form, possui_barragem: e.target.checked })
-                  }
+                  onChange={(e) => setForm({ ...form, possui_barragem: e.target.checked })}
                 />
-                <span className="text-xs font-bold uppercase text-slate-500">
-                  Possui barragem
-                </span>
+                <label htmlFor="chk_barragem" className="text-xs font-black uppercase text-amber-700 cursor-pointer">
+                  Município possui barragem cadastrada
+                </label>
               </div>
-          
+            </div>
+          )}
+
+          {/* ================= 🔥 BARRAGENS ================= */}
+          {aba === "barragens" && (
+            <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+              {!municipio && (
+                <div className="flex flex-col items-center justify-center h-40 text-center space-y-2">
+                   <AlertTriangle className="text-amber-500" size={32} />
+                   <p className="text-xs text-amber-600 font-black uppercase">
+                     Salve o município primeiro para gerenciar barragens
+                   </p>
+                </div>
+              )}
+
+              {municipio && !form.possui_barragem && (
+                <div className="flex flex-col items-center justify-center h-40 text-center space-y-2">
+                   <Waves className="text-slate-300" size={32} />
+                   <p className="text-xs text-slate-400 font-bold uppercase">
+                     Este município não possui barragens cadastradas no sistema
+                   </p>
+                </div>
+              )}
+
+              {municipio && form.possui_barragem && (
+                <ListaBarragens municipioId={municipio.id} />
+              )}
             </div>
           )}
 
           {/* ================= EVENTOS ================= */}
           {aba === "eventos" && (
-            <div className="space-y-4">
-
-              {!municipio && (
-                <p className="text-xs text-amber-500 font-bold uppercase text-center">
-                  Salve o município para visualizar eventos
+            <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+              {!municipio ? (
+                <p className="text-[10px] text-amber-500 font-black uppercase text-center py-10">
+                  Salve o município para visualizar o histórico de eventos
                 </p>
-              )}
-
-              {municipio && (
+              ) : (
                 <>
-                  {getEventosDoMunicipio().length === 0 && (
-                    <p className="text-center text-xs text-slate-400 font-bold uppercase">
-                      Nenhum evento vinculado
-                    </p>
-                  )}
-
-                  {getEventosDoMunicipio().map(ev => (
-                    <div
-                      key={ev.id}
-                      className="bg-white border rounded-2xl p-4 shadow-sm"
-                    >
-                      <h3 className="text-xs font-black uppercase text-slate-700">
-                        {ev.titulo}
-                      </h3>
-
-                      <p className="text-[10px] text-slate-500 mt-1">
-                        {ev.tipo} • {ev.cobrade}
+                  {getEventosDoMunicipio().length === 0 ? (
+                    <div className="text-center py-10">
+                      <p className="text-[10px] text-slate-400 font-black uppercase">
+                        Nenhum evento registrado nesta localidade
                       </p>
-
-                      {ev.dados && (
-                        <div className="mt-2 text-[10px] text-slate-600 space-y-1">
-                          <p>Desalojados: {ev.dados.desalojados}</p>
-                          <p>Desabrigados: {ev.dados.desabrigados}</p>
-                          <p>Afetados: {ev.dados.afetados}</p>
-                        </div>
-                      )}
                     </div>
-                  ))}
+                  ) : (
+                    getEventosDoMunicipio().map(ev => (
+                      <div key={ev.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                        <div className="flex justify-between items-start">
+                          <h3 className="text-xs font-black uppercase text-slate-700 leading-tight">
+                            {ev.titulo}
+                          </h3>
+                          <span className={`text-[8px] font-black px-2 py-1 rounded-full ${ev.tipo === 'SE' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                            {ev.tipo}
+                          </span>
+                        </div>
+                        <p className="text-[9px] font-bold text-blue-600 mt-1">{ev.cobrade}</p>
+                        
+                        {ev.dados && (
+                          <div className="mt-3 grid grid-cols-3 gap-2 pt-3 border-t border-slate-50">
+                            <div className="text-center">
+                              <p className="text-[8px] text-slate-400 font-bold uppercase">Desaloj.</p>
+                              <p className="text-xs font-black text-slate-700">{ev.dados.desalojados}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-[8px] text-slate-400 font-bold uppercase">Desabr.</p>
+                              <p className="text-xs font-black text-slate-700">{ev.dados.desabrigados}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-[8px] text-slate-400 font-bold uppercase">Afetad.</p>
+                              <p className="text-xs font-black text-slate-700">{ev.dados.afetados}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </>
               )}
-
             </div>
           )}
 
           {/* ================= DOCUMENTOS ================= */}
           {aba === "documentos" && (
-            <div className="space-y-4">
-
-              {!municipio && (
-                <p className="text-xs text-amber-500 font-bold uppercase text-center">
-                  Salve o município antes de anexar documentos
+            <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+              {!municipio ? (
+                <p className="text-[10px] text-amber-500 font-black uppercase text-center py-10">
+                  Salve o município antes de anexar arquivos
                 </p>
-              )}
-
-              {municipio && (
+              ) : (
                 <>
                   <UploadDocumento
                     municipioId={municipio.id}
                     onUploaded={carregarDocs}
                   />
-
-                  <ListaDocumentos
-                    documentos={documentos}
-                    onDelete={deletarDocumento}
-                  />
+                  <div className="pt-4">
+                    <ListaDocumentos
+                      documentos={documentos}
+                      onDelete={deletarDocumento}
+                    />
+                  </div>
                 </>
               )}
-
             </div>
           )}
 
         </div>
 
         {/* FOOTER */}
-        <div className="p-6 border-t">
+        <div className="p-6 border-t bg-slate-50">
           <button
             onClick={salvarMunicipio}
             disabled={loading}
-            className="w-full bg-slate-900 text-white p-5 rounded-2xl flex justify-center gap-2"
+            className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white p-5 rounded-2xl flex justify-center items-center gap-3 font-black uppercase text-xs transition-all shadow-lg active:scale-[0.98]"
           >
-            {loading ? <Loader2 className="animate-spin" /> : <Save />}
-            {loading ? "SALVANDO..." : "SALVAR"}
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+            {loading ? "Processando..." : "Salvar Alterações"}
           </button>
         </div>
 
