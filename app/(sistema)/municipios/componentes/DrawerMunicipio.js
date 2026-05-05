@@ -36,16 +36,21 @@ export default function DrawerMunicipio({
     nome: "",
     prefeito: "",
     prefeito_contato: "",
+    prefeito_contato_2: "", // Novo
     vice: "",
     vice_contato: "",
+    vice_contato_2: "", // Novo
     chefe_gabinete: "",
     chefe_gabinete_contato: "",
+    chefe_gabinete_contato_2: "", // Novo
     endereco_prefeitura: "",
     email_prefeitura: "",
     secretario_dc: "",
     secretario_dc_contato: "",
+    secretario_dc_contato_2: "", // Novo
     subsecretario_dc: "",
     subsecretario_dc_contato: "",
+    subsecretario_dc_contato_2: "", // Novo
     endereco_dc: "",
     email_dc: "",
     possui_barragem: false
@@ -60,8 +65,7 @@ export default function DrawerMunicipio({
   const maskPhone = (value) => {
     if (!value) return ""
     value = value.replace(/\D/g, "")
-    value = value.replace(/^(\={0,2})(\d)/g, "($1$2")
-    value = value.replace(/^(\(\d{2})(\d)/, "$1) $2")
+    value = value.replace(/^(\d{2})(\d)/g, "($1) $2")
     value = value.replace(/(\d{5})(\d)/, "$1-$2")
     return value.length > 15 ? value.substring(0, 15) : value
   }
@@ -75,7 +79,6 @@ export default function DrawerMunicipio({
   // ===============================
   useEffect(() => {
     if (municipio) {
-      // Sugestão do amigo: manter defaults + evitar bugs de campos faltantes
       setForm(prev => ({ 
         ...estadoInicial, 
         ...municipio 
@@ -83,7 +86,6 @@ export default function DrawerMunicipio({
     } else {
       setForm(estadoInicial)
     }
-    // Melhoria opcional: Resetar aba ao abrir novo ou trocar
     setAba("dados")
   }, [municipio])
 
@@ -92,13 +94,11 @@ export default function DrawerMunicipio({
   // ===============================
   async function carregarDocs() {
     if (!municipio?.id) return
-
     const { data } = await supabase
       .from("municipios_documentos")
       .select("*")
       .eq("municipio_id", municipio.id)
       .order("created_at", { ascending: false })
-
     setDocumentos(data || [])
   }
 
@@ -108,16 +108,8 @@ export default function DrawerMunicipio({
 
   async function deletarDocumento(doc) {
     if (!confirm("Excluir documento?")) return
-
-    await supabase.storage
-      .from("municipios-documentos")
-      .remove([doc.arquivo_nome])
-
-    await supabase
-      .from("municipios_documentos")
-      .delete()
-      .eq("id", doc.id)
-
+    await supabase.storage.from("municipios-documentos").remove([doc.arquivo_nome])
+    await supabase.from("municipios_documentos").delete().eq("id", doc.id)
     carregarDocs()
   }
 
@@ -126,19 +118,11 @@ export default function DrawerMunicipio({
   // ===============================
   function getEventosDoMunicipio() {
     if (!municipio) return []
-
-    const vinculos = eventosMunicipios.filter(
-      em => em.municipio_id === municipio.id
-    )
-
+    const vinculos = eventosMunicipios.filter(em => em.municipio_id === municipio.id)
     return vinculos.map(v => {
       const evento = eventos.find(e => e.id === v.evento_id)
       const dados = dadosEventos.find(d => d.evento_municipio_id === v.id)
-
-      return {
-        ...evento,
-        dados
-      }
+      return { ...evento, dados }
     }).filter(Boolean)
   }
 
@@ -147,22 +131,15 @@ export default function DrawerMunicipio({
   // ===============================
   async function salvarMunicipio() {
     setLoading(true)
-
     try {
       const payload = {
         ...form,
         nome: form.nome.toUpperCase()
       }
-
-      const { error } = await supabase
-        .from("municipios")
-        .upsert(payload)
-
+      const { error } = await supabase.from("municipios").upsert(payload)
       if (error) throw error
-
       onSaved()
       onClose()
-
     } catch (err) {
       alert("Erro: " + err.message)
     } finally {
@@ -172,14 +149,10 @@ export default function DrawerMunicipio({
 
   return (
     <div className="fixed inset-0 z-[60] flex justify-end">
-
-      <div
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col">
-
+        
         {/* HEADER */}
         <div className="p-6 border-b bg-slate-50 flex justify-between">
           <div>
@@ -190,7 +163,6 @@ export default function DrawerMunicipio({
               Cadastro Municipal
             </p>
           </div>
-
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
             <X size={20} />
           </button>
@@ -209,9 +181,7 @@ export default function DrawerMunicipio({
               onClick={() => !t.disabled && setAba(t.id)}
               disabled={t.disabled}
               className={`flex items-center gap-2 py-4 px-4 text-[10px] font-black uppercase border-b-2 whitespace-nowrap transition-colors ${
-                aba === t.id
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-slate-400"
+                aba === t.id ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400"
               } ${t.disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <t.icon size={14} />
@@ -238,62 +208,98 @@ export default function DrawerMunicipio({
                 />
               </div>
 
-              {/* PREFEITURA */}
+              {/* ESTRUTURA POLÍTICA */}
               <div className="bg-slate-50 p-4 rounded-2xl space-y-4 border border-slate-100">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2">
                   <Building2 size={12} /> Estrutura Política
                 </h3>
                 
-                <input
-                  placeholder="Nome do Prefeito"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
-                  value={form.prefeito}
-                  onChange={(e) => setForm(prev => ({ ...prev, prefeito: e.target.value }))}
-                />
-                <input
-                  placeholder="Contato Prefeito (DDD) 00000-0000"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
-                  value={form.prefeito_contato}
-                  onChange={(e) => handlePhoneChange('prefeito_contato', e.target.value)}
-                />
-                <div className="grid grid-cols-2 gap-2">
+                {/* Prefeito */}
+                <div className="space-y-2">
+                  <input
+                    placeholder="Nome do Prefeito"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                    value={form.prefeito}
+                    onChange={(e) => setForm(prev => ({ ...prev, prefeito: e.target.value }))}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      placeholder="Contato 1"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                      value={form.prefeito_contato}
+                      onChange={(e) => handlePhoneChange('prefeito_contato', e.target.value)}
+                    />
+                    <input
+                      placeholder="Contato 2"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                      value={form.prefeito_contato_2}
+                      onChange={(e) => handlePhoneChange('prefeito_contato_2', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Vice-Prefeito */}
+                <div className="space-y-2 pt-2 border-t border-slate-200">
                   <input
                     placeholder="Vice-Prefeito"
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
                     value={form.vice}
                     onChange={(e) => setForm(prev => ({ ...prev, vice: e.target.value }))}
                   />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      placeholder="Contato 1"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                      value={form.vice_contato}
+                      onChange={(e) => handlePhoneChange('vice_contato', e.target.value)}
+                    />
+                    <input
+                      placeholder="Contato 2"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                      value={form.vice_contato_2}
+                      onChange={(e) => handlePhoneChange('vice_contato_2', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Chefe de Gabinete */}
+                <div className="space-y-2 pt-2 border-t border-slate-200">
                   <input
-                    placeholder="Contato Vice"
+                    placeholder="Chefe de Gabinete"
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
-                    value={form.vice_contato}
-                    onChange={(e) => handlePhoneChange('vice_contato', e.target.value)}
+                    value={form.chefe_gabinete}
+                    onChange={(e) => setForm(prev => ({ ...prev, chefe_gabinete: e.target.value }))}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      placeholder="Contato 1"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                      value={form.chefe_gabinete_contato}
+                      onChange={(e) => handlePhoneChange('chefe_gabinete_contato', e.target.value)}
+                    />
+                    <input
+                      placeholder="Contato 2"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                      value={form.chefe_gabinete_contato_2}
+                      onChange={(e) => handlePhoneChange('chefe_gabinete_contato_2', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-200">
+                   <input
+                    placeholder="Endereço Prefeitura"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                    value={form.endereco_prefeitura}
+                    onChange={(e) => setForm(prev => ({ ...prev, endereco_prefeitura: e.target.value }))}
+                  />
+                  <input
+                    placeholder="Email institucional"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
+                    value={form.email_prefeitura}
+                    onChange={(e) => setForm(prev => ({ ...prev, email_prefeitura: e.target.value }))}
                   />
                 </div>
-                <input
-                  placeholder="Chefe de Gabinete"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
-                  value={form.chefe_gabinete}
-                  onChange={(e) => setForm(prev => ({ ...prev, chefe_gabinete: e.target.value }))}
-                />
-                <input
-                  placeholder="Contato Gabinete"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
-                  value={form.chefe_gabinete_contato}
-                  onChange={(e) => handlePhoneChange('chefe_gabinete_contato', e.target.value)}
-                />
-                <input
-                  placeholder="Endereço Prefeitura"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
-                  value={form.endereco_prefeitura}
-                  onChange={(e) => setForm(prev => ({ ...prev, endereco_prefeitura: e.target.value }))}
-                />
-                <input
-                  placeholder="Email institucional"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm"
-                  value={form.email_prefeitura}
-                  onChange={(e) => setForm(prev => ({ ...prev, email_prefeitura: e.target.value }))}
-                />
               </div>
 
               {/* DEFESA CIVIL */}
@@ -302,44 +308,68 @@ export default function DrawerMunicipio({
                   <AlertTriangle size={12} /> Gestão de Defesa Civil
                 </h3>
                 
-                <input
-                  placeholder="Secretário Municipal"
-                  className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
-                  value={form.secretario_dc}
-                  onChange={(e) => setForm(prev => ({ ...prev, secretario_dc: e.target.value }))}
-                />
-                <input
-                  placeholder="Contato Secretário"
-                  className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
-                  value={form.secretario_dc_contato}
-                  onChange={(e) => handlePhoneChange('secretario_dc_contato', e.target.value)}
-                />
-                <div className="grid grid-cols-2 gap-2">
+                {/* Secretário */}
+                <div className="space-y-2">
+                  <input
+                    placeholder="Secretário Municipal"
+                    className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
+                    value={form.secretario_dc}
+                    onChange={(e) => setForm(prev => ({ ...prev, secretario_dc: e.target.value }))}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      placeholder="Contato 1"
+                      className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
+                      value={form.secretario_dc_contato}
+                      onChange={(e) => handlePhoneChange('secretario_dc_contato', e.target.value)}
+                    />
+                    <input
+                      placeholder="Contato 2"
+                      className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
+                      value={form.secretario_dc_contato_2}
+                      onChange={(e) => handlePhoneChange('secretario_dc_contato_2', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Subsecretário */}
+                <div className="space-y-2 pt-2 border-t border-blue-100">
                   <input
                     placeholder="Subsecretário"
                     className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
                     value={form.subsecretario_dc}
                     onChange={(e) => setForm(prev => ({ ...prev, subsecretario_dc: e.target.value }))}
                   />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      placeholder="Contato 1"
+                      className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
+                      value={form.subsecretario_dc_contato}
+                      onChange={(e) => handlePhoneChange('subsecretario_dc_contato', e.target.value)}
+                    />
+                    <input
+                      placeholder="Contato 2"
+                      className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
+                      value={form.subsecretario_dc_contato_2}
+                      onChange={(e) => handlePhoneChange('subsecretario_dc_contato_2', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-blue-100">
                   <input
-                    placeholder="Contato Sub"
+                    placeholder="Endereço da Defesa Civil"
                     className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
-                    value={form.subsecretario_dc_contato}
-                    onChange={(e) => handlePhoneChange('subsecretario_dc_contato', e.target.value)}
+                    value={form.endereco_dc}
+                    onChange={(e) => setForm(prev => ({ ...prev, endereco_dc: e.target.value }))}
+                  />
+                  <input
+                    placeholder="Email Defesa Civil"
+                    className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
+                    value={form.email_dc}
+                    onChange={(e) => setForm(prev => ({ ...prev, email_dc: e.target.value }))}
                   />
                 </div>
-                <input
-                  placeholder="Endereço da Defesa Civil"
-                  className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
-                  value={form.endereco_dc}
-                  onChange={(e) => setForm(prev => ({ ...prev, endereco_dc: e.target.value }))}
-                />
-                <input
-                  placeholder="Email Defesa Civil"
-                  className="w-full p-3 bg-white border border-blue-100 rounded-xl text-sm"
-                  value={form.email_dc}
-                  onChange={(e) => setForm(prev => ({ ...prev, email_dc: e.target.value }))}
-                />
               </div>
 
               <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
