@@ -13,11 +13,15 @@ import {
   Save,
   Loader2,
   Building2,
-  FileText
+  FileText,
+  AlertTriangle
 } from "lucide-react"
 
 export default function DrawerMunicipio({
   municipio,
+  eventos = [],
+  eventosMunicipios = [],
+  dadosEventos = [],
   onClose,
   onSaved
 }) {
@@ -30,18 +34,8 @@ export default function DrawerMunicipio({
     nome: "",
     prefeito: "",
     prefeito_contato: "",
-    vice: "",
-    vice_contato: "",
-    chefe_gabinete: "",
-    chefe_gabinete_contato: "",
-    endereco_prefeitura: "",
-    email_prefeitura: "",
     secretario_dc: "",
     secretario_dc_contato: "",
-    subsecretario_dc: "",
-    subsecretario_dc_contato: "",
-    endereco_dc: "",
-    email_dc: "",
     possui_barragem: false
   })
 
@@ -52,35 +46,22 @@ export default function DrawerMunicipio({
   // ===============================
   useEffect(() => {
     if (municipio) {
-      setForm({
-        ...municipio
-      })
+      setForm({ ...municipio })
     } else {
-      // RESET ao criar novo
       setForm({
         id: null,
         nome: "",
         prefeito: "",
         prefeito_contato: "",
-        vice: "",
-        vice_contato: "",
-        chefe_gabinete: "",
-        chefe_gabinete_contato: "",
-        endereco_prefeitura: "",
-        email_prefeitura: "",
         secretario_dc: "",
         secretario_dc_contato: "",
-        subsecretario_dc: "",
-        subsecretario_dc_contato: "",
-        endereco_dc: "",
-        email_dc: "",
         possui_barragem: false
       })
     }
   }, [municipio])
 
   // ===============================
-  // CARREGAR DOCUMENTOS
+  // DOCUMENTOS
   // ===============================
   async function carregarDocs() {
     if (!municipio?.id) return
@@ -95,14 +76,9 @@ export default function DrawerMunicipio({
   }
 
   useEffect(() => {
-    if (aba === "documentos") {
-      carregarDocs()
-    }
+    if (aba === "documentos") carregarDocs()
   }, [aba, municipio])
 
-  // ===============================
-  // DELETAR DOCUMENTO
-  // ===============================
   async function deletarDocumento(doc) {
     if (!confirm("Excluir documento?")) return
 
@@ -119,7 +95,28 @@ export default function DrawerMunicipio({
   }
 
   // ===============================
-  // SALVAR MUNICÍPIO
+  // 🔥 EVENTOS DO MUNICÍPIO
+  // ===============================
+  function getEventosDoMunicipio() {
+    if (!municipio) return []
+
+    const vinculos = eventosMunicipios.filter(
+      em => em.municipio_id === municipio.id
+    )
+
+    return vinculos.map(v => {
+      const evento = eventos.find(e => e.id === v.evento_id)
+      const dados = dadosEventos.find(d => d.evento_municipio_id === v.id)
+
+      return {
+        ...evento,
+        dados
+      }
+    }).filter(Boolean)
+  }
+
+  // ===============================
+  // SALVAR
   // ===============================
   async function salvarMunicipio() {
     setLoading(true)
@@ -140,7 +137,7 @@ export default function DrawerMunicipio({
       onClose()
 
     } catch (err) {
-      alert("Erro ao salvar: " + err.message)
+      alert("Erro: " + err.message)
     } finally {
       setLoading(false)
     }
@@ -159,21 +156,21 @@ export default function DrawerMunicipio({
       />
 
       {/* DRAWER */}
-      <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col">
 
         {/* HEADER */}
-        <div className="p-6 border-b flex justify-between items-center bg-slate-50">
+        <div className="p-6 border-b bg-slate-50 flex justify-between">
           <div>
-            <h2 className="text-xl font-black text-slate-800 uppercase">
+            <h2 className="text-xl font-black uppercase">
               {municipio ? form.nome : "Novo Município"}
             </h2>
-            <p className="text-[10px] text-blue-600 font-black uppercase mt-1">
+            <p className="text-[10px] text-blue-600 font-black uppercase">
               Cadastro Municipal
             </p>
           </div>
 
           <button onClick={onClose}>
-            <X size={24} />
+            <X />
           </button>
         </div>
 
@@ -182,12 +179,13 @@ export default function DrawerMunicipio({
 
           {[
             { id: "dados", label: "Dados", icon: Building2 },
+            { id: "eventos", label: "Eventos", icon: AlertTriangle },
             { id: "documentos", label: "Documentos", icon: FileText }
           ].map((t) => (
             <button
               key={t.id}
               onClick={() => setAba(t.id)}
-              className={`flex items-center gap-2 py-4 px-4 text-[10px] font-black uppercase border-b-2 whitespace-nowrap ${
+              className={`flex items-center gap-2 py-4 px-4 text-[10px] font-black uppercase border-b-2 ${
                 aba === t.id
                   ? "border-blue-600 text-blue-600"
                   : "border-transparent text-slate-400"
@@ -197,12 +195,13 @@ export default function DrawerMunicipio({
               {t.label}
             </button>
           ))}
+
         </div>
 
         {/* CONTEÚDO */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-          {/* ===================== DADOS ===================== */}
+          {/* ================= DADOS ================= */}
           {aba === "dados" && (
             <div className="space-y-4">
 
@@ -228,20 +227,20 @@ export default function DrawerMunicipio({
               />
 
               <input
-                placeholder="Secretário Defesa Civil"
+                placeholder="Secretário DC"
                 className="w-full p-4 bg-slate-100 rounded-xl"
                 value={form.secretario_dc}
                 onChange={(e) => setForm({ ...form, secretario_dc: e.target.value })}
               />
 
               <input
-                placeholder="Contato Defesa Civil"
+                placeholder="Contato DC"
                 className="w-full p-4 bg-slate-100 rounded-xl"
                 value={form.secretario_dc_contato}
                 onChange={(e) => setForm({ ...form, secretario_dc_contato: e.target.value })}
               />
 
-              <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
                 <input
                   type="checkbox"
                   checked={form.possui_barragem}
@@ -249,15 +248,59 @@ export default function DrawerMunicipio({
                     setForm({ ...form, possui_barragem: e.target.checked })
                   }
                 />
-                <span className="text-xs font-bold uppercase text-slate-500">
-                  Possui barragem
-                </span>
-              </div>
+                Possui barragem
+              </label>
 
             </div>
           )}
 
-          {/* ===================== DOCUMENTOS ===================== */}
+          {/* ================= EVENTOS ================= */}
+          {aba === "eventos" && (
+            <div className="space-y-4">
+
+              {!municipio && (
+                <p className="text-xs text-amber-500 font-bold uppercase text-center">
+                  Salve o município para visualizar eventos
+                </p>
+              )}
+
+              {municipio && (
+                <>
+                  {getEventosDoMunicipio().length === 0 && (
+                    <p className="text-center text-xs text-slate-400 font-bold uppercase">
+                      Nenhum evento vinculado
+                    </p>
+                  )}
+
+                  {getEventosDoMunicipio().map(ev => (
+                    <div
+                      key={ev.id}
+                      className="bg-white border rounded-2xl p-4 shadow-sm"
+                    >
+                      <h3 className="text-xs font-black uppercase text-slate-700">
+                        {ev.titulo}
+                      </h3>
+
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        {ev.tipo} • {ev.cobrade}
+                      </p>
+
+                      {ev.dados && (
+                        <div className="mt-2 text-[10px] text-slate-600 space-y-1">
+                          <p>Desalojados: {ev.dados.desalojados}</p>
+                          <p>Desabrigados: {ev.dados.desabrigados}</p>
+                          <p>Afetados: {ev.dados.afetados}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+
+            </div>
+          )}
+
+          {/* ================= DOCUMENTOS ================= */}
           {aba === "documentos" && (
             <div className="space-y-4">
 
@@ -287,23 +330,14 @@ export default function DrawerMunicipio({
         </div>
 
         {/* FOOTER */}
-        <div className="p-6 border-t bg-white">
+        <div className="p-6 border-t">
           <button
-            disabled={loading}
             onClick={salvarMunicipio}
-            className="w-full bg-slate-900 hover:bg-blue-700 text-white p-5 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            disabled={loading}
+            className="w-full bg-slate-900 text-white p-5 rounded-2xl flex justify-center gap-2"
           >
-            {loading ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Save size={18} />
-            )}
-
-            {loading
-              ? "SALVANDO..."
-              : municipio
-              ? "SALVAR ALTERAÇÕES"
-              : "CADASTRAR MUNICÍPIO"}
+            {loading ? <Loader2 className="animate-spin" /> : <Save />}
+            {loading ? "SALVANDO..." : "SALVAR"}
           </button>
         </div>
 
