@@ -378,19 +378,31 @@ export default function DrawerMunicipio({
 
               {/* BARRAGENS TOGGLE */}
               <div className={`flex items-center gap-4 p-5 rounded-3xl border transition-all duration-300 ${form.possui_barragem ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
-                <div className="relative inline-flex items-center cursor-pointer">
+                
+                {/* O label agora envolve APENAS o switch (a bolinha e a trilha) */}
+                <label className="relative inline-flex items-center cursor-pointer group">
                   <input
                     type="checkbox"
-                    id="chk_barragem"
                     className="sr-only peer"
-                    checked={form.possui_barragem}
+                    checked={!!form.possui_barragem}
                     onChange={(e) => setForm(prev => ({ ...prev, possui_barragem: e.target.checked }))}
                   />
-                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all peer-checked:bg-amber-600"></div>
-                </div>
-                <label htmlFor="chk_barragem" className="text-[10px] font-black uppercase text-slate-700 cursor-pointer select-none">
-                  O Município possui barragens registradas?
+                  
+                  {/* O "Corpo" do Switch (A trilha e a bolinha) */}
+                  <div className="w-11 h-6 bg-slate-300 rounded-full peer 
+                    peer-checked:bg-amber-600 
+                    after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                    after:bg-white after:border-gray-300 after:border after:rounded-full 
+                    after:h-5 after:w-5 after:transition-all 
+                    peer-checked:after:translate-x-full peer-checked:after:border-white
+                    shadow-inner">
+                  </div>
                 </label>
+              
+                {/* O Texto agora está FORA do label. Clicar aqui não ativa o switch. */}
+                <span className="text-[10px] font-black uppercase text-slate-700 select-none cursor-default">
+                  O Município possui barragens registradas?
+                </span>
               </div>
             </div>
           )}
