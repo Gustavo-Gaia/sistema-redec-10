@@ -203,44 +203,152 @@ export default function DrawerMunicipio({
 
           {/* ================= DADOS ================= */}
           {aba === "dados" && (
-            <div className="space-y-4">
-
-              <input
-                placeholder="Nome do Município"
-                className="w-full p-4 bg-slate-100 rounded-xl"
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              />
-
-              <input
-                placeholder="Prefeito"
-                className="w-full p-4 bg-slate-100 rounded-xl"
-                value={form.prefeito}
-                onChange={(e) => setForm({ ...form, prefeito: e.target.value })}
-              />
-
-              <input
-                placeholder="Contato Prefeito"
-                className="w-full p-4 bg-slate-100 rounded-xl"
-                value={form.prefeito_contato}
-                onChange={(e) => setForm({ ...form, prefeito_contato: e.target.value })}
-              />
-
-              <input
-                placeholder="Secretário DC"
-                className="w-full p-4 bg-slate-100 rounded-xl"
-                value={form.secretario_dc}
-                onChange={(e) => setForm({ ...form, secretario_dc: e.target.value })}
-              />
-
-              <input
-                placeholder="Contato DC"
-                className="w-full p-4 bg-slate-100 rounded-xl"
-                value={form.secretario_dc_contato}
-                onChange={(e) => setForm({ ...form, secretario_dc_contato: e.target.value })}
-              />
-
-              <label className="flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
+            <div className="space-y-6">
+          
+              {/* ================= NOME ================= */}
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase">
+                  Município
+                </label>
+                <input
+                  className="w-full p-4 bg-slate-100 rounded-xl"
+                  value={form.nome}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                />
+              </div>
+          
+              {/* ================= PREFEITURA ================= */}
+              <div className="bg-slate-50 p-4 rounded-2xl space-y-4 border">
+                <h3 className="text-xs font-black text-slate-500 uppercase">
+                  Prefeitura
+                </h3>
+          
+                <input
+                  placeholder="Prefeito"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.prefeito}
+                  onChange={(e) => setForm({ ...form, prefeito: e.target.value })}
+                />
+          
+                <input
+                  placeholder="Contato Prefeito"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.prefeito_contato}
+                  onChange={(e) => setForm({ ...form, prefeito_contato: e.target.value })}
+                />
+          
+                <input
+                  placeholder="Vice"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.vice}
+                  onChange={(e) => setForm({ ...form, vice: e.target.value })}
+                />
+          
+                <input
+                  placeholder="Contato Vice"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.vice_contato}
+                  onChange={(e) => setForm({ ...form, vice_contato: e.target.value })}
+                />
+          
+                <input
+                  placeholder="Chefe de Gabinete"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.chefe_gabinete}
+                  onChange={(e) => setForm({ ...form, chefe_gabinete: e.target.value })}
+                />
+          
+                <input
+                  placeholder="Contato Chefe de Gabinete"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.chefe_gabinete_contato}
+                  onChange={(e) =>
+                    setForm({ ...form, chefe_gabinete_contato: e.target.value })
+                  }
+                />
+          
+                <input
+                  placeholder="Endereço da Prefeitura"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.endereco_prefeitura}
+                  onChange={(e) =>
+                    setForm({ ...form, endereco_prefeitura: e.target.value })
+                  }
+                />
+          
+                <input
+                  placeholder="Email da Prefeitura"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.email_prefeitura}
+                  onChange={(e) =>
+                    setForm({ ...form, email_prefeitura: e.target.value })
+                  }
+                />
+              </div>
+          
+              {/* ================= DEFESA CIVIL ================= */}
+              <div className="bg-blue-50 p-4 rounded-2xl space-y-4 border">
+                <h3 className="text-xs font-black text-blue-600 uppercase">
+                  Defesa Civil
+                </h3>
+          
+                <input
+                  placeholder="Secretário"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.secretario_dc}
+                  onChange={(e) =>
+                    setForm({ ...form, secretario_dc: e.target.value })
+                  }
+                />
+          
+                <input
+                  placeholder="Contato Secretário"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.secretario_dc_contato}
+                  onChange={(e) =>
+                    setForm({ ...form, secretario_dc_contato: e.target.value })
+                  }
+                />
+          
+                <input
+                  placeholder="Subsecretário"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.subsecretario_dc}
+                  onChange={(e) =>
+                    setForm({ ...form, subsecretario_dc: e.target.value })
+                  }
+                />
+          
+                <input
+                  placeholder="Contato Subsecretário"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.subsecretario_dc_contato}
+                  onChange={(e) =>
+                    setForm({ ...form, subsecretario_dc_contato: e.target.value })
+                  }
+                />
+          
+                <input
+                  placeholder="Endereço Defesa Civil"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.endereco_dc}
+                  onChange={(e) =>
+                    setForm({ ...form, endereco_dc: e.target.value })
+                  }
+                />
+          
+                <input
+                  placeholder="Email Defesa Civil"
+                  className="w-full p-3 bg-white rounded-xl"
+                  value={form.email_dc}
+                  onChange={(e) =>
+                    setForm({ ...form, email_dc: e.target.value })
+                  }
+                />
+              </div>
+          
+              {/* ================= BARRAGEM ================= */}
+              <div className="flex items-center gap-3 pt-2">
                 <input
                   type="checkbox"
                   checked={form.possui_barragem}
@@ -248,9 +356,11 @@ export default function DrawerMunicipio({
                     setForm({ ...form, possui_barragem: e.target.checked })
                   }
                 />
-                Possui barragem
-              </label>
-
+                <span className="text-xs font-bold uppercase text-slate-500">
+                  Possui barragem
+                </span>
+              </div>
+          
             </div>
           )}
 
