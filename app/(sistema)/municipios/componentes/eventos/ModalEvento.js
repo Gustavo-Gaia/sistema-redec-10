@@ -90,8 +90,25 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
   async function salvarEvento() {
     if (!form.titulo) return alert("Defina um título para o evento.")
     setLoading(true)
+    
     try {
-      const payload = { ...form, tipo_registro: tab }
+      // Criamos uma cópia do payload para manipular os dados antes de enviar
+      let payload = { 
+        ...form, 
+        tipo_registro: tab,
+        // Forçamos o título e descrição para caixa alta para manter o padrão visual
+        titulo: form.titulo.toUpperCase(),
+        descricao: form.descricao?.toUpperCase()
+      }
+
+      // LIMPEZA LOGICA: Se for ROTINA, limpamos campos de desastre
+      if (tab === "ROTINA") {
+        payload.status_anormalidade = null
+        payload.nivel_desastre = null
+        payload.protocolo_s2id = null
+        payload.cobrade = null
+      }
+
       let eventoId = evento?.id
 
       if (eventoId) {
@@ -102,8 +119,10 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
         eventoId = data.id
       }
 
+      // Remove vínculos antigos para sobrescrever (Sync)
       await supabase.from("eventos_municipios").delete().eq("evento_id", eventoId)
 
+      // Só salva vínculos se não for fora da área
       if (!form.fora_area) {
         for (const mId of Object.keys(municipiosSelecionados)) {
           const { data: vinculo, error: vError } = await supabase
@@ -111,6 +130,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
             .insert({ evento_id: eventoId, municipio_id: mId })
             .select().single()
 
+          // Só salva dados humanos (desalojados, etc) se for ANORMALIDADE
           if (!vError && tab === "ANORMALIDADE") {
             await supabase.from("eventos_dados").insert({
               evento_municipio_id: vinculo.id,
@@ -119,6 +139,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
           }
         }
       }
+      
       onSaved()
     } catch (err) {
       alert("Erro ao salvar: " + err.message)
