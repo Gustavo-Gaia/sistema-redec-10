@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-import { X, Save, Loader2, AlertTriangle, Info, MapPin, ClipboardText, Users } from "lucide-react"
+import { X, Save, Loader2, AlertTriangle, Info, MapPin, ClipboardText } from "lucide-react"
 
 const ATIVIDADES_MUNICIPIO = [
   { id: "8730", label: "8730 - Preparação (reuniões, simulados, palestras)" },
@@ -104,7 +104,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
 
       await supabase.from("eventos_municipios").delete().eq("evento_id", eventoId)
 
-      if (form.categoria === "MUNICIPIO" && !form.fora_area) {
+      if (!form.fora_area) {
         for (const mId of Object.keys(municipiosSelecionados)) {
           const { data: vinculo, error: vError } = await supabase
             .from("eventos_municipios")
@@ -129,9 +129,9 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
 
   return (
     <div className="fixed inset-0 z-[100] flex justify-center items-center p-4 overflow-hidden">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" onClick={onClose} />
 
-      <div className="relative bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[95vh] flex flex-col border border-white animate-in zoom-in-95 duration-300">
+      <div className="relative bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[95vh] flex flex-col border border-white animate-in zoom-in-95">
         
         {/* HEADER */}
         <div className="p-8 border-b bg-slate-50/50">
@@ -159,7 +159,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
             <button
               onClick={() => setTab("ANORMALIDADE")}
               className={`flex-1 py-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
-                tab === "ANORMALIDADE" ? "bg-red-600 text-white shadow-lg shadow-red-200" : "text-slate-500 hover:text-slate-700"
+                tab === "ANORMALIDADE" ? "bg-red-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               <AlertTriangle size={16} /> ANORMALIDADE
@@ -173,9 +173,9 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
           <section className="space-y-4">
             <input
               placeholder="TÍTULO DO EVENTO"
-              className="w-full bg-slate-100 border-none rounded-2xl p-5 font-black text-slate-800 placeholder:text-slate-400 focus:ring-2 ring-slate-900 outline-none transition-all"
+              className="w-full bg-slate-100 border-none rounded-2xl p-5 font-black text-slate-800 focus:ring-2 ring-slate-900 outline-none transition-all uppercase"
               value={form.titulo}
-              onChange={(e) => setForm({ ...form, titulo: e.target.value.toUpperCase() })}
+              onChange={(e) => setForm({ ...form, titulo: e.target.value })}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -189,24 +189,22 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
                 />
               </div>
 
-              {tab === "ROTINA" && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Origem</label>
-                  <select
-                    className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none"
-                    value={form.categoria}
-                    onChange={(e) => setForm({ ...form, categoria: e.target.value, tipo_atividade: "" })}
-                  >
-                    <option value="MUNICIPIO">Município</option>
-                    <option value="REDEC">REDEC</option>
-                  </select>
-                </div>
-              )}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Origem do Registro</label>
+                <select
+                  className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none"
+                  value={form.categoria}
+                  onChange={(e) => setForm({ ...form, categoria: e.target.value, tipo_atividade: "" })}
+                >
+                  <option value="MUNICIPIO">Município</option>
+                  <option value="REDEC">REDEC</option>
+                </select>
+              </div>
             </div>
 
             {tab === "ROTINA" && (
               <select
-                className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none"
+                className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none animate-in fade-in"
                 value={form.tipo_atividade}
                 onChange={(e) => setForm({ ...form, tipo_atividade: e.target.value })}
               >
@@ -222,7 +220,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
             <section className="bg-red-50 p-6 rounded-[2rem] space-y-4 border border-red-100 animate-in slide-in-from-bottom-2">
               <div className="flex items-center gap-2 text-red-600 mb-2">
                 <AlertTriangle size={18} />
-                <span className="text-xs font-black uppercase tracking-widest text-red-700">Protocolo e Status (S2ID)</span>
+                <span className="text-xs font-black uppercase tracking-widest text-red-700">Status S2ID</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <select
@@ -252,18 +250,19 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
                 />
                 <input
                   placeholder="COBRADE"
-                  className="bg-white border-none rounded-xl p-4 text-sm font-bold outline-none"
+                  className="bg-white border-none rounded-xl p-4 text-sm font-bold outline-none uppercase"
                   value={form.cobrade}
-                  onChange={(e) => setForm({ ...form, cobrade: e.target.value })}
+                  onChange={(e) => setForm({ ...form, cobrade: e.target.value.toUpperCase() })}
                 />
               </div>
             </section>
           )}
 
+          {/* LISTA DE LOCALIDADES - AGORA SEMPRE VISÍVEL SE NÃO FOR FORA DA ÁREA */}
           <section className="space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2 text-slate-400 uppercase font-black text-[10px] tracking-widest">
-                <MapPin size={14} /> Localidades Vinculadas
+                <MapPin size={14} /> Localidades da REDEC 10 Vinculadas
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -276,8 +275,8 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
               </label>
             </div>
 
-            {!form.fora_area && form.categoria === "MUNICIPIO" && (
-              <div className="grid gap-3">
+            {!form.fora_area && (
+              <div className="grid gap-3 animate-in fade-in">
                 {municipios?.length > 0 ? (
                   municipios.map((m) => {
                     const selec = municipiosSelecionados[m.id]
@@ -313,7 +312,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
                     )
                   })
                 ) : (
-                  <p className="text-center text-xs font-bold text-slate-400 py-4 italic uppercase">Nenhum município carregado no sistema</p>
+                  <p className="text-center text-xs font-bold text-slate-400 py-4 italic uppercase">Carregando municípios da base...</p>
                 )}
               </div>
             )}
@@ -323,9 +322,9 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
             <textarea
               placeholder="DESCRIÇÃO DETALHADA E OBSERVAÇÕES..."
               rows={4}
-              className="w-full bg-slate-100 border-none rounded-3xl p-6 font-bold text-slate-700 placeholder:text-slate-300 focus:ring-2 ring-slate-900 outline-none transition-all resize-none"
+              className="w-full bg-slate-100 border-none rounded-3xl p-6 font-bold text-slate-700 placeholder:text-slate-300 focus:ring-2 ring-slate-900 outline-none transition-all resize-none uppercase"
               value={form.descricao}
-              onChange={(e) => setForm({ ...form, descricao: e.target.value.toUpperCase() })}
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
             />
           </section>
         </div>
