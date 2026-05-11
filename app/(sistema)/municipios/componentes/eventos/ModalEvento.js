@@ -2,28 +2,14 @@
 
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
+import { X, Save, Loader2, AlertTriangle, Info, MapPin, ClipboardText, Users } from "lucide-react"
 
-import {
-  X,
-  Save,
-  Loader2,
-  AlertTriangle,
-  Info,
-  CalendarDays,
-  MapPin,
-  FileText,
-  ShieldAlert,
-  Building2,
-  CheckCircle2
-} from "lucide-react"
-
-// ======================================================
-// ATIVIDADES
-// ======================================================
-
-const atividadesMunicipio = [
+// =============================
+// CONSTANTES DE OPÇÕES
+// =============================
+const ATIVIDADES_MUNICIPIO = [
   { id: "8730", label: "8730 - Preparação (reuniões, simulados, palestras)" },
   { id: "5518", label: "5518 - Assessoria técnica aos municípios" },
   { id: "7181", label: "7181 - Apoio na resposta a desastres" },
@@ -31,7 +17,7 @@ const atividadesMunicipio = [
   { id: "VISITA_TECNICA", label: "Visita Técnica" }
 ]
 
-const atividadesREDEC = [
+const ATIVIDADES_REDEC = [
   { id: "ANALISE_TECNICA", label: "Análise técnica" },
   { id: "CAPACITACAO", label: "Capacitação externa" },
   { id: "COLABORACAO", label: "Colaboração técnica" },
@@ -39,40 +25,18 @@ const atividadesREDEC = [
   { id: "REUNIAO_INTERNA", label: "Reunião de Trabalho Interna" }
 ]
 
-// ======================================================
-// COMPONENTE
-// ======================================================
-
-export default function ModalEvento({
-  evento,
-  municipios = [],
-  onClose,
-  onSaved
-}) {
-
-  // ======================================================
-  // STATES
-  // ======================================================
-
+export default function ModalEvento({ evento, municipios, onClose, onSaved }) {
   const [loading, setLoading] = useState(false)
-
-  const [tipoRegistro, setTipoRegistro] = useState(
-    evento?.tipo_registro || "ROTINA"
-  )
-
+  const [tab, setTab] = useState("ROTINA")
+  
   const [form, setForm] = useState({
     titulo: "",
     tipo_registro: "ROTINA",
-
     categoria: "MUNICIPIO",
     tipo_atividade: "",
     fora_area: false,
-
     data_inicio: new Date().toISOString().split("T")[0],
     descricao: "",
-
-    // ANORMALIDADE
-    intencao_decretar: false,
     status_anormalidade: "SE",
     nivel_desastre: "I",
     protocolo_s2id: "",
@@ -81,952 +45,353 @@ export default function ModalEvento({
 
   const [municipiosSelecionados, setMunicipiosSelecionados] = useState({})
 
-  // ======================================================
-  // LOAD EVENT
-  // ======================================================
-
+  // Carregar dados iniciais
   useEffect(() => {
-    if (!evento) return
-
-    setForm({
-      titulo: evento.titulo || "",
-      tipo_registro: evento.tipo_registro || "ROTINA",
-
-      categoria: evento.categoria || "MUNICIPIO",
-      tipo_atividade: evento.tipo_atividade || "",
-      fora_area: evento.fora_area || false,
-
-      data_inicio: evento.data_inicio || "",
-      descricao: evento.descricao || "",
-
-      intencao_decretar: evento.intencao_decretar || false,
-      status_anormalidade: evento.status_anormalidade || "SE",
-      nivel_desastre: evento.nivel_desastre || "I",
-      protocolo_s2id: evento.protocolo_s2id || "",
-      cobrade: evento.cobrade || ""
-    })
-
-    setTipoRegistro(evento.tipo_registro || "ROTINA")
-
-    carregarMunicipiosEvento(evento.id)
-
+    if (evento) {
+      setForm({ ...evento })
+      setTab(evento.tipo_registro || "ROTINA")
+      carregarVinculos(evento.id)
+    }
   }, [evento])
 
-  // ======================================================
-  // LOAD MUNICIPIOS
-  // ======================================================
-
-  async function carregarMunicipiosEvento(eventoId) {
-
+  async function carregarVinculos(eventoId) {
     const { data, error } = await supabase
       .from("eventos_municipios")
       .select(`
-        *,
-        eventos_dados (*)
+        municipio_id,
+        eventos_dados (
+          desalojados, desabrigados, afetados, mortos, desaparecidos
+        )
       `)
       .eq("evento_id", eventoId)
 
-    if (error) {
-      console.error(error)
-      return
-    }
-
-    const mapa = {}
-
-    data?.forEach((item) => {
-
-      mapa[item.municipio_id] = {
-        dados: item.eventos_dados?.[0] || {
-          desalojados: 0,
-          desabrigados: 0,
-          afetados: 0,
-          mortos: 0,
-          desaparecidos: 0
+    if (data) {
+      const mapa = {}
+      data.forEach((item) => {
+        mapa[item.municipio_id] = {
+          dados: item.eventos_dados?.[0] || {
+            desalojados: 0, desabrigados: 0, afetados: 0, mortos: 0, desaparecidos: 0
+          }
         }
-      }
-    })
-
-    setMunicipiosSelecionados(mapa)
+      })
+      setMunicipiosSelecionados(mapa)
+    }
   }
 
-  // ======================================================
-  // HELPERS
-  // ======================================================
-
-  const atividadesDisponiveis = useMemo(() => {
-    return form.categoria === "MUNICIPIO"
-      ? atividadesMunicipio
-      : atividadesREDEC
-  }, [form.categoria])
-
-  function updateForm(campo, valor) {
-    setForm((prev) => ({
-      ...prev,
-      [campo]: valor
-    }))
-  }
-
+  // Handlers de Seleção de Municípios
   function toggleMunicipio(id) {
-
     setMunicipiosSelecionados((prev) => {
-
       const novo = { ...prev }
-
       if (novo[id]) {
         delete novo[id]
       } else {
         novo[id] = {
-          dados: {
-            desalojados: 0,
-            desabrigados: 0,
-            afetados: 0,
-            mortos: 0,
-            desaparecidos: 0
-          }
+          dados: { desalojados: 0, desabrigados: 0, afetados: 0, mortos: 0, desaparecidos: 0 }
         }
       }
-
       return novo
     })
   }
 
-  function updateDado(municipioId, campo, valor) {
-
+  function updateDadoHumano(mId, campo, valor) {
     setMunicipiosSelecionados((prev) => ({
       ...prev,
-
-      [municipioId]: {
-        ...prev[municipioId],
-
-        dados: {
-          ...prev[municipioId].dados,
-          [campo]: Number(valor) || 0
-        }
+      [mId]: {
+        ...prev[mId],
+        dados: { ...prev[mId].dados, [campo]: Number(valor) }
       }
     }))
   }
 
-  // ======================================================
-  // VALIDAR
-  // ======================================================
-
-  function validarFormulario() {
-
-    if (!form.titulo?.trim()) {
-      alert("Informe o título.")
-      return false
-    }
-
-    if (!form.data_inicio) {
-      alert("Informe a data.")
-      return false
-    }
-
-    if (
-      form.categoria === "MUNICIPIO" &&
-      !form.fora_area &&
-      Object.keys(municipiosSelecionados).length === 0
-    ) {
-      alert("Selecione pelo menos um município.")
-      return false
-    }
-
-    return true
-  }
-
-  // ======================================================
-  // SALVAR
-  // ======================================================
-
   async function salvarEvento() {
-
-    if (!validarFormulario()) return
-
+    if (!form.titulo) return alert("O título é obrigatório.")
     setLoading(true)
 
     try {
-
-      const payload = {
-        ...form,
-        tipo_registro: tipoRegistro
-      }
-
+      const payload = { ...form, tipo_registro: tab }
       let eventoId = evento?.id
 
-      // =========================================
-      // UPDATE
-      // =========================================
-
+      // 1. Salvar ou Atualizar Evento Principal
       if (eventoId) {
-
-        const { error } = await supabase
-          .from("eventos")
-          .update(payload)
-          .eq("id", eventoId)
-
-        if (error) throw error
-
+        await supabase.from("eventos").update(payload).eq("id", eventoId)
       } else {
-
-        // =========================================
-        // INSERT
-        // =========================================
-
-        const { data, error } = await supabase
-          .from("eventos")
-          .insert(payload)
-          .select()
-          .single()
-
+        const { data, error } = await supabase.from("eventos").insert([payload]).select().single()
         if (error) throw error
-
-        // =========================================
-        // CORREÇÃO DO SEU ERRO
-        // =========================================
-
-        if (!data?.id) {
-          throw new Error("Evento não retornou ID.")
-        }
-
         eventoId = data.id
       }
 
-      // =========================================
-      // REMOVE VÍNCULOS ANTIGOS
-      // =========================================
+      // 2. Limpar vínculos antigos (para garantir integridade)
+      await supabase.from("eventos_municipios").delete().eq("evento_id", eventoId)
 
-      await supabase
-        .from("eventos_municipios")
-        .delete()
-        .eq("evento_id", eventoId)
-
-      // =========================================
-      // CRIA MUNICÍPIOS
-      // =========================================
-
-      const precisaMunicipio =
-        form.categoria === "MUNICIPIO" &&
-        !form.fora_area
-
-      if (precisaMunicipio) {
-
-        for (const municipioId of Object.keys(municipiosSelecionados)) {
-
-          const { data: vinculo, error: erroVinculo } = await supabase
+      // 3. Salvar Novos Vínculos e Dados Humanos
+      if (form.categoria === "MUNICIPIO" && !form.fora_area) {
+        for (const mId of Object.keys(municipiosSelecionados)) {
+          const { data: vinculo, error: vError } = await supabase
             .from("eventos_municipios")
-            .insert({
-              evento_id: eventoId,
-              municipio_id: municipioId
+            .insert({ evento_id: eventoId, municipio_id: mId })
+            .select().single()
+
+          if (!vError && tab === "ANORMALIDADE") {
+            await supabase.from("eventos_dados").insert({
+              evento_municipio_id: vinculo.id,
+              ...municipiosSelecionados[mId].dados
             })
-            .select()
-            .single()
-
-          if (erroVinculo) throw erroVinculo
-
-          // =====================================
-          // DADOS HUMANOS
-          // =====================================
-
-          if (
-            tipoRegistro === "ANORMALIDADE" &&
-            vinculo?.id
-          ) {
-
-            const dados = municipiosSelecionados[municipioId].dados
-
-            const { error: erroDados } = await supabase
-              .from("eventos_dados")
-              .insert({
-                evento_municipio_id: vinculo.id,
-
-                desalojados: dados.desalojados || 0,
-                desabrigados: dados.desabrigados || 0,
-                afetados: dados.afetados || 0,
-                mortos: dados.mortos || 0,
-                desaparecidos: dados.desaparecidos || 0
-              })
-
-            if (erroDados) throw erroDados
           }
         }
       }
 
-      onSaved?.()
-
+      onSaved()
     } catch (err) {
-
       console.error(err)
-
-      alert(
-        "Erro ao salvar evento:\n\n" +
-        (err.message || "Erro desconhecido")
-      )
-
+      alert("Erro ao salvar: " + err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  // ======================================================
-  // RENDER
-  // ======================================================
-
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[70] flex justify-center items-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
 
-      {/* BACKDROP */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* MODAL */}
-      <div className="relative w-full max-w-5xl max-h-[95vh] overflow-hidden rounded-[32px] border border-white/20 bg-white shadow-2xl flex flex-col">
-
-        {/* ======================================================
-            HEADER
-        ====================================================== */}
-
-        <div className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-8 py-6">
-
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,white,transparent_40%)]" />
-
-          <div className="relative flex items-start justify-between gap-4">
-
+      <div className="relative bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-slate-200">
+        
+        {/* HEADER */}
+        <div className="p-8 border-b bg-slate-50/50">
+          <div className="flex justify-between items-center mb-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-400 font-bold">
-                Gestão de Eventos
-              </p>
-
-              <h2 className="text-3xl font-black text-white mt-1">
-                {evento ? "Editar Evento" : "Novo Evento"}
+              <h2 className="font-black text-2xl text-slate-900 tracking-tighter">
+                {evento ? "EDITAR REGISTRO" : "NOVO REGISTRO"}
               </h2>
-
-              <p className="text-sm text-slate-300 mt-2">
-                Cadastro de ocorrências, atividades e situações de anormalidade.
-              </p>
+              <p className="text-slate-500 text-sm font-medium">Preencha os dados da atividade ou desastre</p>
             </div>
-
-            <button
-              onClick={onClose}
-              className="h-11 w-11 rounded-2xl bg-white/10 hover:bg-white/20 transition flex items-center justify-center text-white"
+            <button 
+              onClick={onClose} 
+              className="p-2 hover:bg-slate-200 rounded-full transition-colors"
             >
-              <X size={20} />
+              <X size={24} className="text-slate-400" />
             </button>
-
           </div>
 
-          {/* TABS */}
-          <div className="relative mt-6 flex gap-3">
-
+          {/* TABS PROFISSIONAIS */}
+          <div className="flex bg-slate-200/60 p-1.5 rounded-2xl">
             <button
-              onClick={() => setTipoRegistro("ROTINA")}
-              className={`
-                flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition-all
-                ${
-                  tipoRegistro === "ROTINA"
-                    ? "bg-white text-slate-900 shadow-lg"
-                    : "bg-white/10 text-slate-300 hover:bg-white/20"
-                }
-              `}
+              onClick={() => setTab("ROTINA")}
+              className={`flex-1 py-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+                tab === "ROTINA" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
             >
-              <Info size={16} />
-              EVENTO DE ROTINA
+              <Info size={16} /> ATIVIDADE DE ROTINA
             </button>
 
             <button
-              onClick={() => setTipoRegistro("ANORMALIDADE")}
-              className={`
-                flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition-all
-                ${
-                  tipoRegistro === "ANORMALIDADE"
-                    ? "bg-red-600 text-white shadow-lg"
-                    : "bg-white/10 text-slate-300 hover:bg-white/20"
-                }
-              `}
+              onClick={() => setTab("ANORMALIDADE")}
+              className={`flex-1 py-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+                tab === "ANORMALIDADE" ? "bg-red-600 text-white shadow-lg shadow-red-200" : "text-slate-500 hover:text-slate-700"
+              }`}
             >
-              <AlertTriangle size={16} />
-              ANORMALIDADE
+              <AlertTriangle size={16} /> ANORMALIDADE / DESASTRE
             </button>
-
           </div>
         </div>
 
-        {/* ======================================================
-            BODY
-        ====================================================== */}
+        {/* BODY */}
+        <div className="p-8 overflow-y-auto space-y-8 scrollbar-thin">
+          
+          {/* SEÇÃO 1: DADOS BÁSICOS */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-slate-400 mb-2">
+              <ClipboardText size={18} />
+              <span className="text-xs font-bold uppercase tracking-widest">Informações Principais</span>
+            </div>
+            
+            <input
+              placeholder="Título descritivo do evento..."
+              className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-slate-900 outline-none transition-all"
+              value={form.titulo}
+              onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+            />
 
-        <div className="flex-1 overflow-y-auto bg-slate-50">
-
-          <div className="p-8 space-y-8">
-
-            {/* ======================================================
-                BLOCO PRINCIPAL
-            ====================================================== */}
-
-            <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-
-              <div className="border-b border-slate-100 px-6 py-5">
-                <h3 className="text-lg font-black text-slate-800">
-                  Informações Principais
-                </h3>
-
-                <p className="text-sm text-slate-500 mt-1">
-                  Dados básicos do registro.
-                </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Data de Início</label>
+                <input
+                  type="date"
+                  className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none"
+                  value={form.data_inicio}
+                  onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+                />
               </div>
 
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                {/* TÍTULO */}
-                <div className="md:col-span-2">
-                  <label className="label">
-                    Título do Evento
-                  </label>
-
-                  <input
-                    type="text"
-                    value={form.titulo}
-                    onChange={(e) => updateForm("titulo", e.target.value)}
-                    placeholder="Ex.: Chuvas intensas em Italva"
-                    className="input"
-                  />
-                </div>
-
-                {/* DATA */}
-                <div>
-                  <label className="label">
-                    Data do Evento
-                  </label>
-
-                  <div className="relative">
-                    <CalendarDays
-                      size={18}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
-                    <input
-                      type="date"
-                      value={form.data_inicio || ""}
-                      onChange={(e) =>
-                        updateForm("data_inicio", e.target.value)
-                      }
-                      className="input pl-12"
-                    />
-                  </div>
-                </div>
-
-                {/* CATEGORIA */}
-                <div>
-                  <label className="label">
-                    Categoria
-                  </label>
-
+              {tab === "ROTINA" && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Origem da Atividade</label>
                   <select
+                    className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none appearance-none"
                     value={form.categoria}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        categoria: e.target.value,
-                        tipo_atividade: ""
-                      }))
-                    }
-                    className="input"
+                    onChange={(e) => setForm({ ...form, categoria: e.target.value, tipo_atividade: "" })}
                   >
-                    <option value="MUNICIPIO">
-                      Com Municípios
-                    </option>
-
-                    <option value="REDEC">
-                      Interno REDEC
-                    </option>
+                    <option value="MUNICIPIO">Ações em Municípios</option>
+                    <option value="REDEC">Ações Internas REDEC</option>
                   </select>
                 </div>
-
-                {/* TIPO ATIVIDADE */}
-                {tipoRegistro === "ROTINA" && (
-                  <div className="md:col-span-2">
-                    <label className="label">
-                      Tipo de Atividade
-                    </label>
-
-                    <select
-                      value={form.tipo_atividade}
-                      onChange={(e) =>
-                        updateForm("tipo_atividade", e.target.value)
-                      }
-                      className="input"
-                    >
-                      <option value="">
-                        Selecione uma atividade
-                      </option>
-
-                      {atividadesDisponiveis.map((atividade) => (
-                        <option
-                          key={atividade.id}
-                          value={atividade.id}
-                        >
-                          {atividade.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-              </div>
+              )}
             </div>
 
-            {/* ======================================================
-                BLOCO ANORMALIDADE
-            ====================================================== */}
-
-            {tipoRegistro === "ANORMALIDADE" && (
-
-              <div className="rounded-3xl border border-red-200 bg-white shadow-sm overflow-hidden">
-
-                <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 text-white">
-
-                  <div className="flex items-center gap-3">
-                    <ShieldAlert size={22} />
-
-                    <div>
-                      <h3 className="text-lg font-black">
-                        Situação de Anormalidade
-                      </h3>
-
-                      <p className="text-red-100 text-sm mt-1">
-                        Dados operacionais do desastre.
-                      </p>
-                    </div>
-                  </div>
-
-                </div>
-
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                  <div>
-                    <label className="label">
-                      Status
-                    </label>
-
-                    <select
-                      value={form.status_anormalidade}
-                      onChange={(e) =>
-                        updateForm("status_anormalidade", e.target.value)
-                      }
-                      className="input"
-                    >
-                      <option value="SE">
-                        Situação de Emergência
-                      </option>
-
-                      <option value="ECP">
-                        Estado de Calamidade Pública
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="label">
-                      Nível do Desastre
-                    </label>
-
-                    <select
-                      value={form.nivel_desastre}
-                      onChange={(e) =>
-                        updateForm("nivel_desastre", e.target.value)
-                      }
-                      className="input"
-                    >
-                      <option value="I">Nível I</option>
-                      <option value="II">Nível II</option>
-                      <option value="III">Nível III</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="label">
-                      Protocolo S2ID
-                    </label>
-
-                    <input
-                      type="text"
-                      value={form.protocolo_s2id}
-                      onChange={(e) =>
-                        updateForm("protocolo_s2id", e.target.value)
-                      }
-                      placeholder="Ex.: REC-RJ-3302056-20250101"
-                      className="input"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="label">
-                      COBRADE
-                    </label>
-
-                    <input
-                      type="text"
-                      value={form.cobrade}
-                      onChange={(e) =>
-                        updateForm("cobrade", e.target.value)
-                      }
-                      placeholder="Ex.: 1.3.2.1.4"
-                      className="input"
-                    />
-                  </div>
-
-                </div>
-              </div>
+            {tab === "ROTINA" && (
+              <select
+                className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none"
+                value={form.tipo_atividade}
+                onChange={(e) => setForm({ ...form, tipo_atividade: e.target.value })}
+              >
+                <option value="">Selecione o tipo de atividade...</option>
+                {(form.categoria === "MUNICIPIO" ? ATIVIDADES_MUNICIPIO : ATIVIDADES_REDEC).map((a) => (
+                  <option key={a.id} value={a.id}>{a.label}</option>
+                ))}
+              </select>
             )}
+          </section>
 
-            {/* ======================================================
-                MUNICÍPIOS
-            ====================================================== */}
+          {/* SEÇÃO 2: DETALHES DA ANORMALIDADE */}
+          {tab === "ANORMALIDADE" && (
+            <section className="bg-red-50 p-6 rounded-[2rem] space-y-4 border border-red-100">
+              <div className="flex items-center gap-2 text-red-600 mb-2">
+                <AlertTriangle size={18} />
+                <span className="text-xs font-black uppercase tracking-widest">Dados do Desastre (S2ID)</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <select
+                  className="bg-white border-none rounded-xl p-3 text-sm font-bold outline-none"
+                  value={form.status_anormalidade}
+                  onChange={(e) => setForm({ ...form, status_anormalidade: e.target.value })}
+                >
+                  <option value="SE">Situação de Emergência</option>
+                  <option value="ECP">Calamidade Pública</option>
+                </select>
+
+                <select
+                  className="bg-white border-none rounded-xl p-3 text-sm font-bold outline-none"
+                  value={form.nivel_desastre}
+                  onChange={(e) => setForm({ ...form, nivel_desastre: e.target.value })}
+                >
+                  <option value="I">Nível I (Pequeno)</option>
+                  <option value="II">Nível II (Médio)</option>
+                  <option value="III">Nível III (Grande)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  placeholder="Protocolo S2ID"
+                  className="bg-white border-none rounded-xl p-3 text-sm font-bold outline-none"
+                  value={form.protocolo_s2id}
+                  onChange={(e) => setForm({ ...form, protocolo_s2id: e.target.value })}
+                />
+                <input
+                  placeholder="COBRADE"
+                  className="bg-white border-none rounded-xl p-3 text-sm font-bold outline-none"
+                  value={form.cobrade}
+                  onChange={(e) => setForm({ ...form, cobrade: e.target.value })}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* SEÇÃO 3: MUNICÍPIOS AFETADOS */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2 text-slate-400">
+                <MapPin size={18} />
+                <span className="text-xs font-bold uppercase tracking-widest">Localização / Abrangência</span>
+              </div>
+              
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                  checked={form.fora_area}
+                  onChange={(e) => setForm({ ...form, fora_area: e.target.checked })}
+                />
+                <span className="text-xs font-bold text-slate-500 group-hover:text-slate-800 transition-colors">Fora da área da REDEC</span>
+              </label>
+            </div>
 
             {!form.fora_area && form.categoria === "MUNICIPIO" && (
+              <div className="grid gap-3">
+                {municipios.map((m) => {
+                  const selec = municipiosSelecionados[m.id]
+                  return (
+                    <div key={m.id} className={`transition-all rounded-2xl border-2 ${selec ? 'border-slate-900 bg-slate-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                      <div className="p-4 flex items-center justify-between">
+                        <label className="flex items-center gap-3 cursor-pointer flex-1">
+                          <input
+                            type="checkbox"
+                            className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900"
+                            checked={!!selec}
+                            onChange={() => toggleMunicipio(m.id)}
+                          />
+                          <span className={`font-black text-sm ${selec ? 'text-slate-900' : 'text-slate-500'}`}>{m.nome}</span>
+                        </label>
+                        {selec && tab === "ANORMALIDADE" && <Users size={16} className="text-red-500" />}
+                      </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-
-                <div className="border-b border-slate-100 px-6 py-5">
-
-                  <div className="flex items-center gap-3">
-
-                    <Building2
-                      size={20}
-                      className="text-slate-700"
-                    />
-
-                    <div>
-                      <h3 className="text-lg font-black text-slate-800">
-                        Municípios Vinculados
-                      </h3>
-
-                      <p className="text-sm text-slate-500 mt-1">
-                        Selecione os municípios envolvidos.
-                      </p>
-                    </div>
-
-                  </div>
-
-                </div>
-
-                <div className="p-6">
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                    {municipios.map((municipio) => {
-
-                      const ativo =
-                        municipiosSelecionados[municipio.id]
-
-                      return (
-                        <div
-                          key={municipio.id}
-                          className={`
-                            rounded-2xl border p-5 transition-all
-                            ${
-                              ativo
-                                ? tipoRegistro === "ANORMALIDADE"
-                                  ? "border-red-300 bg-red-50"
-                                  : "border-slate-900 bg-slate-100"
-                                : "border-slate-200 bg-white hover:border-slate-300"
-                            }
-                          `}
-                        >
-
-                          <label className="flex items-start gap-4 cursor-pointer">
-
-                            <input
-                              type="checkbox"
-                              checked={!!ativo}
-                              onChange={() =>
-                                toggleMunicipio(municipio.id)
-                              }
-                              className="mt-1 h-5 w-5 rounded border-slate-300"
-                            />
-
-                            <div className="flex-1">
-
-                              <div className="flex items-center justify-between gap-3">
-
-                                <div>
-                                  <p className="font-black text-slate-800">
-                                    {municipio.nome}
-                                  </p>
-                                </div>
-
-                                {ativo && (
-                                  <CheckCircle2
-                                    size={18}
-                                    className={
-                                      tipoRegistro === "ANORMALIDADE"
-                                        ? "text-red-600"
-                                        : "text-slate-900"
-                                    }
-                                  />
-                                )}
-
-                              </div>
-
-                              {/* DADOS HUMANOS */}
-                              {ativo &&
-                                tipoRegistro === "ANORMALIDADE" && (
-
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-5">
-
-                                  {[
-                                    {
-                                      campo: "afetados",
-                                      label: "Afetados"
-                                    },
-                                    {
-                                      campo: "desalojados",
-                                      label: "Desalojados"
-                                    },
-                                    {
-                                      campo: "desabrigados",
-                                      label: "Desabrigados"
-                                    },
-                                    {
-                                      campo: "mortos",
-                                      label: "Mortos"
-                                    },
-                                    {
-                                      campo: "desaparecidos",
-                                      label: "Desaparecidos"
-                                    }
-                                  ].map((item) => (
-
-                                    <div key={item.campo}>
-
-                                      <label className="text-[11px] font-bold uppercase tracking-wide text-red-700">
-                                        {item.label}
-                                      </label>
-
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={
-                                          ativo.dados[item.campo]
-                                        }
-                                        onChange={(e) =>
-                                          updateDado(
-                                            municipio.id,
-                                            item.campo,
-                                            e.target.value
-                                          )
-                                        }
-                                        className="mt-1 w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
-                                      />
-
-                                    </div>
-                                  ))}
-
-                                </div>
-                              )}
-
+                      {selec && tab === "ANORMALIDADE" && (
+                        <div className="px-4 pb-4 grid grid-cols-5 gap-2">
+                          {Object.keys(selec.dados).map((campo) => (
+                            <div key={campo} className="space-y-1">
+                              <span className="text-[9px] font-black text-slate-400 uppercase truncate block px-1">{campo}</span>
+                              <input
+                                type="number"
+                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-red-500 outline-none"
+                                value={selec.dados[campo]}
+                                onChange={(e) => updateDadoHumano(m.id, campo, e.target.value)}
+                              />
                             </div>
-
-                          </label>
-
+                          ))}
                         </div>
-                      )
-                    })}
-
-                  </div>
-
-                </div>
-
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
+          </section>
 
-            {/* ======================================================
-                FORA DA ÁREA
-            ====================================================== */}
-
-            <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-
-              <div className="p-6">
-
-                <label className="flex items-start gap-4 cursor-pointer">
-
-                  <input
-                    type="checkbox"
-                    checked={form.fora_area}
-                    onChange={(e) =>
-                      updateForm("fora_area", e.target.checked)
-                    }
-                    className="mt-1 h-5 w-5 rounded border-slate-300"
-                  />
-
-                  <div>
-                    <p className="font-black text-slate-800">
-                      Evento fora da área da REDEC
-                    </p>
-
-                    <p className="text-sm text-slate-500 mt-1">
-                      Utilize esta opção quando o evento não estiver
-                      vinculado aos municípios da regional.
-                    </p>
-                  </div>
-
-                </label>
-
+          {/* DESCRIÇÃO FINAL */}
+          <section className="space-y-2">
+             <div className="flex items-center gap-2 text-slate-400 mb-2">
+                <Info size={18} />
+                <span className="text-xs font-bold uppercase tracking-widest">Relatório / Observações</span>
               </div>
-            </div>
-
-            {/* ======================================================
-                DESCRIÇÃO
-            ====================================================== */}
-
-            <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-
-              <div className="border-b border-slate-100 px-6 py-5">
-
-                <div className="flex items-center gap-3">
-
-                  <FileText
-                    size={20}
-                    className="text-slate-700"
-                  />
-
-                  <div>
-                    <h3 className="text-lg font-black text-slate-800">
-                      Observações e Descrição
-                    </h3>
-
-                    <p className="text-sm text-slate-500 mt-1">
-                      Informações adicionais do evento.
-                    </p>
-                  </div>
-
-                </div>
-
-              </div>
-
-              <div className="p-6">
-
-                <textarea
-                  rows={6}
-                  value={form.descricao}
-                  onChange={(e) =>
-                    updateForm("descricao", e.target.value)
-                  }
-                  placeholder="Descreva detalhes importantes do evento..."
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-200 resize-none"
-                />
-
-              </div>
-
-            </div>
-
-          </div>
-
+            <textarea
+              placeholder="Descreva detalhadamente as ações realizadas ou o cenário encontrado..."
+              rows={4}
+              className="w-full bg-slate-100 border-none rounded-2xl p-4 font-medium text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none transition-all resize-none"
+              value={form.descricao}
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+            />
+          </section>
         </div>
 
-        {/* ======================================================
-            FOOTER
-        ====================================================== */}
-
-        <div className="border-t border-slate-200 bg-white px-8 py-5">
-
-          <div className="flex items-center justify-between gap-4">
-
-            <div className="hidden md:block">
-              <p className="text-sm font-bold text-slate-700">
-                Sistema de Gestão Operacional
-              </p>
-
-              <p className="text-xs text-slate-500 mt-1">
-                REDEC • Registro de eventos e ocorrências
-              </p>
-            </div>
-
-            <div className="flex gap-3 ml-auto">
-
-              <button
-                onClick={onClose}
-                disabled={loading}
-                className="h-12 px-6 rounded-2xl border border-slate-300 bg-white text-sm font-black text-slate-700 hover:bg-slate-100 transition"
-              >
-                Cancelar
-              </button>
-
-              <button
-                onClick={salvarEvento}
-                disabled={loading}
-                className={`
-                  h-12 px-8 rounded-2xl text-sm font-black text-white transition-all flex items-center gap-3
-                  ${
-                    tipoRegistro === "ANORMALIDADE"
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-slate-900 hover:bg-slate-800"
-                  }
-                  disabled:opacity-60
-                `}
-              >
-                {loading ? (
-                  <Loader2
-                    size={18}
-                    className="animate-spin"
-                  />
-                ) : (
-                  <Save size={18} />
-                )}
-
-                {loading
-                  ? "Salvando..."
-                  : evento
-                    ? "Salvar Alterações"
-                    : "Criar Evento"}
-              </button>
-
-            </div>
-
-          </div>
-
+        {/* FOOTER */}
+        <div className="p-6 border-t bg-slate-50/80 backdrop-blur-md">
+          <button
+            onClick={salvarEvento}
+            disabled={loading}
+            className="w-full bg-slate-900 hover:bg-black text-white py-5 rounded-[1.5rem] font-black text-sm flex justify-center items-center gap-3 shadow-xl shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-70"
+          >
+            {loading ? (
+              <Loader2 className="animate-spin" size={20} />
+            ) : (
+              <>
+                <Save size={20} /> 
+                CONFIRMAR E SALVAR REGISTRO
+              </>
+            )}
+          </button>
         </div>
 
       </div>
-
-      {/* ======================================================
-          CLASSES AUXILIARES
-      ====================================================== */}
-
-      <style jsx>{`
-        .label {
-          display: block;
-          font-size: 12px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: rgb(71 85 105);
-          margin-bottom: 10px;
-        }
-
-        .input {
-          width: 100%;
-          height: 56px;
-          border-radius: 18px;
-          border: 1px solid rgb(226 232 240);
-          background: rgb(248 250 252);
-          padding-left: 18px;
-          padding-right: 18px;
-          font-size: 14px;
-          font-weight: 600;
-          color: rgb(15 23 42);
-          outline: none;
-          transition: all 0.2s;
-        }
-
-        .input:focus {
-          border-color: rgb(15 23 42);
-          background: white;
-          box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.08);
-        }
-      `}</style>
-
     </div>
   )
 }
