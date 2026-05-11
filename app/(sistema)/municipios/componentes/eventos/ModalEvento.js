@@ -45,7 +45,21 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
 
   useEffect(() => {
     if (evento) {
-      setForm({ ...evento })
+      // Mapeamos apenas os campos que pertencem ao formulário/tabela eventos
+      setForm({
+        id: evento.id,
+        titulo: evento.titulo || "",
+        tipo_registro: evento.tipo_registro || "ROTINA",
+        categoria: evento.categoria || "MUNICIPIO",
+        tipo_atividade: evento.tipo_atividade || "",
+        fora_area: evento.fora_area || false,
+        data_inicio: evento.data_inicio || new Date().toISOString().split("T")[0],
+        descricao: evento.descricao || "",
+        status_anormalidade: evento.status_anormalidade || "SE",
+        nivel_desastre: evento.nivel_desastre || "I",
+        protocolo_s2id: evento.protocolo_s2id || "",
+        cobrade: evento.cobrade || ""
+      })
       setTab(evento.tipo_registro || "ROTINA")
       carregarVinculos(evento.id)
     }
@@ -93,45 +107,56 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
     setLoading(true)
     
     try {
-      // Criamos uma cópia do payload para manipular os dados antes de enviar
-      let payload = { 
-        ...form, 
-        tipo_registro: tab,
-        // Forçamos o título e descrição para caixa alta para manter o padrão visual
+      // Montamos o payload manualmente para garantir que nenhum lixo de 
+      // tabelas relacionadas (como eventos_municipios) seja enviado
+      const payload = {
         titulo: form.titulo.toUpperCase(),
-        descricao: form.descricao?.toUpperCase()
+        tipo_registro: tab,
+        categoria: form.categoria,
+        tipo_atividade: tab === "ROTINA" ? form.tipo_atividade : null,
+        fora_area: form.fora_area,
+        data_inicio: form.data_inicio,
+        descricao: form.descricao?.toUpperCase(),
+        status_anormalidade: tab === "ANORMALIDADE" ? form.status_anormalidade : null,
+        nivel_desastre: tab === "ANORMALIDADE" ? form.nivel_desastre : null,
+        protocolo_s2id: tab === "ANORMALIDADE" ? form.protocolo_s2id : null,
+        cobrade: tab === "ANORMALIDADE" ? form.cobrade : null,
       }
-
-      // LIMPEZA LOGICA: Se for ROTINA, limpamos campos de desastre
-      if (tab === "ROTINA") {
-        payload.status_anormalidade = null
-        payload.nivel_desastre = null
-        payload.protocolo_s2id = null
-        payload.cobrade = null
-      }
-
-      let eventoId = evento?.id
-
+  
+      let eventoId = form.id // Pegamos o ID do estado local
+  
       if (eventoId) {
-        await supabase.from("eventos").update(payload).eq("id", eventoId)
+        // UPDATE
+        const { error: upError } = await supabase
+          .from("eventos")
+          .update(payload)
+          .eq("id", eventoId)
+        
+        if (upError) throw upError
       } else {
-        const { data, error } = await supabase.from("eventos").insert([payload]).select().single()
-        if (error) throw error
+        // INSERT
+        const { data, error: insError } = await supabase
+          .from("eventos")
+          .insert([payload])
+          .select()
+          .single()
+        
+        if (insError) throw insError
         eventoId = data.id
       }
-
-      // Remove vínculos antigos para sobrescrever (Sync)
+  
+      // Gerenciamento de Vínculos (Sync)
+      // 1. Remove antigos
       await supabase.from("eventos_municipios").delete().eq("evento_id", eventoId)
-
-      // Só salva vínculos se não for fora da área
+  
+      // 2. Salva novos se não for fora da área
       if (!form.fora_area) {
         for (const mId of Object.keys(municipiosSelecionados)) {
           const { data: vinculo, error: vError } = await supabase
             .from("eventos_municipios")
             .insert({ evento_id: eventoId, municipio_id: mId })
             .select().single()
-
-          // Só salva dados humanos (desalojados, etc) se for ANORMALIDADE
+  
           if (!vError && tab === "ANORMALIDADE") {
             await supabase.from("eventos_dados").insert({
               evento_municipio_id: vinculo.id,
@@ -141,8 +166,9 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
         }
       }
       
-      onSaved()
+      onSaved() // Fecha o modal e atualiza a lista
     } catch (err) {
+      console.error("Erro completo:", err)
       alert("Erro ao salvar: " + err.message)
     } finally {
       setLoading(false)
