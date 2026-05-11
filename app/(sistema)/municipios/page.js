@@ -28,7 +28,6 @@ export default function MunicipiosPage() {
   const [eventosMunicipios, setEventosMunicipios] = useState([])
 
   const [loading, setLoading] = useState(true)
-
   const [abaAtiva, setAbaAtiva] = useState("painel")
 
   const [municipioSelecionado, setMunicipioSelecionado] = useState(null)
@@ -56,7 +55,7 @@ export default function MunicipiosPage() {
       const { data: eData } = await supabase
         .from("eventos")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("data_inicio", { ascending: false }) // Ordenado por data do evento
 
       const { data: emData } = await supabase
         .from("eventos_municipios")
@@ -77,6 +76,29 @@ export default function MunicipiosPage() {
   useEffect(() => {
     carregarDados()
   }, [])
+
+  // ===============================
+  // FUNÇÃO DE EXCLUSÃO (NOVIDADE)
+  // ===============================
+  async function handleExcluirEvento(id) {
+    if (!confirm("Tem certeza que deseja excluir este evento permanentemente?")) return
+
+    try {
+      // O RLS deve estar configurado para delete também
+      const { error } = await supabase
+        .from("eventos")
+        .delete()
+        .eq("id", id)
+
+      if (error) throw error
+
+      showToast("Evento excluído com sucesso")
+      carregarDados() // Recarrega a lista para sumir do mapa
+    } catch (error) {
+      console.error(error)
+      showToast("Erro ao excluir evento", "error")
+    }
+  }
 
   // ===============================
   // AUXILIAR
@@ -106,14 +128,12 @@ export default function MunicipiosPage() {
         </div>
       )}
 
-      {/* ================= HEADER NOVO ================= */}
+      {/* ================= HEADER ================= */}
       <div className="relative rounded-3xl overflow-hidden">
-
         <div className="absolute inset-0 bg-gradient-to-br from-red-500/90 via-red-600/80 to-red-700/90" />
         <div className="absolute inset-0 backdrop-blur-xl bg-white/10" />
 
         <div className="relative z-10 p-8 flex flex-col md:flex-row justify-between md:items-center gap-6 text-white">
-
           <div>
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-5 h-5 text-white/80" />
@@ -121,14 +141,8 @@ export default function MunicipiosPage() {
                 Municípios
               </span>
             </div>
-
-            <h1 className="text-3xl font-black uppercase">
-              Gestão Municipal
-            </h1>
-
-            <p className="text-white/70 text-sm mt-1 italic">
-              Monitoramento, eventos e documentação
-            </p>
+            <h1 className="text-3xl font-black uppercase">Gestão Municipal</h1>
+            <p className="text-white/70 text-sm mt-1 italic">Monitoramento, eventos e documentação</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -141,7 +155,6 @@ export default function MunicipiosPage() {
               <RefreshCw className="w-5 h-5 text-white" />
             </button>
           </div>
-
         </div>
       </div>
 
@@ -168,8 +181,6 @@ export default function MunicipiosPage() {
 
       {/* ================= CONTEÚDO ================= */}
       <div className="animate-in fade-in duration-500">
-
-        {/* PAINEL */}
         {abaAtiva === "painel" && (
           <ListaMunicipios
             municipios={municipios}
@@ -183,23 +194,27 @@ export default function MunicipiosPage() {
           />
         )}
 
-        {/* EVENTOS (AGORA REAL) */}
         {abaAtiva === "eventos" && (
-          <ListaEventos municipios={municipios} />
+          <ListaEventos 
+            municipios={municipios} 
+            onRefresh={carregarDados} // Passando refresh para quando editar/excluir
+            onDelete={handleExcluirEvento} // Passando a função de delete
+          />
         )}
-
       </div>
 
-      {/* ================= FAB ================= */}
-      <button
-        onClick={() => {
-          setMunicipioSelecionado(null)
-          setDrawerOpen(true)
-        }}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-blue-600 hover:scale-110 active:scale-90 transition-all z-50 group border-4 border-white"
-      >
-        <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" />
-      </button>
+      {/* ================= FAB (SÓ APARECE NO PAINEL) ================= */}
+      {abaAtiva === "painel" && (
+        <button
+          onClick={() => {
+            setMunicipioSelecionado(null)
+            setDrawerOpen(true)
+          }}
+          className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-blue-600 hover:scale-110 active:scale-90 transition-all z-50 group border-4 border-white animate-in slide-in-from-bottom-4"
+        >
+          <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+      )}
 
       {/* ================= DRAWER ================= */}
       {drawerOpen && (
@@ -213,11 +228,7 @@ export default function MunicipiosPage() {
           }}
           onSaved={() => {
             carregarDados()
-            showToast(
-              municipioSelecionado
-                ? "Município atualizado"
-                : "Município criado"
-            )
+            showToast(municipioSelecionado ? "Município atualizado" : "Município criado")
           }}
         />
       )}
