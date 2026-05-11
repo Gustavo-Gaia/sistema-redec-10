@@ -9,12 +9,14 @@ import {
   MapPin, 
   Edit3, 
   Trash2,
-  Eye
+  Eye,
+  Plus
 } from "lucide-react"
 
 import ModalEvento from "./ModalEvento"
 
-export default function ListaEventos({ municipios }) {
+// Recebemos onDelete e onRefresh do componente pai (page.js)
+export default function ListaEventos({ municipios, onDelete, onRefresh }) {
 
   const [eventos, setEventos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -22,47 +24,41 @@ export default function ListaEventos({ municipios }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [eventoSelecionado, setEventoSelecionado] = useState(null)
 
-  // =============================
-  // FETCH (AGORA COM DADOS HUMANOS)
-  // =============================
   async function carregarEventos() {
     setLoading(true)
-
-    const { data, error } = await supabase
-      .from("eventos")
-      .select(`
-        *,
-        eventos_municipios (
-          id,
-          municipio_id,
-          municipios (nome),
-          eventos_dados (
-            afetados,
-            mortos,
-            desalojados,
-            desabrigados,
-            desaparecidos
+    try {
+      const { data, error } = await supabase
+        .from("eventos")
+        .select(`
+          *,
+          eventos_municipios (
+            id,
+            municipio_id,
+            municipios (nome),
+            eventos_dados (
+              afetados,
+              mortos,
+              desalojados,
+              desabrigados,
+              desaparecidos
+            )
           )
-        )
-      `)
-      .order("data_inicio", { ascending: false })
+        `)
+        .order("data_inicio", { ascending: false })
 
-    if (error) {
+      if (error) throw error
+      setEventos(data || [])
+    } catch (error) {
       console.error(error)
-      alert("Erro ao carregar eventos")
+    } finally {
+      setLoading(false)
     }
-
-    setEventos(data || [])
-    setLoading(false)
   }
 
   useEffect(() => {
     carregarEventos()
   }, [])
 
-  // =============================
-  // AÇÕES
-  // =============================
   function abrirNovo() {
     setEventoSelecionado(null)
     setModalOpen(true)
@@ -73,78 +69,63 @@ export default function ListaEventos({ municipios }) {
     setModalOpen(true)
   }
 
-  async function excluirEvento(id) {
-    if (!confirm("Excluir este evento?")) return
-
-    const { error } = await supabase
-      .from("eventos")
-      .delete()
-      .eq("id", id)
-
-    if (error) {
-      alert("Erro ao excluir")
-    } else {
-      carregarEventos()
+  // Modificado para usar a função que vem do page.js
+  async function confirmarExclusao(id) {
+    if (onDelete) {
+      await onDelete(id) // Chama a função do pai
+      carregarEventos()  // Atualiza a lista local
     }
   }
 
-  // =============================
-  // HELPERS
-  // =============================
   function formatarData(data) {
     if (!data) return "-"
-    return new Date(data).toLocaleDateString("pt-BR")
+    // Ajuste para evitar que a data mude por causa do fuso horário
+    const d = new Date(data)
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset())
+    return d.toLocaleDateString("pt-BR")
   }
 
   function nomesMunicipios(ev) {
-    if (ev.fora_area) return "Fora da área da REDEC"
-
+    if (ev.fora_area) return "FORA DA ÁREA DA REDEC"
     const lista = ev.eventos_municipios?.map(m => m.municipios?.nome)
-    if (!lista || lista.length === 0) return "REDEC / Geral"
-
-    return lista.join(", ")
+    if (!lista || lista.length === 0) return "REDEC / GERAL"
+    return lista.join(", ").toUpperCase()
   }
 
   function calcularTotais(ev) {
     return ev.eventos_municipios?.reduce((acc, item) => {
       const dados = item.eventos_dados?.[0]
       if (!dados) return acc
-
       acc.afetados += dados.afetados || 0
       acc.mortos += dados.mortos || 0
-
       return acc
     }, { afetados: 0, mortos: 0 }) || { afetados: 0, mortos: 0 }
   }
 
-  // =============================
-  // UI
-  // =============================
   return (
     <div className="space-y-6">
 
-      {/* BOTÃO */}
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest">Registros Recentes</h2>
         <button
           onClick={abrirNovo}
-          className="bg-slate-900 text-white px-4 py-2 rounded-xl"
+          className="bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-2xl font-black text-xs uppercase flex items-center gap-2 transition-all shadow-lg active:scale-95"
         >
-          Novo Evento
+          <Plus size={16} /> Novo Evento
         </button>
       </div>
 
-      {/* LISTA */}
       {loading ? (
-        <p className="text-center text-slate-400">Carregando...</p>
+        <div className="flex justify-center py-20">
+           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+        </div>
       ) : eventos.length === 0 ? (
-        <div className="text-center py-10 border rounded-2xl text-slate-400">
-          Nenhum evento cadastrado
+        <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-[2rem] text-slate-400 font-bold uppercase text-xs tracking-widest bg-white">
+          Nenhum evento cadastrado na REDEC 10
         </div>
       ) : (
-        <div className="space-y-4">
-
+        <div className="grid gap-4">
           {eventos.map((ev) => {
-
             const isAnormal = ev.tipo_registro === "ANORMALIDADE"
             const totais = calcularTotais(ev)
 
@@ -152,123 +133,84 @@ export default function ListaEventos({ municipios }) {
               <div
                 key={ev.id}
                 className={`
-                  relative p-5 rounded-2xl border bg-white transition-all
-                  hover:shadow-lg cursor-pointer
-                  ${isAnormal 
-                    ? "border-red-200 bg-red-50/40" 
-                    : "border-slate-200"}
+                  relative p-6 rounded-[2rem] border-2 bg-white transition-all
+                  hover:shadow-xl group
+                  ${isAnormal ? "border-red-100 hover:border-red-200" : "border-slate-100 hover:border-slate-200"}
                 `}
               >
-
-                {/* FAIXA LATERAL */}
-                {isAnormal && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600 rounded-l-2xl" />
-                )}
-
                 <div className="flex justify-between items-start gap-4">
-
-                  {/* CONTEÚDO */}
-                  <div
-                    className="flex-1"
-                    onClick={() => editarEvento(ev)}
-                  >
-
-                    {/* BADGES */}
-                    <div className="flex gap-2 mb-2 flex-wrap">
-
-                      <span className={`
-                        text-[10px] px-2 py-1 rounded-full font-bold
-                        ${isAnormal 
-                          ? "bg-red-600 text-white" 
-                          : "bg-slate-200 text-slate-600"}
-                      `}>
+                  <div className="flex-1 cursor-pointer" onClick={() => editarEvento(ev)}>
+                    
+                    <div className="flex gap-2 mb-3 flex-wrap">
+                      <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-tighter ${
+                        isAnormal ? "bg-red-600 text-white" : "bg-slate-900 text-white"
+                      }`}>
                         {ev.tipo_registro}
                       </span>
 
                       {ev.tipo_atividade && (
-                        <span className="text-[10px] px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-bold">
+                        <span className="text-[9px] px-3 py-1 rounded-full bg-slate-100 text-slate-500 font-black uppercase tracking-tighter">
                           {ev.tipo_atividade}
                         </span>
                       )}
-
                     </div>
 
-                    {/* TÍTULO */}
-                    <h3 className="font-bold text-lg text-slate-800">
+                    <h3 className="font-black text-lg text-slate-800 uppercase leading-tight mb-4">
                       {ev.titulo}
                     </h3>
 
-                    {/* 🔥 DADOS HUMANOS */}
                     {isAnormal && (
-                      <div className="flex gap-4 mt-3 border-t border-red-100 pt-3 text-[11px] font-bold text-red-700">
-                        <div>
-                          <span className="opacity-60">AFETADOS:</span> {totais.afetados}
+                      <div className="flex gap-6 mb-4 bg-red-50 p-4 rounded-2xl border border-red-100 w-fit">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-red-400 uppercase">Afetados</span>
+                          <span className="text-sm font-black text-red-700">{totais.afetados}</span>
                         </div>
-                        <div>
-                          <span className="opacity-60">MORTOS:</span> {totais.mortos}
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-red-400 uppercase">Mortos</span>
+                          <span className="text-sm font-black text-red-700">{totais.mortos}</span>
                         </div>
                       </div>
                     )}
 
-                    {/* INFO */}
-                    <div className="flex flex-wrap gap-4 text-xs text-slate-500 mt-2">
-
-                      <span className="flex items-center gap-1">
-                        <Calendar size={12} />
+                    <div className="flex flex-wrap gap-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <span className="flex items-center gap-2">
+                        <Calendar size={14} className="text-slate-300" />
                         {formatarData(ev.data_inicio)}
                       </span>
-
-                      <span className="flex items-center gap-1">
-                        <MapPin size={12} />
+                      <span className="flex items-center gap-2">
+                        <MapPin size={14} className="text-slate-300" />
                         {nomesMunicipios(ev)}
                       </span>
-
                       {ev.protocolo_s2id && (
-                        <span className="flex items-center gap-1 text-amber-600 font-mono">
-                          <Eye size={12} />
-                          {ev.protocolo_s2id}
+                        <span className="flex items-center gap-2 text-amber-500">
+                          <Eye size={14} />
+                          S2ID: {ev.protocolo_s2id}
                         </span>
                       )}
-
                     </div>
-
                   </div>
 
-                  {/* AÇÕES */}
-                  <div className="flex gap-2">
-
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        editarEvento(ev)
-                      }}
-                      className="p-2 rounded-lg bg-slate-100 hover:bg-slate-900 hover:text-white"
+                      onClick={(e) => { e.stopPropagation(); editarEvento(ev); }}
+                      className="p-3 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-900 hover:text-white transition-all"
                     >
-                      <Edit3 size={16} />
+                      <Edit3 size={18} />
                     </button>
-
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        excluirEvento(ev.id)
-                      }}
-                      className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-600 hover:text-white"
+                      onClick={(e) => { e.stopPropagation(); confirmarExclusao(ev.id); }}
+                      className="p-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={18} />
                     </button>
-
                   </div>
-
                 </div>
-
               </div>
             )
           })}
-
         </div>
       )}
 
-      {/* MODAL */}
       {modalOpen && (
         <ModalEvento
           evento={eventoSelecionado}
@@ -276,11 +218,11 @@ export default function ListaEventos({ municipios }) {
           onClose={() => setModalOpen(false)}
           onSaved={() => {
             carregarEventos()
+            if (onRefresh) onRefresh() // Avisa o page.js que algo mudou
             setModalOpen(false)
           }}
         />
       )}
-
     </div>
   )
 }
