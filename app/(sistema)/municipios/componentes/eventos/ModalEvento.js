@@ -148,20 +148,36 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
       // Gerenciamento de Vínculos (Sync)
       // 1. Remove antigos
       await supabase.from("eventos_municipios").delete().eq("evento_id", eventoId)
-  
-      // 2. Salva novos se não for fora da área
+
+      // 2. Salva novos se não for "fora da área"
       if (!form.fora_area) {
-        for (const mId of Object.keys(municipiosSelecionados)) {
-          const { data: vinculo, error: vError } = await supabase
+        const idsMunicipios = Object.keys(municipiosSelecionados);
+      
+        if (idsMunicipios.length > 0) {
+          // Preparamos um array com todos os vínculos de uma vez
+          const listaVinculos = idsMunicipios.map(mId => ({
+            evento_id: eventoId,
+            municipio_id: mId
+          }));
+      
+          // Inserimos todos de uma vez (passando o array)
+          const { data: vinculosCriados, error: vError } = await supabase
             .from("eventos_municipios")
-            .insert({ evento_id: eventoId, municipio_id: mId })
-            .select().single()
-  
-          if (!vError && tab === "ANORMALIDADE") {
-            await supabase.from("eventos_dados").insert({
-              evento_municipio_id: vinculo.id,
-              ...municipiosSelecionados[mId].dados
-            })
+            .insert(listaVinculos) // Aqui passamos o array completo
+            .select();
+      
+          if (vError) throw vError;
+      
+          // 3. Se for ANORMALIDADE, salvamos os dados numéricos (Danohumanos)
+          if (tab === "ANORMALIDADE" && vinculosCriados) {
+            const listaDados = vinculosCriados.map(v => ({
+              evento_municipio_id: v.id,
+              ...municipiosSelecionados[v.municipio_id].dados
+            }));
+      
+            if (listaDados.length > 0) {
+              await supabase.from("eventos_dados").insert(listaDados);
+            }
           }
         }
       }
