@@ -15,6 +15,7 @@ const ATIVIDADES_MUNICIPIO = [
 ]
 
 const ATIVIDADES_REDEC = [
+  { id: "APOIO_LOGISTICO", label: "Apoio Logístico" },
   { id: "ANALISE_TECNICA", label: "Análise técnica" },
   { id: "CAPACITACAO", label: "Capacitação externa" },
   { id: "COLABORACAO", label: "Colaboração técnica" },
