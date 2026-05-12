@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { supabase } from "@/lib/supabase"
 import { 
   Calendar, 
@@ -10,19 +10,25 @@ import {
   Edit3, 
   Trash2,
   Eye,
-  Plus
+  Plus,
+  Filter,
+  ListChecks,
+  Globe,
+  AlertTriangle,
+  Building2
 } from "lucide-react"
 
 import ModalEvento from "./ModalEvento"
 
-// Recebemos onDelete e onRefresh do componente pai (page.js)
 export default function ListaEventos({ municipios, onDelete, onRefresh }) {
-
   const [eventos, setEventos] = useState([])
   const [loading, setLoading] = useState(true)
-
   const [modalOpen, setModalOpen] = useState(false)
   const [eventoSelecionado, setEventoSelecionado] = useState(null)
+
+  // ESTADOS DOS FILTROS
+  const [filtroTipo, setFiltroTipo] = useState("TODOS") // TODOS, ROTINA, ANORMALIDADE
+  const [filtroCategoria, setFiltroCategoria] = useState("TODOS") // TODOS, MUNICIPIO, REDEC
 
   async function carregarEventos() {
     setLoading(true)
@@ -59,6 +65,15 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
     carregarEventos()
   }, [])
 
+  // LÓGICA DE FILTRAGEM
+  const eventosFiltrados = useMemo(() => {
+    return eventos.filter(ev => {
+      const bateTipo = filtroTipo === "TODOS" || ev.tipo_registro === filtroTipo
+      const bateCategoria = filtroCategoria === "TODOS" || ev.categoria === filtroCategoria
+      return bateTipo && bateCategoria
+    })
+  }, [eventos, filtroTipo, filtroCategoria])
+
   function abrirNovo() {
     setEventoSelecionado(null)
     setModalOpen(true)
@@ -69,17 +84,15 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
     setModalOpen(true)
   }
 
-  // Modificado para usar a função que vem do page.js
   async function confirmarExclusao(id) {
     if (onDelete) {
-      await onDelete(id) // Chama a função do pai
-      carregarEventos()  // Atualiza a lista local
+      await onDelete(id)
+      carregarEventos()
     }
   }
 
   function formatarData(data) {
     if (!data) return "-"
-    // Ajuste para evitar que a data mude por causa do fuso horário
     const d = new Date(data)
     d.setMinutes(d.getMinutes() + d.getTimezoneOffset())
     return d.toLocaleDateString("pt-BR")
@@ -104,28 +117,82 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
 
   return (
     <div className="space-y-6">
+      
+      {/* HEADER E FILTROS */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest">Registros Recentes</h2>
+          <button
+            onClick={abrirNovo}
+            className="bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-2xl font-black text-xs uppercase flex items-center gap-2 transition-all shadow-lg active:scale-95"
+          >
+            <Plus size={16} /> Novo Evento
+          </button>
+        </div>
 
-      <div className="flex justify-between items-center">
-        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest">Registros Recentes</h2>
-        <button
-          onClick={abrirNovo}
-          className="bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-2xl font-black text-xs uppercase flex items-center gap-2 transition-all shadow-lg active:scale-95"
-        >
-          <Plus size={16} /> Novo Evento
-        </button>
+        {/* BARRA DE FILTROS DESIGN BONITÃO */}
+        <div className="bg-white p-4 rounded-[2rem] border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+            {[
+              { id: "TODOS", label: "Todos", icon: ListChecks },
+              { id: "ROTINA", label: "Rotina", icon: Globe },
+              { id: "ANORMALIDADE", label: "Anormalidade", icon: AlertTriangle },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setFiltroTipo(t.id)
+                  if (t.id === "ANORMALIDADE") setFiltroCategoria("TODOS")
+                }}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                  filtroTipo === t.id 
+                    ? "bg-white text-slate-900 shadow-sm" 
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <t.icon size={14} /> {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* SUB-FILTRO DE CATEGORIA (ESCONDIDO EM ANORMALIDADE) */}
+          {filtroTipo !== "ANORMALIDADE" && (
+            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Origem:</span>
+              {[
+                { id: "TODOS", label: "Geral", icon: ListChecks },
+                { id: "MUNICIPIO", label: "Municípios", icon: MapPin },
+                { id: "REDEC", label: "REDEC", icon: Building2 },
+              ].map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setFiltroCategoria(c.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${
+                    filtroCategoria === c.id
+                      ? "bg-slate-900 border-slate-900 text-white shadow-md"
+                      : "bg-white border-slate-200 text-slate-500 hover:border-slate-400"
+                  }`}
+                >
+                  <c.icon size={12} /> {c.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-20">
            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
         </div>
-      ) : eventos.length === 0 ? (
-        <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-[2rem] text-slate-400 font-bold uppercase text-xs tracking-widest bg-white">
-          Nenhum evento cadastrado na REDEC 10
+      ) : eventosFiltrados.length === 0 ? (
+        <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-[2rem] text-slate-400 font-bold uppercase text-[10px] tracking-widest bg-white space-y-3">
+          <Filter className="mx-auto opacity-20" size={40} />
+          <p>Nenhum registro encontrado para este filtro.</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {eventos.map((ev) => {
+          {eventosFiltrados.map((ev) => {
             const isAnormal = ev.tipo_registro === "ANORMALIDADE"
             const totais = calcularTotais(ev)
 
@@ -138,6 +205,7 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
                   ${isAnormal ? "border-red-100 hover:border-red-200" : "border-slate-100 hover:border-slate-200"}
                 `}
               >
+                {/* ... conteúdo do card (mesmo que você já tinha) ... */}
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex-1 cursor-pointer" onClick={() => editarEvento(ev)}>
                     
@@ -147,9 +215,14 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
                       }`}>
                         {ev.tipo_registro}
                       </span>
+                      
+                      {/* Badge de Categoria para facilitar identificação visual */}
+                      <span className="text-[9px] px-3 py-1 rounded-full bg-slate-100 text-slate-500 font-black uppercase tracking-tighter border border-slate-200">
+                        {ev.categoria}
+                      </span>
 
                       {ev.tipo_atividade && (
-                        <span className="text-[9px] px-3 py-1 rounded-full bg-slate-100 text-slate-500 font-black uppercase tracking-tighter">
+                        <span className="text-[9px] px-3 py-1 rounded-full bg-blue-50 text-blue-600 font-black uppercase tracking-tighter border border-blue-100">
                           {ev.tipo_atividade}
                         </span>
                       )}
@@ -183,8 +256,7 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
                       </span>
                       {ev.protocolo_s2id && (
                         <span className="flex items-center gap-2 text-amber-500">
-                          <Eye size={14} />
-                          S2ID: {ev.protocolo_s2id}
+                          <Eye size={14} /> S2ID: {ev.protocolo_s2id}
                         </span>
                       )}
                     </div>
@@ -218,7 +290,7 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
           onClose={() => setModalOpen(false)}
           onSaved={() => {
             carregarEventos()
-            if (onRefresh) onRefresh() // Avisa o page.js que algo mudou
+            if (onRefresh) onRefresh()
             setModalOpen(false)
           }}
         />
