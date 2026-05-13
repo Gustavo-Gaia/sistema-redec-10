@@ -85,7 +85,7 @@ export default function CardPatrimonio({ bem, onClick }) {
           <div className="flex items-center gap-1.5">
             <div className="bg-slate-100 px-2 py-0.5 rounded flex items-center gap-1">
               <Tag className="w-3 h-3 text-slate-400" />
-              <span className="text-[10px] font-bold text-slate-600 tracking-tight">Nº Patrimonial
+              <span className="text-[10px] font-bold text-slate-600 tracking-tight">Nº Patrimonial: 
                 {bem.num_patrimonial}
               </span>
             </div>
