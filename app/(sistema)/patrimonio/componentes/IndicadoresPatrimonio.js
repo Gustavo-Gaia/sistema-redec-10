@@ -59,7 +59,7 @@ export default function IndicadoresPatrimonio({ bens }) {
       label: "Inservível",
       valor: statsData.inservivel,
       icon: AlertTriangle,
-      color: "text-orange-600",
+      color: "text-orange-600", // Mantido Laranja para combinar com o card
       bg: "bg-orange-50",
       border: "border-orange-100"
     },
@@ -67,9 +67,9 @@ export default function IndicadoresPatrimonio({ bens }) {
       label: "Baixa Definitiva",
       valor: statsData.baixa,
       icon: XCircle,
-      color: "text-red-600",
-      bg: "bg-red-50",
-      border: "border-red-100"
+      color: "text-slate-500", // Corrigido para Cinza (Slate) igual ao card
+      bg: "bg-slate-100",
+      border: "border-slate-200"
     }
   ]
 
