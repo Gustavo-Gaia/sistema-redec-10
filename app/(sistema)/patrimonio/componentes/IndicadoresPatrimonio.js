@@ -25,7 +25,7 @@ export default function IndicadoresPatrimonio({ bens, filtroCondicao, setFiltroC
 
   const stats = [
     {
-      id: "todos",
+      id: "Todos",
       label: "Total de Bens",
       valor: statsData.total,
       icon: Box,
