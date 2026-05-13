@@ -148,7 +148,7 @@ export default function ModalPatrimonio({ bem, onClose, onSaved }) {
                 className="w-full border-2 border-slate-100 rounded-2xl px-4 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-500 transition-all bg-slate-50/30"
                 value={dados.propriedade}
                 onChange={e => setDados({...dados, propriedade: e.target.value})}
-                placeholder="Ex: SEDEC / CBMERJ"
+                placeholder="Ex: REDEC 10 / CBA IV"
               />
             </div>
           </div>
