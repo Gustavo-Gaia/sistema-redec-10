@@ -24,31 +24,56 @@ export default function ModalPatrimonio({ bem, onClose, onSaved }) {
   }, [bem])
 
   async function salvar() {
+    // Validação básica antes de tentar enviar
+    if (!dados.nome_bem || !dados.num_patrimonial || !dados.propriedade) {
+      alert("Por favor, preencha os campos obrigatórios: Nome, Nº Patrimonial e Propriedade.");
+      return;
+    }
+  
     try {
-      setLoading(true)
-      
+      setLoading(true);
+  
+      // Preparar o objeto para o banco (converter string vazia em null para datas)
+      const payload = {
+        nome_bem: dados.nome_bem,
+        num_patrimonial: dados.num_patrimonial,
+        propriedade: dados.propriedade,
+        localizacao: dados.localizacao || null,
+        condicao: dados.condicao,
+        data_entrada: dados.data_entrada || null, // Se estiver "", vira null
+        data_saida: dados.data_saida || null,
+      };
+  
       if (bem?.id) {
         // UPDATE
         const { error } = await supabase
           .from("patrimonio")
-          .update({ ...dados, atualizado_em: new Date() })
-          .eq("id", bem.id)
-        if (error) throw error
+          .update({ ...payload, atualizado_em: new Date() })
+          .eq("id", bem.id);
+        if (error) throw error;
       } else {
         // INSERT
         const { error } = await supabase
           .from("patrimonio")
-          .insert([dados])
-        if (error) throw error
+          .insert([payload]);
+        
+        // Se der erro de duplicidade, o código do erro no Postgres costuma ser '23505'
+        if (error) {
+          if (error.code === '23505') {
+            alert("O Nº Patrimonial informado já está cadastrado.");
+            return;
+          }
+          throw error;
+        }
       }
-
-      onSaved()
-      onClose()
+  
+      onSaved();
+      onClose();
     } catch (error) {
-      console.error("Erro ao salvar:", error)
-      alert("Erro ao salvar item. Verifique se o Nº Patrimonial já existe.")
+      console.error("Erro detalhado do Supabase:", error);
+      alert("Erro ao salvar: " + (error.message || "Verifique os dados informados."));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
