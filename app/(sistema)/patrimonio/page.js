@@ -143,8 +143,8 @@ export default function PatrimonioPage() {
       {/* INDICADORES COM FILTRO */}
       <IndicadoresPatrimonio 
         bens={bens} 
-        setFiltro={setFiltroCondicao} 
-        filtroAtual={filtroCondicao} 
+        setFiltro={setFiltroCondicao} // Antes estava setFiltro={setFiltroCondicao}
+        filtroAtual={filtroCondicao} // Antes estava filtroAtual={filtroCondicao}
       />
 
       {/* LISTA */}
