@@ -16,7 +16,6 @@ import {
 
 export default function CardPatrimonio({ bem, onClick }) {
   
-  // Lógica de Cores e Ícones expandida para os 5 status
   const statusConfig = {
     "Em uso": {
       color: "text-emerald-600 bg-emerald-50 border-emerald-100",
@@ -37,13 +36,13 @@ export default function CardPatrimonio({ bem, onClick }) {
       hover: "hover:border-amber-300"
     },
     "Inservível": {
-      color: "text-red-600 bg-red-50 border-red-100",
+      color: "text-orange-600 bg-orange-50 border-orange-100",
       icon: <AlertTriangle className="w-3.5 h-3.5" />,
-      dot: "bg-red-500",
-      hover: "hover:border-red-300"
+      dot: "bg-orange-500",
+      hover: "hover:border-orange-300"
     },
     "Baixa Definitiva": {
-      color: "text-slate-600 bg-slate-100 border-slate-200",
+      color: "text-slate-600 bg-slate-100 border-slate-200", // Voltando para o Cinza
       icon: <XCircle className="w-3.5 h-3.5" />,
       dot: "bg-slate-400",
       hover: "hover:border-slate-400"
@@ -62,7 +61,6 @@ export default function CardPatrimonio({ bem, onClick }) {
         min-h-[200px] ${config.hover}
       `}
     >
-      {/* Indicador Lateral de Status */}
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${config.dot}`} />
 
       <div>
@@ -71,7 +69,6 @@ export default function CardPatrimonio({ bem, onClick }) {
             <Box className="w-5 h-5 text-slate-400 group-hover:text-slate-600" />
           </div>
           
-          {/* Badge de Condição */}
           <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${config.color}`}>
             {config.icon}
             {bem.condicao}
@@ -85,12 +82,11 @@ export default function CardPatrimonio({ bem, onClick }) {
           <div className="flex items-center gap-1.5">
             <div className="bg-slate-100 px-2 py-0.5 rounded flex items-center gap-1">
               <Tag className="w-3 h-3 text-slate-400" />
-              <span className="text-[10px] font-bold text-slate-600 tracking-tight">Nº Patrimonial: 
-                {bem.num_patrimonial}
+              <span className="text-[10px] font-bold text-slate-600 tracking-tight">
+                Nº Patrimonial: {bem.num_patrimonial}
               </span>
             </div>
             
-            {/* Indicador de que existem observações */}
             {bem.observacoes && (
               <div className="flex items-center gap-1 text-amber-500 animate-pulse">
                 <FileText className="w-3 h-3" />
@@ -120,7 +116,6 @@ export default function CardPatrimonio({ bem, onClick }) {
         </div>
       </div>
 
-      {/* Marca d'água de fundo */}
       <div className="absolute -right-4 -bottom-4 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity pointer-events-none">
         <Box size={120} strokeWidth={1} />
       </div>
