@@ -235,7 +235,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-black text-slate-400 uppercase ml-1">Data de Registro</label>
+              <label className="text-xs font-black text-slate-400 uppercase ml-1">Data do Boletim</label>
               <input 
                 type="date" required
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
