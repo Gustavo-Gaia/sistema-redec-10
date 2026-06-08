@@ -45,6 +45,13 @@ export default function Dashboard() {
     afastados: 0
   })
 
+  // Estado para o controle dinâmico de viaturas com os novos alertas e textos limpos
+  const [statsViaturas, setStatsViaturas] = useState({
+    frota: "00 viaturas",
+    emServicoTexto: "Nenhuma viatura",
+    temInoperante: false
+  })
+
   useEffect(() => {
     async function buscarDados() {
       // 1. Busca Saldo do Contêiner
@@ -111,14 +118,16 @@ export default function Dashboard() {
         }))
       }
 
-      // 4. MELHORADO: Busca da Equipe em Paralelo e trazendo apenas colunas necessárias
+      // 4. Busca da Equipe e Viaturas em Paralelo trazendo apenas colunas necessárias
       try {
         const [
           { data: militares },
-          { data: afastamentos }
+          { data: afastamentos },
+          { data: dadosViaturas }
         ] = await Promise.all([
           supabase.from("equipe").select("id, ativo, data_saida_redec"),
-          supabase.from("equipe_afastamentos").select("equipe_id, data_inicio, data_fim")
+          supabase.from("equipe_afastamentos").select("equipe_id, data_inicio, data_fim"),
+          supabase.from("viaturas").select("prefixo, situacao")
         ])
 
         if (militares && afastamentos) {
@@ -157,8 +166,38 @@ export default function Dashboard() {
             afastados: afastadosHoje
           })
         }
+
+        // Processamento inteligente e limpo das viaturas
+        if (dadosViaturas) {
+          const totalFrota = dadosViaturas.length
+          const operantes = dadosViaturas.filter(v => v.situacao?.toUpperCase() === "OPERANTE")
+          const totalOperantes = operantes.length
+          
+          // Verificação se existe qualquer viatura com status diferente de OPERANTE
+          const temInoperante = dadosViaturas.some(v => v.situacao?.toUpperCase() !== "OPERANTE")
+
+          const sufixoFrota = totalFrota === 1 ? "viatura" : "viaturas"
+          const sufixoOperante = totalOperantes === 1 ? "viatura" : "viaturas"
+
+          let textoServico = "Nenhuma viatura"
+          if (totalOperantes > 0) {
+            // Limita a exibição de prefixos em no máximo 3 itens para não quebrar o layout
+            const prefixosLimitados = operantes.slice(0, 3).map(v => v.prefixo).join(", ")
+            const sufixoReticencias = totalOperantes > 3 ? "..." : ""
+            const totalFormatado = totalOperantes < 10 ? `0${totalOperantes}` : totalOperantes
+
+            textoServico = `${totalFormatado} ${sufixoOperante} (${prefixosLimitados}${sufixoReticencias})`
+          }
+
+          setStatsViaturas({
+            frota: `${totalFrota < 10 ? '0' + totalFrota : totalFrota} ${sufixoFrota}`,
+            emServicoTexto: textoServico,
+            temInoperante
+          })
+        }
+
       } catch (err) {
-        console.error("Erro ao computar dados de equipe:", err)
+        console.error("Erro ao computar dados de equipe e viaturas:", err)
       }
     }
     
@@ -202,7 +241,6 @@ export default function Dashboard() {
       icon: Users, 
       color: "from-orange-500 to-orange-800", 
       link: "/equipe", 
-      // Padronizado para bater com o visual dos outros cards
       info: [
         `Disponíveis: ${statsEquipe.disponiveis}`,
         `Afastados/Férias: ${statsEquipe.afastados}`
@@ -231,7 +269,13 @@ export default function Dashboard() {
       link: "/container", 
       info: [`Colchões: ${saldoContainer.colchoes}/102`, `Kits Dormitório: ${saldoContainer.kits}/102`] 
     },
-    { title: "Viaturas", icon: Ambulance, color: "from-slate-600 to-slate-800", link: "/viaturas", info: ["Frota: 8", "Em serviço: 3"] },
+    { 
+      title: "Viaturas", 
+      icon: Ambulance, 
+      color: "from-cyan-600 to-teal-700", 
+      link: "/viaturas", 
+      info: [`Frota: ${statsViaturas.frota}`, `Em serviço: ${statsViaturas.emServicoTexto}`] 
+    },
     { title: "Patrimônio", icon: Landmark, color: "from-purple-600 to-violet-900", link: "/patrimonio", info: ["Bens: 154", "Auditoria: 100%"] }
   ];
 
@@ -244,11 +288,13 @@ export default function Dashboard() {
         const isAgenda = card.title === "Agenda";
         const isBoletim = card.title === "Boletins e SEI";
         const isEquipe = card.title === "Equipe REDEC";
+        const isViaturas = card.title === "Viaturas";
         
         const temCriticoMonitoramento = isMonitoramento && contagemMonitoramento.critico > 0;
         const temAlertaEstoque = isContainer && estoqueIncompleto;
         const temPrazoUrgente = isBoletim && statsBoletins.prazosSemana > 0;
         const temAfastados = isEquipe && statsEquipe.afastados > 0;
+        const temViaturaInoperante = isViaturas && statsViaturas.temInoperante;
 
         return (
           <Link href={card.link} key={i} className="group block">
@@ -259,19 +305,20 @@ export default function Dashboard() {
               ${temAlertaEstoque ? 'ring-2 ring-amber-500 ring-offset-2' : ''}
               ${temPrazoUrgente ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
               ${temAfastados ? 'ring-2 ring-amber-500 ring-offset-2' : ''} 
+              ${temViaturaInoperante ? 'ring-2 ring-red-500 ring-offset-2' : ''} 
             `}>
               
               <div className={`p-4 bg-gradient-to-br ${card.color} text-white flex items-center gap-3`}>
                 <div className="p-2 bg-white/20 rounded-lg"><Icon size={24} /></div>
                 <span className="font-bold text-lg">{card.title}</span>
                 
-                {(temCriticoMonitoramento || temAlertaEstoque || temPrazoUrgente || temAfastados) && (
+                {(temCriticoMonitoramento || temAlertaEstoque || temPrazoUrgente || temAfastados || temViaturaInoperante) && (
                   <span className="ml-auto flex h-3 w-3">
                     <span className={`animate-ping absolute inline-flex h-3 w-3 rounded-full opacity-75 ${
-                      temCriticoMonitoramento ? 'bg-red-400' : temAlertaEstoque || temAfastados ? 'bg-amber-400' : 'bg-blue-400'
+                      temCriticoMonitoramento || temViaturaInoperante ? 'bg-red-400' : temAlertaEstoque || temAfastados ? 'bg-amber-400' : 'bg-blue-400'
                     }`}></span>
                     <span className={`relative inline-flex rounded-full h-3 w-3 ${
-                      temCriticoMonitoramento ? 'bg-red-500' : temAlertaEstoque || temAfastados ? 'bg-amber-500' : 'bg-blue-500'
+                      temCriticoMonitoramento || temViaturaInoperante ? 'bg-red-500' : temAlertaEstoque || temAfastados ? 'bg-amber-500' : 'bg-blue-500'
                     }`}></span>
                   </span>
                 )}
@@ -286,9 +333,10 @@ export default function Dashboard() {
                     (line.includes("Colchões") && saldoContainer.colchoes < 102) || 
                     (line.includes("Kits") && saldoContainer.kits < 102)
                   );
-                  
-                  // Atualizado para a nova string de verificação de afastados
                   const isLinhaAfastados = isEquipe && line.includes("Afastados") && statsEquipe.afastados > 0;
+                  
+                  // Nova estilização de linha de destaque para quando houver viaturas com problemas
+                  const isLinhaViaturaProblema = isViaturas && line.includes("Em serviço") && statsViaturas.temInoperante;
                   
                   const isDestaqueAgenda = isAgenda && 
                                           !line.includes("Nada agendado") && 
@@ -299,12 +347,13 @@ export default function Dashboard() {
                     <div key={j} className="flex items-center gap-2">
                       <div className={`
                         w-1.5 h-1.5 rounded-full 
-                        ${isLinhaCritica ? 'bg-red-500 animate-pulse' : 
+                        ${isLinhaCritica || isLinhaViaturaProblema ? 'bg-red-500' : 
                           isLinhaAlertaMonit || isLinhaEstoqueBaixo || isLinhaAfastados ? 'bg-amber-500' : 
                           isLinhaPrazoBoletim || isDestaqueAgenda ? 'bg-blue-500' : 'bg-slate-300'}
+                        ${isLinhaCritica ? 'animate-pulse' : ''}
                       `} />
                       <p className={`
-                        ${isLinhaCritica ? "text-red-600 font-bold" : ""}
+                        ${isLinhaCritica || isLinhaViaturaProblema ? "text-red-600 font-bold" : ""}
                         ${isLinhaEstoqueBaixo || isLinhaAfastados ? "text-amber-600 font-bold" : ""}
                         ${isLinhaPrazoBoletim || isDestaqueAgenda ? "text-blue-700 font-bold" : ""}
                       `}>
