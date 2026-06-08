@@ -7,10 +7,28 @@ import { Waves, FileText, Users, AlertTriangle, Calendar, Package, Ambulance, La
 import Link from "next/link"
 import { useMonitoramento } from "../monitoramento/MonitoramentoContext"
 import { supabase } from "@/lib/supabase"
-import { isWithinInterval, startOfDay, parseISO } from "date-fns"
+import { parseISO, isWithinInterval, startOfDay, isBefore } from "date-fns"
 
-// OTIMIZAÇÃO: Importando a função real da equipe para ser a única fonte de verdade
-import { verificarSeAtivo } from "../equipe/componentes/utils"
+// Helpers de verificação acima do componente
+const safeParse = (dateString) => {
+  if (!dateString) return null
+  return parseISO(`${dateString}T00:00:00`)
+}
+
+function verificarAtivoDashboard(militar) {
+  if (!militar.ativo) return false
+
+  if (militar.data_saida_redec) {
+    const hoje = startOfDay(new Date())
+    const dataSaida = safeParse(militar.data_saida_redec)
+
+    if (isBefore(dataSaida, hoje)) {
+      return false
+    }
+  }
+
+  return true
+}
 
 export default function Dashboard() {
   const { estacoes } = useMonitoramento()
@@ -22,10 +40,9 @@ export default function Dashboard() {
     leituraDGDEC: "..." 
   })
   
-  // MELHORIA DE UX: Iniciando com "..." para evitar o susto do "0" na tela
   const [statsEquipe, setStatsEquipe] = useState({
-    disponiveis: "...",
-    afastados: "..."
+    disponiveis: 0,
+    afastados: 0
   })
 
   useEffect(() => {
@@ -78,8 +95,8 @@ export default function Dashboard() {
       // 3. Busca Visto Até (SEDEC e DGDEC)
       const { data: leituras } = await supabase.from('controle_leitura_boletins').select('tipo_orgao, visto_ate')
       if (leituras) {
-        const sedec = leitures.find(l => l.tipo_orgao === 'SEDEC')?.visto_ate || "---"
-        const dgdec = leitures.find(l => l.tipo_orgao === 'DGDEC')?.visto_ate || "---"
+        const sedec = leituras.find(l => l.tipo_orgao === 'SEDEC')?.visto_ate || "---"
+        const dgdec = leituras.find(l => l.tipo_orgao === 'DGDEC')?.visto_ate || "---"
         
         const formatarData = (dataStr) => {
           if (dataStr === "---") return "---"
@@ -94,7 +111,7 @@ export default function Dashboard() {
         }))
       }
 
-      // 4. PERFORMANCE: Busca paralela e enxuta
+      // 4. MELHORADO: Busca da Equipe em Paralelo e trazendo apenas colunas necessárias
       try {
         const [
           { data: militares },
@@ -106,9 +123,7 @@ export default function Dashboard() {
 
         if (militares && afastamentos) {
           const hoje = startOfDay(new Date())
-          
-          // Usando diretamente a função centralizada do seu módulo equipe
-          const militaresAtivos = militares.filter(m => verificarSeAtivo(m))
+          const militaresAtivos = militares.filter(verificarAtivoDashboard)
 
           let disponiveis = 0
           let afastadosHoje = 0
@@ -117,14 +132,16 @@ export default function Dashboard() {
             const afastado = afastamentos.some((af) => {
               if (af.equipe_id !== militar.id) return false
 
-              // Normaliza as datas para a checagem do intervalo
-              const inicio = af.data_inicio ? parseISO(`${af.data_inicio}T00:00:00`) : null
-              const fim = af.data_fim ? parseISO(`${af.data_fim}T00:00:00`) : null
+              const inicio = safeParse(af.data_inicio)
+              const fim = safeParse(af.data_fim)
 
               return (
                 inicio &&
                 fim &&
-                isWithinInterval(hoje, { start: inicio, end: fim })
+                isWithinInterval(hoje, {
+                  start: inicio,
+                  end: fim
+                })
               )
             })
 
@@ -185,6 +202,7 @@ export default function Dashboard() {
       icon: Users, 
       color: "from-orange-500 to-orange-800", 
       link: "/equipe", 
+      // Padronizado para bater com o visual dos outros cards
       info: [
         `Disponíveis: ${statsEquipe.disponiveis}`,
         `Afastados/Férias: ${statsEquipe.afastados}`
@@ -230,9 +248,7 @@ export default function Dashboard() {
         const temCriticoMonitoramento = isMonitoramento && contagemMonitoramento.critico > 0;
         const temAlertaEstoque = isContainer && estoqueIncompleto;
         const temPrazoUrgente = isBoletim && statsBoletins.prazosSemana > 0;
-        
-        // O anel de destaque só ativa se o dado já carregou E se houver afastados
-        const temAfastados = isEquipe && statsEquipe.afastados !== "..." && statsEquipe.afastados > 0;
+        const temAfastados = isEquipe && statsEquipe.afastados > 0;
 
         return (
           <Link href={card.link} key={i} className="group block">
@@ -271,8 +287,8 @@ export default function Dashboard() {
                     (line.includes("Kits") && saldoContainer.kits < 102)
                   );
                   
-                  // Evita destaque falso enquanto carrega ("...")
-                  const isLinhaAfastados = isEquipe && line.includes("Afastados") && statsEquipe.afastados !== "..." && statsEquipe.afastados > 0;
+                  // Atualizado para a nova string de verificação de afastados
+                  const isLinhaAfastados = isEquipe && line.includes("Afastados") && statsEquipe.afastados > 0;
                   
                   const isDestaqueAgenda = isAgenda && 
                                           !line.includes("Nada agendado") && 
