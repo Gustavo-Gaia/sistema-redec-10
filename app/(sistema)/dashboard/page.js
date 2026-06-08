@@ -52,6 +52,13 @@ export default function Dashboard() {
     temInoperante: false
   })
 
+  // Estado dinâmico para o controle de Patrimônio
+  const [statsPatrimonio, setStatsPatrimonio] = useState({
+    cargaOperacional: "0 bens",
+    inserviveisTexto: "Nenhum item inservível",
+    temInservivel: false
+  })
+
   useEffect(() => {
     async function buscarDados() {
       // 1. Busca Saldo do Contêiner
@@ -118,16 +125,18 @@ export default function Dashboard() {
         }))
       }
 
-      // 4. Busca da Equipe e Viaturas em Paralelo trazendo apenas colunas necessárias
+      // 4. Busca da Equipe, Viaturas e Patrimônio em Paralelo trazendo apenas colunas necessárias
       try {
         const [
           { data: militares },
           { data: afastamentos },
-          { data: dadosViaturas }
+          { data: dadosViaturas },
+          { data: dadosPatrimonio }
         ] = await Promise.all([
           supabase.from("equipe").select("id, ativo, data_saida_redec"),
           supabase.from("equipe_afastamentos").select("equipe_id, data_inicio, data_fim"),
-          supabase.from("viaturas").select("prefixo, situacao")
+          supabase.from("viaturas").select("prefixo, situacao"),
+          supabase.from("patrimonio").select("condicao")
         ])
 
         if (militares && afastamentos) {
@@ -196,8 +205,31 @@ export default function Dashboard() {
           })
         }
 
+        // Processamento analítico do Patrimônio baseado nos códigos do módulo
+        if (dadosPatrimonio) {
+          const totalOperacionais = dadosPatrimonio.filter(b => 
+            ["Em uso", "Acautelado", "Armazenado"].includes(b.condicao)
+          ).length
+
+          const totalInserviveis = dadosPatrimonio.filter(b => b.condicao === "Inservível").length
+          const temInservivel = totalInserviveis > 0
+
+          const sufixoBens = totalOperacionais === 1 ? "bem" : "bens"
+          const textoInservivel = totalInserviveis === 0 
+            ? "Nenhum item inservível" 
+            : totalInserviveis === 1 
+              ? "1 item inservível" 
+              : `${totalInserviveis} itens inservíveis`
+
+          setStatsPatrimonio({
+            cargaOperacional: `${totalOperacionais} ${sufixoBens}`,
+            inserviveisTexto: textoInservivel,
+            temInservivel
+          })
+        }
+
       } catch (err) {
-        console.error("Erro ao computar dados de equipe e viaturas:", err)
+        console.error("Erro ao computar dados logísticos do dashboard:", err)
       }
     }
     
@@ -276,7 +308,13 @@ export default function Dashboard() {
       link: "/viaturas", 
       info: [`Frota: ${statsViaturas.frota}`, `Em serviço: ${statsViaturas.emServicoTexto}`] 
     },
-    { title: "Patrimônio", icon: Landmark, color: "from-purple-600 to-violet-900", link: "/patrimonio", info: ["Bens: 154", "Auditoria: 100%"] }
+    { 
+      title: "Patrimônio", 
+      icon: Landmark, 
+      color: "from-purple-600 to-violet-900", 
+      link: "/patrimonio", 
+      info: [`Carga operacional: ${statsPatrimonio.cargaOperacional}`, statsPatrimonio.inserviveisTexto] 
+    }
   ];
 
   return (
@@ -289,12 +327,14 @@ export default function Dashboard() {
         const isBoletim = card.title === "Boletins e SEI";
         const isEquipe = card.title === "Equipe REDEC";
         const isViaturas = card.title === "Viaturas";
+        const isPatrimonio = card.title === "Patrimônio";
         
         const temCriticoMonitoramento = isMonitoramento && contagemMonitoramento.critico > 0;
         const temAlertaEstoque = isContainer && estoqueIncompleto;
         const temPrazoUrgente = isBoletim && statsBoletins.prazosSemana > 0;
         const temAfastados = isEquipe && statsEquipe.afastados > 0;
         const temViaturaInoperante = isViaturas && statsViaturas.temInoperante;
+        const temPatrimonioInservivel = isPatrimonio && statsPatrimonio.temInservivel;
 
         return (
           <Link href={card.link} key={i} className="group block">
@@ -306,19 +346,20 @@ export default function Dashboard() {
               ${temPrazoUrgente ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
               ${temAfastados ? 'ring-2 ring-amber-500 ring-offset-2' : ''} 
               ${temViaturaInoperante ? 'ring-2 ring-red-500 ring-offset-2' : ''} 
+              ${temPatrimonioInservivel ? 'ring-2 ring-red-500 ring-offset-2' : ''} 
             `}>
               
               <div className={`p-4 bg-gradient-to-br ${card.color} text-white flex items-center gap-3`}>
                 <div className="p-2 bg-white/20 rounded-lg"><Icon size={24} /></div>
                 <span className="font-bold text-lg">{card.title}</span>
                 
-                {(temCriticoMonitoramento || temAlertaEstoque || temPrazoUrgente || temAfastados || temViaturaInoperante) && (
+                {(temCriticoMonitoramento || temAlertaEstoque || temPrazoUrgente || temAfastados || temViaturaInoperante || temPatrimonioInservivel) && (
                   <span className="ml-auto flex h-3 w-3">
                     <span className={`animate-ping absolute inline-flex h-3 w-3 rounded-full opacity-75 ${
-                      temCriticoMonitoramento || temViaturaInoperante ? 'bg-red-400' : temAlertaEstoque || temAfastados ? 'bg-amber-400' : 'bg-blue-400'
+                      temCriticoMonitoramento || temViaturaInoperante || temPatrimonioInservivel ? 'bg-red-400' : temAlertaEstoque || temAfastados ? 'bg-amber-400' : 'bg-blue-400'
                     }`}></span>
                     <span className={`relative inline-flex rounded-full h-3 w-3 ${
-                      temCriticoMonitoramento || temViaturaInoperante ? 'bg-red-500' : temAlertaEstoque || temAfastados ? 'bg-amber-500' : 'bg-blue-500'
+                      temCriticoMonitoramento || temViaturaInoperante || temPatrimonioInservivel ? 'bg-red-500' : temAlertaEstoque || temAfastados ? 'bg-amber-500' : 'bg-blue-500'
                     }`}></span>
                   </span>
                 )}
@@ -334,9 +375,10 @@ export default function Dashboard() {
                     (line.includes("Kits") && saldoContainer.kits < 102)
                   );
                   const isLinhaAfastados = isEquipe && line.includes("Afastados") && statsEquipe.afastados > 0;
-                  
-                  // Nova estilização de linha de destaque para quando houver viaturas com problemas
                   const isLinhaViaturaProblema = isViaturas && line.includes("Em serviço") && statsViaturas.temInoperante;
+                  
+                  // Nova estilização de destaque para bens inservíveis identificados
+                  const isLinhaPatrimonioProblema = isPatrimonio && line.includes("inservível") && statsPatrimonio.temInservivel;
                   
                   const isDestaqueAgenda = isAgenda && 
                                           !line.includes("Nada agendado") && 
@@ -347,13 +389,13 @@ export default function Dashboard() {
                     <div key={j} className="flex items-center gap-2">
                       <div className={`
                         w-1.5 h-1.5 rounded-full 
-                        ${isLinhaCritica || isLinhaViaturaProblema ? 'bg-red-500' : 
+                        ${isLinhaCritica || isLinhaViaturaProblema || isLinhaPatrimonioProblema ? 'bg-red-500' : 
                           isLinhaAlertaMonit || isLinhaEstoqueBaixo || isLinhaAfastados ? 'bg-amber-500' : 
                           isLinhaPrazoBoletim || isDestaqueAgenda ? 'bg-blue-500' : 'bg-slate-300'}
                         ${isLinhaCritica ? 'animate-pulse' : ''}
                       `} />
                       <p className={`
-                        ${isLinhaCritica || isLinhaViaturaProblema ? "text-red-600 font-bold" : ""}
+                        ${isLinhaCritica || isLinhaViaturaProblema || isLinhaPatrimonioProblema ? "text-red-600 font-bold" : ""}
                         ${isLinhaEstoqueBaixo || isLinhaAfastados ? "text-amber-600 font-bold" : ""}
                         ${isLinhaPrazoBoletim || isDestaqueAgenda ? "text-blue-700 font-bold" : ""}
                       `}>
