@@ -7,30 +7,10 @@ import { Waves, FileText, Users, AlertTriangle, Calendar, Package, Ambulance, La
 import Link from "next/link"
 import { useMonitoramento } from "../monitoramento/MonitoramentoContext"
 import { supabase } from "@/lib/supabase"
+import { isWithinInterval, startOfDay, parseISO } from "date-fns"
 
-// 1. Imports sugeridos pelo seu amigo para controle de datas
-import { parseISO, isWithinInterval, startOfDay, isBefore } from "date-fns"
-
-// 3. Helpers de verificação acima do componente
-const safeParse = (dateString) => {
-  if (!dateString) return null
-  return parseISO(`${dateString}T00:00:00`)
-}
-
-function verificarAtivoDashboard(militar) {
-  if (!militar.ativo) return false
-
-  if (militar.data_saida_redec) {
-    const hoje = startOfDay(new Date())
-    const dataSaida = safeParse(militar.data_saida_redec)
-
-    if (isBefore(dataSaida, hoje)) {
-      return false
-    }
-  }
-
-  return true
-}
+// OTIMIZAÇÃO: Importando a função real da equipe para ser a única fonte de verdade
+import { verificarSeAtivo } from "../equipe/componentes/utils"
 
 export default function Dashboard() {
   const { estacoes } = useMonitoramento()
@@ -42,10 +22,10 @@ export default function Dashboard() {
     leituraDGDEC: "..." 
   })
   
-  // 2. Novo State para a Equipe
+  // MELHORIA DE UX: Iniciando com "..." para evitar o susto do "0" na tela
   const [statsEquipe, setStatsEquipe] = useState({
-    disponiveis: 0,
-    afastados: 0
+    disponiveis: "...",
+    afastados: "..."
   })
 
   useEffect(() => {
@@ -98,8 +78,8 @@ export default function Dashboard() {
       // 3. Busca Visto Até (SEDEC e DGDEC)
       const { data: leituras } = await supabase.from('controle_leitura_boletins').select('tipo_orgao, visto_ate')
       if (leituras) {
-        const sedec = leituras.find(l => l.tipo_orgao === 'SEDEC')?.visto_ate || "---"
-        const dgdec = leituras.find(l => l.tipo_orgao === 'DGDEC')?.visto_ate || "---"
+        const sedec = leitures.find(l => l.tipo_orgao === 'SEDEC')?.visto_ate || "---"
+        const dgdec = leitures.find(l => l.tipo_orgao === 'DGDEC')?.visto_ate || "---"
         
         const formatarData = (dataStr) => {
           if (dataStr === "---") return "---"
@@ -114,45 +94,54 @@ export default function Dashboard() {
         }))
       }
 
-      // 4. Busca Dinâmica da Equipe REDEC (Lógica do seu amigo)
-      const { data: militares } = await supabase.from("equipe").select("*")
-      const { data: afastamentos } = await supabase.from("equipe_afastamentos").select("*")
+      // 4. PERFORMANCE: Busca paralela e enxuta
+      try {
+        const [
+          { data: militares },
+          { data: afastamentos }
+        ] = await Promise.all([
+          supabase.from("equipe").select("id, ativo, data_saida_redec"),
+          supabase.from("equipe_afastamentos").select("equipe_id, data_inicio, data_fim")
+        ])
 
-      if (militares && afastamentos) {
-        const hoje = startOfDay(new Date())
-        const militaresAtivos = militares.filter(verificarAtivoDashboard)
+        if (militares && afastamentos) {
+          const hoje = startOfDay(new Date())
+          
+          // Usando diretamente a função centralizada do seu módulo equipe
+          const militaresAtivos = militares.filter(m => verificarSeAtivo(m))
 
-        let disponiveis = 0
-        let afastadosHoje = 0
+          let disponiveis = 0
+          let afastadosHoje = 0
 
-        militaresAtivos.forEach((militar) => {
-          const afastado = afastamentos.some((af) => {
-            if (af.equipe_id !== militar.id) return false
+          militaresAtivos.forEach((militar) => {
+            const afastado = afastamentos.some((af) => {
+              if (af.equipe_id !== militar.id) return false
 
-            const inicio = safeParse(af.data_inicio)
-            const fim = safeParse(af.data_fim)
+              // Normaliza as datas para a checagem do intervalo
+              const inicio = af.data_inicio ? parseISO(`${af.data_inicio}T00:00:00`) : null
+              const fim = af.data_fim ? parseISO(`${af.data_fim}T00:00:00`) : null
 
-            return (
-              inicio &&
-              fim &&
-              isWithinInterval(hoje, {
-                start: inicio,
-                end: fim
-              })
-            )
+              return (
+                inicio &&
+                fim &&
+                isWithinInterval(hoje, { start: inicio, end: fim })
+              )
+            })
+
+            if (afastado) {
+              afastadosHoje++
+            } else {
+              disponiveis++
+            }
           })
 
-          if (afastado) {
-            afastadosHoje++
-          } else {
-            disponiveis++
-          }
-        })
-
-        setStatsEquipe({
-          disponiveis,
-          afastados: afastadosHoje
-        })
+          setStatsEquipe({
+            disponiveis,
+            afastados: afastadosHoje
+          })
+        }
+      } catch (err) {
+        console.error("Erro ao computar dados de equipe:", err)
       }
     }
     
@@ -196,10 +185,9 @@ export default function Dashboard() {
       icon: Users, 
       color: "from-orange-500 to-orange-800", 
       link: "/equipe", 
-      // 5. Substituição do Card Equipe pelos estados reais
       info: [
-        `${statsEquipe.disponiveis} disponíveis`,
-        `${statsEquipe.afastados} afastados/férias`
+        `Disponíveis: ${statsEquipe.disponiveis}`,
+        `Afastados/Férias: ${statsEquipe.afastados}`
       ] 
     },
     { title: "Ocorrências", icon: AlertTriangle, color: "from-red-500 to-red-900", link: "/municipios", info: ["Afetados: 5", "Desalojados: 208"] },
@@ -237,14 +225,14 @@ export default function Dashboard() {
         const isContainer = card.title === "Contêiner";
         const isAgenda = card.title === "Agenda";
         const isBoletim = card.title === "Boletins e SEI";
-        
-        // 6. Condições de destaque atualizadas
         const isEquipe = card.title === "Equipe REDEC";
         
         const temCriticoMonitoramento = isMonitoramento && contagemMonitoramento.critico > 0;
         const temAlertaEstoque = isContainer && estoqueIncompleto;
         const temPrazoUrgente = isBoletim && statsBoletins.prazosSemana > 0;
-        const temAfastados = isEquipe && statsEquipe.afastados > 0;
+        
+        // O anel de destaque só ativa se o dado já carregou E se houver afastados
+        const temAfastados = isEquipe && statsEquipe.afastados !== "..." && statsEquipe.afastados > 0;
 
         return (
           <Link href={card.link} key={i} className="group block">
@@ -261,7 +249,6 @@ export default function Dashboard() {
                 <div className="p-2 bg-white/20 rounded-lg"><Icon size={24} /></div>
                 <span className="font-bold text-lg">{card.title}</span>
                 
-                {/* 8. Alerta visual do cabeçalho unificado */}
                 {(temCriticoMonitoramento || temAlertaEstoque || temPrazoUrgente || temAfastados) && (
                   <span className="ml-auto flex h-3 w-3">
                     <span className={`animate-ping absolute inline-flex h-3 w-3 rounded-full opacity-75 ${
@@ -284,8 +271,8 @@ export default function Dashboard() {
                     (line.includes("Kits") && saldoContainer.kits < 102)
                   );
                   
-                  // 9. Destacar a linha de afastados em amarelo
-                  const isLinhaAfastados = isEquipe && line.includes("afastados") && statsEquipe.afastados > 0;
+                  // Evita destaque falso enquanto carrega ("...")
+                  const isLinhaAfastados = isEquipe && line.includes("Afastados") && statsEquipe.afastados !== "..." && statsEquipe.afastados > 0;
                   
                   const isDestaqueAgenda = isAgenda && 
                                           !line.includes("Nada agendado") && 
