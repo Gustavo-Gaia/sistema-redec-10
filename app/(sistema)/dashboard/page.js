@@ -54,7 +54,7 @@ export default function Dashboard() {
 
   // Estado dinâmico para o controle de Patrimônio
   const [statsPatrimonio, setStatsPatrimonio] = useState({
-    cargaOperacional: "0 bens",
+    cargaOperacional: "00 bens",
     inserviveisTexto: "Nenhum item inservível",
     temInservivel: false
   })
@@ -215,14 +215,17 @@ export default function Dashboard() {
           const temInservivel = totalInserviveis > 0
 
           const sufixoBens = totalOperacionais === 1 ? "bem" : "bens"
+          const totalOperacionaisFormatado = String(totalOperacionais).padStart(2, '0')
+          const totalInserviveisFormatado = String(totalInserviveis).padStart(2, '0')
+
           const textoInservivel = totalInserviveis === 0 
             ? "Nenhum item inservível" 
             : totalInserviveis === 1 
-              ? "1 item inservível" 
-              : `${totalInserviveis} itens inservíveis`
+              ? "01 item inservível" 
+              : `${totalInserviveisFormatado} itens inservíveis`
 
           setStatsPatrimonio({
-            cargaOperacional: `${totalOperacionais} ${sufixoBens}`,
+            cargaOperacional: `${totalOperacionaisFormatado} ${sufixoBens}`,
             inserviveisTexto: textoInservivel,
             temInservivel
           })
@@ -336,31 +339,50 @@ export default function Dashboard() {
         const temViaturaInoperante = isViaturas && statsViaturas.temInoperante;
         const temPatrimonioInservivel = isPatrimonio && statsPatrimonio.temInservivel;
 
+        // Ativação do estado de alerta de cada card
+        const temAlertaAtivo = temCriticoMonitoramento || temAlertaEstoque || temPrazoUrgente || temAfastados || temViaturaInoperante || temPatrimonioInservivel;
+
+        // Configuração harmônica de anel externo baseado na cor nativa do card
+        let ringColorClass = ""
+        if (temAlertaAtivo) {
+          if (isMonitoramento) ringColorClass = "ring-red-500"
+          else if (isContainer || isEquipe) ringColorClass = "ring-amber-500"
+          else if (isBoletim) ringColorClass = "ring-blue-500"
+          else if (isViaturas) ringColorClass = "ring-cyan-500" // Cor nativa do card de viaturas
+          else if (isPatrimonio) ringColorClass = "ring-purple-500" // Cor nativa do card de patrimônio
+        }
+
+        // Configuração harmônica das bolinhas (Ping) baseada na cor nativa do card
+        let dotPingBg = "bg-blue-400"
+        let dotSolidBg = "bg-blue-500"
+        if (temAlertaAtivo) {
+          if (isMonitoramento) {
+            dotPingBg = "bg-red-400"; dotSolidBg = "bg-red-500";
+          } else if (isContainer || isEquipe) {
+            dotPingBg = "bg-amber-400"; dotSolidBg = "bg-amber-500";
+          } else if (isViaturas) {
+            dotPingBg = "bg-cyan-400"; dotSolidBg = "bg-cyan-500";
+          } else if (isPatrimonio) {
+            dotPingBg = "bg-purple-400"; dotSolidBg = "bg-purple-500";
+          }
+        }
+
         return (
           <Link href={card.link} key={i} className="group block">
             <div className={`
               bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden 
               hover:shadow-xl transition-all hover:-translate-y-1 relative
-              ${temCriticoMonitoramento ? 'ring-2 ring-red-500 ring-offset-2' : ''}
-              ${temAlertaEstoque ? 'ring-2 ring-amber-500 ring-offset-2' : ''}
-              ${temPrazoUrgente ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
-              ${temAfastados ? 'ring-2 ring-amber-500 ring-offset-2' : ''} 
-              ${temViaturaInoperante ? 'ring-2 ring-red-500 ring-offset-2' : ''} 
-              ${temPatrimonioInservivel ? 'ring-2 ring-red-500 ring-offset-2' : ''} 
+              ${temAlertaAtivo ? `ring-2 ${ringColorClass} ring-offset-2` : ''}
             `}>
               
               <div className={`p-4 bg-gradient-to-br ${card.color} text-white flex items-center gap-3`}>
                 <div className="p-2 bg-white/20 rounded-lg"><Icon size={24} /></div>
                 <span className="font-bold text-lg">{card.title}</span>
                 
-                {(temCriticoMonitoramento || temAlertaEstoque || temPrazoUrgente || temAfastados || temViaturaInoperante || temPatrimonioInservivel) && (
+                {temAlertaAtivo && (
                   <span className="ml-auto flex h-3 w-3">
-                    <span className={`animate-ping absolute inline-flex h-3 w-3 rounded-full opacity-75 ${
-                      temCriticoMonitoramento || temViaturaInoperante || temPatrimonioInservivel ? 'bg-red-400' : temAlertaEstoque || temAfastados ? 'bg-amber-400' : 'bg-blue-400'
-                    }`}></span>
-                    <span className={`relative inline-flex rounded-full h-3 w-3 ${
-                      temCriticoMonitoramento || temViaturaInoperante || temPatrimonioInservivel ? 'bg-red-500' : temAlertaEstoque || temAfastados ? 'bg-amber-500' : 'bg-blue-500'
-                    }`}></span>
+                    <span className={`animate-ping absolute inline-flex h-3 w-3 rounded-full opacity-75 ${dotPingBg}`}></span>
+                    <span className={`relative inline-flex rounded-full h-3 w-3 ${dotSolidBg}`}></span>
                   </span>
                 )}
               </div>
@@ -375,9 +397,9 @@ export default function Dashboard() {
                     (line.includes("Kits") && saldoContainer.kits < 102)
                   );
                   const isLinhaAfastados = isEquipe && line.includes("Afastados") && statsEquipe.afastados > 0;
-                  const isLinhaViaturaProblema = isViaturas && line.includes("Em serviço") && statsViaturas.temInoperante;
                   
-                  // Nova estilização de destaque para bens inservíveis identificados
+                  // Textos de problemas agora usam as cores harmonizadas com os seus respectivos cards
+                  const isLinhaViaturaProblema = isViaturas && line.includes("Em serviço") && statsViaturas.temInoperante;
                   const isLinhaPatrimonioProblema = isPatrimonio && line.includes("inservível") && statsPatrimonio.temInservivel;
                   
                   const isDestaqueAgenda = isAgenda && 
@@ -389,13 +411,17 @@ export default function Dashboard() {
                     <div key={j} className="flex items-center gap-2">
                       <div className={`
                         w-1.5 h-1.5 rounded-full 
-                        ${isLinhaCritica || isLinhaViaturaProblema || isLinhaPatrimonioProblema ? 'bg-red-500' : 
+                        ${isLinhaCritica ? 'bg-red-500' : 
+                          isLinhaViaturaProblema ? 'bg-cyan-500' :
+                          isLinhaPatrimonioProblema ? 'bg-purple-500' :
                           isLinhaAlertaMonit || isLinhaEstoqueBaixo || isLinhaAfastados ? 'bg-amber-500' : 
                           isLinhaPrazoBoletim || isDestaqueAgenda ? 'bg-blue-500' : 'bg-slate-300'}
                         ${isLinhaCritica ? 'animate-pulse' : ''}
                       `} />
                       <p className={`
-                        ${isLinhaCritica || isLinhaViaturaProblema || isLinhaPatrimonioProblema ? "text-red-600 font-bold" : ""}
+                        ${isLinhaCritica ? "text-red-600 font-bold" : ""}
+                        ${isLinhaViaturaProblema ? "text-cyan-700 font-bold" : ""}
+                        ${isLinhaPatrimonioProblema ? "text-purple-700 font-bold" : ""}
                         ${isLinhaEstoqueBaixo || isLinhaAfastados ? "text-amber-600 font-bold" : ""}
                         ${isLinhaPrazoBoletim || isDestaqueAgenda ? "text-blue-700 font-bold" : ""}
                       `}>
