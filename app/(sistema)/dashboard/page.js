@@ -280,7 +280,11 @@ export default function Dashboard() {
       link: "/equipe", 
       info: [
         `Disponíveis: ${statsEquipe.disponiveis} militares`,
-        `Afastados/Férias: ${statsEquipe.afastados}`
+        statsEquipe.afastados === 0 
+          ? "Nenhum afastamento" 
+          : statsEquipe.afastados === 1 
+            ? "01 militar afastado" 
+            : `${String(statsEquipe.afastados).padStart(2, '0')} militares afastados`
       ] 
     },
     { title: "Ocorrências", icon: AlertTriangle, color: "from-red-500 to-red-900", link: "/municipios", info: ["Afetados: 5", "Desalojados: 208"] },
