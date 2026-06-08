@@ -170,8 +170,10 @@ export default function Dashboard() {
             }
           })
 
+          const disponiveisFormatado = String(disponiveis).padStart(2, '0')
+          
           setStatsEquipe({
-            disponiveis,
+            disponiveis: disponiveisFormatado,
             afastados: afastadosHoje
           })
         }
@@ -277,7 +279,7 @@ export default function Dashboard() {
       color: "from-orange-500 to-orange-800", 
       link: "/equipe", 
       info: [
-        `Disponíveis: ${statsEquipe.disponiveis}`,
+        `Disponíveis: ${statsEquipe.disponiveis} militares`,
         `Afastados/Férias: ${statsEquipe.afastados}`
       ] 
     },
