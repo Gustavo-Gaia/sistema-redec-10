@@ -2,16 +2,26 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 
 import Solicitacoes from "./componentes/Solicitacoes"
 import BancoDados from "./componentes/BancoDados"
 import Sistema from "./componentes/Sistema"
 import Perfil from "./componentes/Perfil"
 
-export default function Configuracoes() {
-  // Alterado o padrão para "solicitacoes", para que você veja logo de cara quem pediu acesso
+// Componente interno para gerenciar o estado das abas com segurança
+function ConteudoConfiguracoes() {
+  const searchParams = useSearchParams()
   const [abaAtiva, setAbaAtiva] = useState("solicitacoes")
+
+  // Se o clique vier do botão superior passando ?aba=algo, o sistema muda a aba na hora
+  useEffect(() => {
+    const abaParam = searchParams.get("aba")
+    if (abaParam) {
+      setAbaAtiva(abaParam)
+    }
+  }, [searchParams])
 
   return (
     <div className="p-6 space-y-6">
@@ -92,5 +102,14 @@ export default function Configuracoes() {
       </div>
 
     </div>
+  )
+}
+
+// O Next.js exige Suspense ao usar useSearchParams na raiz de páginas Client
+export default function Configuracoes() {
+  return (
+    <Suspense fallback={<p className="p-6 text-slate-500 text-sm">Carregando configurações...</p>}>
+      <ConteudoConfiguracoes />
+    </Suspense>
   )
 }
