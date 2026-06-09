@@ -37,7 +37,7 @@ export default function LoginPage() {
       }
 
       if (!userData.ativo) {
-        setErro("Usuário desativado")
+        setErro("Seu cadastro está aguardando aprovação do administrador.")
         return
       }
 
