@@ -57,7 +57,8 @@ export default function SistemaLayout({ children }) {
       if (data) setUsuario(data)
     } catch (error) {
       console.error("Erro ao validar sessão:", error)
-    } else {
+    } finally {
+      // CORRIGIDO: de 'else' para 'finally' para fechar o bloco try/catch corretamente
       setLoading(false)
     }
   }
