@@ -51,7 +51,7 @@ export default function AlertaSolicitacoes() {
 
   return (
     <button
-      onClick={() => router.push("/configuracoes")}
+      onClick={() => router.push("/configuracoes?aba=solicitacoes")}
       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-bold text-xs transition-all active:scale-95 shadow-sm uppercase tracking-wide
         ${totalPendentes > 0 
           ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" 
