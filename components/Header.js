@@ -6,11 +6,11 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
+// 1. IMPORTANTE: Vamos importar o alerta que criaremos no próximo passo
+import AlertaSolicitacoes from "./AlertaSolicitacoes"
 
 export default function Header() {
-
   const router = useRouter()
-
   const [usuario, setUsuario] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -34,10 +34,9 @@ export default function Header() {
         .single()
 
       setUsuario(data)
-
     } catch (err) {
       console.error("Erro ao carregar usuário", err)
-    } finally {
+    } finaly {
       setLoading(false)
     }
   }
@@ -57,7 +56,7 @@ export default function Header() {
 
   return (
     <header className="bg-white px-6 py-4 flex items-center justify-between shadow-sm border-b border-slate-200 z-10">
-
+      
       {/* LOGO */}
       <div className="flex items-center gap-3">
         <Image
@@ -66,18 +65,22 @@ export default function Header() {
           width={32}
           height={32}
         />
-
         <span className="font-bold text-slate-800 tracking-tight">
           REDEC 10 NORTE
         </span>
       </div>
 
-      {/* USUÁRIO */}
+      {/* USUÁRIO E ALERTAS */}
       <div className="flex items-center gap-4">
+        
+        {/* 2. INJEÇÃO DO ALERTA: Só aparece se o usuário logado for admin */}
+        {usuario && usuario.nivel === "admin" && (
+          <AlertaSolicitacoes />
+        )}
 
+        {/* RECOLEÇÃO DO SEU RETÂNGULO ATUAL DE USUÁRIO */}
         {usuario && (
           <div className="flex items-center gap-3 bg-slate-50 border px-3 py-1.5 rounded-lg">
-
             {/* ÍCONE */}
             <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600">
               👤
@@ -88,7 +91,6 @@ export default function Header() {
               <span className="text-xs text-slate-500">
                 Usuário
               </span>
-
               <span className="text-sm font-bold text-slate-800">
                 {usuario.rg || usuario.email}
               </span>
@@ -98,7 +100,6 @@ export default function Header() {
             <span className={`text-xs font-bold px-2 py-1 rounded-full ${getCorNivel(usuario.nivel)}`}>
               {usuario.nivel}
             </span>
-
           </div>
         )}
 
