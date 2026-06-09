@@ -3,29 +3,20 @@
 import { NextResponse } from "next/server"
 
 export function middleware(request) {
-
   const url = request.nextUrl.clone()
-
   const isLoginPage = url.pathname.startsWith("/login")
 
-  /* 🔥 pega TODOS os cookies possíveis do Supabase */
-  const cookies = request.cookies.getAll()
-
-  const hasSupabaseSession = cookies.some(c =>
-    c.name.startsWith("sb-") && c.name.includes("auth-token")
-  )
-
+  // Usamos o cookie 'usuario' que você gera exclusivamente na validação de login ativa
   const usuarioCookie = request.cookies.get("usuario")
+  const isLogged = !!usuarioCookie
 
-  const isLogged = hasSupabaseSession || usuarioCookie
-
-  /* 🚫 não logado */
+  /* 🚫 Usuário não logado tentando acessar as rotas internas -> Joga para o Login */
   if (!isLogged && !isLoginPage) {
     url.pathname = "/login"
     return NextResponse.redirect(url)
   }
 
-  /* 🔁 já logado tentando acessar login */
+  /* 🔁 Usuário logado tentando forçar a tela de login -> Joga para o Dashboard */
   if (isLogged && isLoginPage) {
     url.pathname = "/dashboard"
     return NextResponse.redirect(url)
