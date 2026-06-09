@@ -96,11 +96,12 @@ orgao
 })
 .eq("user_id",data.user.id)
 
-setMsg("Usuário criado com sucesso!")
+setMsg("Cadastro realizado! Aguardando aprovação do administrador.")
 
-setTimeout(()=>{
-router.push("/login")
-},2000)
+setTimeout(() => {
+  // Envia o usuário para a página informativa de espera
+  router.push("/login/aguardando-aprovacao")
+}, 2000)
 
 setLoading(false)
 
