@@ -21,6 +21,7 @@ export default function ModalAfastamento({
 
   const [form, setForm] = useState({
     tipo: 'Férias',
+    ano_referencia: new Date().getFullYear(), // Inicia por padrão no ano atual
     data_inicio: '',
     data_fim: '',
     observacao: '',
@@ -37,6 +38,7 @@ export default function ModalAfastamento({
       if (!afastamentoParaEditar) {
         setForm({
           tipo: 'Férias',
+          ano_referencia: new Date().getFullYear(),
           data_inicio: '',
           data_fim: '',
           observacao: '',
@@ -70,6 +72,7 @@ export default function ModalAfastamento({
 
         setForm({
           tipo: afastamentoParaEditar.tipo || 'Férias',
+          ano_referencia: afastamentoParaEditar.ano_referencia || new Date().getFullYear(),
           data_inicio: afastamentoParaEditar.data_inicio || '',
           data_fim: afastamentoParaEditar.data_fim || '',
           observacao: afastamentoParaEditar.observacao || '',
@@ -144,6 +147,7 @@ export default function ModalAfastamento({
         p_militar_nome: militar.nome_guerra,
         p_militar_posto: militar.posto_graduacao,
         p_tipo: form.tipo,
+        p_ano_referencia: form.tipo === 'Férias' ? parseInt(form.ano_referencia) : null, // Repassando o ano se for férias
         p_data_inicio: form.data_inicio || null,
         p_data_fim: form.data_fim || null,
         p_observacao: form.observacao,
@@ -221,6 +225,7 @@ export default function ModalAfastamento({
         {/* BODY */}
         <div className="p-8 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
           
+          {/* MOTIVO */}
           <div className="space-y-2">
             <label className="text-xs font-black text-slate-400 uppercase ml-1">Motivo</label>
             <select 
@@ -235,6 +240,20 @@ export default function ModalAfastamento({
               <option value="Curso/Evento Externo">Curso/Evento Externo</option>
             </select>
           </div>
+
+          {/* ANO REFERÊNCIA (DINÂMICO E LIVRE - APENAS SE FOR FÉRIAS) */}
+          {form.tipo === 'Férias' && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+              <label className="text-xs font-black text-slate-400 uppercase ml-1">Ano de Referência das Férias</label>
+              <input 
+                type="number"
+                placeholder="Ex: 1970, 2024, 2026"
+                className="w-full p-4 bg-slate-100 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                value={form.ano_referencia || ''}
+                onChange={e => setForm({...form, ano_referencia: e.target.value ? parseInt(e.target.value) : ''})}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
