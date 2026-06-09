@@ -8,6 +8,9 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import "leaflet/dist/leaflet.css"
 
+// 1. IMPORTANTE: Importar o componente de alerta aqui dentro do layout principal
+import AlertaSolicitacoes from "@/components/AlertaSolicitacoes"
+
 import { MonitoramentoProvider } from "./monitoramento/MonitoramentoContext"
 
 export default function SistemaLayout({ children }) {
@@ -15,17 +18,15 @@ export default function SistemaLayout({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // 1. Primeiro carregamento: mostra o loading na tela
+    // First loading: mostra o loading na tela
     carregarUsuario(true)
 
-    // 2. Escuta mudanças de auth (foco na aba, refresh de token, etc)
+    // Escuta mudanças de auth (foco na aba, refresh de token, etc)
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      // Carregamento silencioso: atualiza os dados sem dar "flash" de loading na tela
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         carregarUsuario(false)
       }
       
-      // Se deslogar em outra aba, limpa o estado
       if (event === 'SIGNED_OUT') {
         setUsuario(null)
       }
@@ -56,8 +57,7 @@ export default function SistemaLayout({ children }) {
       if (data) setUsuario(data)
     } catch (error) {
       console.error("Erro ao validar sessão:", error)
-    } finally {
-      // Desliga o loading global (apenas se ele tiver sido ativado no início)
+    } else {
       setLoading(false)
     }
   }
@@ -73,7 +73,6 @@ export default function SistemaLayout({ children }) {
     return "bg-slate-100 text-slate-600"
   }
 
-  // O loading global agora só acontece no primeiro acesso
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-100">
@@ -113,6 +112,11 @@ export default function SistemaLayout({ children }) {
               </p>
             </div>
 
+            {/* 2. INJEÇÃO DO ALERTA: Só renderiza se o usuário for Admin */}
+            {usuario && usuario.nivel === "admin" && (
+              <AlertaSolicitacoes />
+            )}
+
             {/* USUÁRIO */}
             {usuario && (
               <div className="flex items-center gap-3 bg-white border px-3 py-2 rounded-xl shadow-sm">
@@ -140,7 +144,7 @@ export default function SistemaLayout({ children }) {
             </button>
           </header>
 
-          {/* CONTEÚDO PRINCIPAL - Onde o children é renderizado sem resetar */}
+          {/* CONTEÚDO PRINCIPAL */}
           <main className="flex-1 px-6 pb-10">
             {children}
           </main>
