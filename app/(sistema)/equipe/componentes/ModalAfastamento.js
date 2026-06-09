@@ -132,7 +132,7 @@ export default function ModalAfastamento({
   })();
 
   // ==========================================
-  // 💾 SALVAR (RPC)
+  // 💾 SALVAR (RPC) - CORRIGIDO PARA NOVO CADASTRO
   // ==========================================
   async function salvarAfastamento() {
     if (!militar?.id) return toast.error("Militar inválido.");
@@ -145,11 +145,12 @@ export default function ModalAfastamento({
       const numFormatado = form.num_boletim.toString().padStart(3, '0');
       const refBoletim = `Bol-${numFormatado}`;
 
-      // CORREÇÃO AQUI: Tratamento seguro para converter o ano para inteiro antes de enviar à RPC
+      // Tratamento seguro para converter o ano para inteiro antes de enviar à RPC
       const anoParaEnviar = form.tipo === 'Férias' && form.ano_referencia 
         ? parseInt(form.ano_referencia) 
         : null;
 
+      // CORREÇÃO: Transforma strings vazias em null para o banco não rejeitar a query
       const { data, error } = await supabase.rpc('salvar_afastamento_completo', {
         p_afastamento_id: afastamentoParaEditar?.id || null,
         p_militar_id: militar.id,
@@ -159,7 +160,7 @@ export default function ModalAfastamento({
         p_ano_referencia: anoParaEnviar,
         p_data_inicio: form.data_inicio || null,
         p_data_fim: form.data_fim || null,
-        p_observacao: form.observacao,
+        p_observacao: form.observacao?.trim() || null, // <--- Aqui aceitava string vazia e dava erro no cadastro
         p_orgao: form.orgao_boletim,
         p_numero: refBoletim,
         p_data_boletim: form.data_boletim,
@@ -169,7 +170,6 @@ export default function ModalAfastamento({
       });
 
       if (error) throw error;
-      if (!data) throw new Error("Sem confirmação do servidor.");
 
       toast.success(afastamentoParaEditar ? "Atualizado!" : "Cadastrado!");
       await onSaved?.();
@@ -177,11 +177,10 @@ export default function ModalAfastamento({
     } catch (error) {
       console.error("RPC erro detalhado:", error);
       toast.error(error?.message || "Erro inesperado ao salvar.");
-    } finally {
+    } bits {
       setLoading(false);
     }
   }
-
   // ==========================================
   // 🗑️ EXCLUIR (RPC ATÔMICO)
   // ==========================================
