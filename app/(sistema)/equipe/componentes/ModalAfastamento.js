@@ -70,9 +70,12 @@ export default function ModalAfastamento({
           }
         }
 
+        // CORREÇÃO AQUI: Garante que o ano_referencia seja assimilado corretamente do registro existente
         setForm({
           tipo: afastamentoParaEditar.tipo || 'Férias',
-          ano_referencia: afastamentoParaEditar.ano_referencia || new Date().getFullYear(),
+          ano_referencia: afastamentoParaEditar.ano_referencia !== undefined && afastamentoParaEditar.ano_referencia !== null
+            ? parseInt(afastamentoParaEditar.ano_referencia) 
+            : new Date().getFullYear(),
           data_inicio: afastamentoParaEditar.data_inicio || '',
           data_fim: afastamentoParaEditar.data_fim || '',
           observacao: afastamentoParaEditar.observacao || '',
@@ -87,7 +90,8 @@ export default function ModalAfastamento({
           const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
           setQtdDias(diff > 0 ? diff.toString() : '');
         }
-      } catch {
+      } catch (err) {
+        console.error("Erro ao carregar dados do afastamento:", err);
         toast.error("Erro ao carregar dados.");
       } finally {
         setFetching(false);
@@ -141,13 +145,18 @@ export default function ModalAfastamento({
       const numFormatado = form.num_boletim.toString().padStart(3, '0');
       const refBoletim = `Bol-${numFormatado}`;
 
+      // CORREÇÃO AQUI: Tratamento seguro para converter o ano para inteiro antes de enviar à RPC
+      const anoParaEnviar = form.tipo === 'Férias' && form.ano_referencia 
+        ? parseInt(form.ano_referencia) 
+        : null;
+
       const { data, error } = await supabase.rpc('salvar_afastamento_completo', {
         p_afastamento_id: afastamentoParaEditar?.id || null,
         p_militar_id: militar.id,
         p_militar_nome: militar.nome_guerra,
         p_militar_posto: militar.posto_graduacao,
         p_tipo: form.tipo,
-        p_ano_referencia: form.tipo === 'Férias' ? parseInt(form.ano_referencia) : null, // Repassando o ano se for férias
+        p_ano_referencia: anoParaEnviar,
         p_data_inicio: form.data_inicio || null,
         p_data_fim: form.data_fim || null,
         p_observacao: form.observacao,
@@ -178,7 +187,7 @@ export default function ModalAfastamento({
   // ==========================================
   async function excluirAfastamento() {
     if (!confirm("Excluir tudo vinculado a este afastamento?")) return;
-    setLoading(true);
+    loading(true);
     try {
       const { error } = await supabase.rpc('excluir_afastamento_completo', {
         p_id: afastamentoParaEditar.id
@@ -241,7 +250,7 @@ export default function ModalAfastamento({
             </select>
           </div>
 
-          {/* ANO REFERÊNCIA (DINÂMICO E LIVRE - APENAS SE FOR FÉRIAS) */}
+          {/* ANO REFERÊNCIA */}
           {form.tipo === 'Férias' && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
               <label className="text-xs font-black text-slate-400 uppercase ml-1">Ano de Referência das Férias</label>
@@ -249,7 +258,7 @@ export default function ModalAfastamento({
                 type="number"
                 placeholder="Ex: 1970, 2024, 2026"
                 className="w-full p-4 bg-slate-100 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
-                value={form.ano_referencia || ''}
+                value={form.ano_referencia ?? ''}
                 onChange={e => setForm({...form, ano_referencia: e.target.value ? parseInt(e.target.value) : ''})}
               />
             </div>
