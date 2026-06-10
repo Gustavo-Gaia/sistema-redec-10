@@ -78,19 +78,23 @@ export default function PatrimonioPage() {
       return matchesBusca && matchesCondicao;
     })
     .sort((a, b) => {
-      // Define a ordem desejada por pesos
+      // Mapeamento baseado EXATAMENTE nas strings reais da sua CONSTRAINT do Supabase
       const pesos = {
-        "Em Uso": 1,
+        "Em uso": 1,
         "Acautelado": 2,
         "Armazenado": 3,
         "Inservível": 4,
         "Baixa Definitiva": 5
       };
 
-      const pesoA = pesos[a.condicao] || 6;
-      const pesoB = pesos[b.condicao] || 6;
+      // Pega o valor exato vindo do banco (ou joga string vazia se for nulo)
+      const condicaoA = a.condicao || "";
+      const condicaoB = b.condicao || "";
 
-      // Se as condições forem iguais, ordena por ordem alfabética do nome do bem
+      const pesoA = pesos[condicaoA] || 6;
+      const pesoB = pesos[condicaoB] || 6;
+
+      // Se as condições forem iguais, desempata por ordem alfabética do nome do bem
       if (pesoA === pesoB) {
         return (a.nome_bem || "").localeCompare(b.nome_bem || "");
       }
