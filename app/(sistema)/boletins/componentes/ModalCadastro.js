@@ -17,8 +17,9 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
     assunto: "",
     destino_remetente: "",
     prazo: "",
+    hora_prazo: "",
     acompanhamento_especial: false,
-    agenda_evento_id: null, // Vínculo crucial com a agenda
+    agenda_evento_id: null,
   })
 
   // Sincroniza dados e limpa estados ao abrir/editar
@@ -34,6 +35,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
         assunto: item.assunto,
         destino_remetente: item.destino_remetente || "",
         prazo: item.prazo || "",
+        hora_prazo: "",
         acompanhamento_especial: item.acompanhamento_especial || false,
         agenda_evento_id: item.agenda_evento_id || null,
       }
@@ -56,6 +58,7 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
       numero: "",
       assunto: "",
       prazo: "",
+      hora_prazo: "",
       acompanhamento_especial: false,
       agenda_evento_id: null,
       data_registro: hoje
