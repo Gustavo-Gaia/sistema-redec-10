@@ -13,26 +13,35 @@ export default function AlertaSolicitacoes() {
 
   useEffect(() => {
     async function contarPendentes() {
-      // Traz o count direto do banco de forma leve usando head: true
+      // Conta apenas cadastros realmente pendentes
       const { count, error } = await supabase
         .from("usuarios")
         .select("*", { count: "exact", head: true })
-        .eq("ativo", false)
+        .eq("cadastro_pendente", true)
 
       if (!error && count !== null) {
         setTotalPendentes(count)
       }
+
       setLoading(false)
     }
 
     contarPendentes()
 
-    // Ouve em tempo real (Realtime) se um novo usuário se cadastrar
+    // Atualização em tempo real
     const canal = supabase
       .channel("usuarios_pendentes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "usuarios" }, () => {
-        contarPendentes()
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "usuarios"
+        },
+        () => {
+          contarPendentes()
+        }
+      )
       .subscribe()
 
     return () => {
@@ -53,23 +62,25 @@ export default function AlertaSolicitacoes() {
     <button
       onClick={() => router.push("/configuracoes?aba=solicitacoes")}
       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-bold text-xs transition-all active:scale-95 shadow-sm uppercase tracking-wide
-        ${totalPendentes > 0 
-          ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" 
-          : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+        ${
+          totalPendentes > 0
+            ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+            : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
         }`}
     >
       {/* SINALIZADOR VISUAL (Bolinha que pisca se houver pendência) */}
-      <div className="relative flex h-2 w-2 items-center justify-center">
-        {totalPendentes > 0 ? (
-          <>
+
+      {totalPendentes > 0 ? (
+        <>
+          <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-          </>
-        ) : (
-          <span className="h-2 w-2 rounded-full bg-slate-400"></span>
-        )}
-      </div>
-      
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+          </span>
+        </>
+      ) : (
+        <span className="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+      )}
+
       <span>{renderTexto()}</span>
     </button>
   )
