@@ -230,7 +230,33 @@ export default function EquipePage() {
 
         {/* ABA: RELATÓRIO OFICIAL DE FÉRIAS */}
         {abaAtiva === "ferias" && (
-          <div className="space-y-6 bg-white p-4 md:p-8 rounded-3xl border border-slate-200 shadow-sm print:p-0 print:border-none print:shadow-none">
+          <div className="space-y-6 bg-white p-4 md:p-8 rounded-3xl border border-slate-200 shadow-sm print:p-0 print:border-none print:shadow-none print:absolute print:inset-0 print:z-[200] print:bg-white">
+            
+            {/* 🎯 INJEÇÃO DE ESTILO CSS PARA IMPRESSÃO EM RETRATO (A Mágica acontece aqui) */}
+            <style jsx global>{`
+              @media print {
+                /* Força o navegador a usar a orientação Retrato (Em pé) */
+                @page {
+                  size: portrait;
+                  margin: 1.5cm;
+                }
+                /* Esconde absolutamente todo o esqueleto do sistema e do layout geral */
+                body * {
+                  visibility: hidden;
+                }
+                /* Torna visível apenas o bloco do relatório de férias e seus filhos */
+                .printable-report, .printable-report * {
+                  visibility: visible;
+                }
+                /* Fixa o relatório no topo da página de impressão ignorando margens do app */
+                .printable-report {
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  width: 100%;
+                }
+              }
+            `}</style>
             
             {/* CONTROLES VISÍVEIS APENAS NA TELA */}
             <div className="print:hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-2">
@@ -252,8 +278,8 @@ export default function EquipePage() {
               </button>
             </div>
 
-            {/* DOCUMENTO OFICIAL FORMATADO PARA IMPRESSÃO */}
-            <div className="w-full max-w-5xl mx-auto space-y-6 bg-white p-2">
+            {/* DOCUMENTO OFICIAL FORMATADO PARA IMPRESSÃO - Classe 'printable-report' adicionada */}
+            <div className="printable-report w-full max-w-5xl mx-auto space-y-6 bg-white p-2">
               
               {/* CABEÇALHO COM LOGOTIPO TIMBRADO */}
               <div className="flex items-center gap-6 border-b-2 border-slate-950 pb-4 text-slate-950">
@@ -277,7 +303,7 @@ export default function EquipePage() {
               </div>
 
               {/* LISTAGEM ADMINISTRATIVA */}
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto print:overflow-visible">
                 <table className="w-full border-collapse border border-slate-950 text-left text-[11px] text-slate-900">
                   <thead>
                     <tr className="bg-slate-100 uppercase font-black text-slate-900 border-b border-slate-950">
@@ -313,7 +339,7 @@ export default function EquipePage() {
                             {item.ano_referencia || "-"}
                           </td>
                           <td className="border border-slate-950 px-3 py-2 text-center font-bold whitespace-nowrap">
-                            {formatarPeriodo(item.data_inicio, item.data_fim)}
+                            {item.formatarPeriodo ? formatarPeriodo(item.data_inicio, item.data_fim) : formatarPeriodo(item.data_inicio, item.data_fim)}
                           </td>
                           <td className="border border-slate-950 px-2 py-2 text-center font-black">
                             {obterQtdDias(item.data_inicio, item.data_fim)}
