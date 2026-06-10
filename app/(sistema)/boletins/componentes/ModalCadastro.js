@@ -24,31 +24,60 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
 
   // Sincroniza dados e limpa estados ao abrir/editar
   useEffect(() => {
-    if (item) {
-      // Sanitização: Pegamos apenas o que o formulário realmente usa
-      const dadosLimpos = {
-        id: item.id,
-        categoria: item.categoria,
-        tipo_orgao: item.tipo_orgao,
-        numero: item.numero,
-        data_registro: item.data_registro,
-        assunto: item.assunto,
-        destino_remetente: item.destino_remetente || "",
-        prazo: item.prazo || "",
-        hora_prazo: "",
-        acompanhamento_especial: item.acompanhamento_especial || false,
-        agenda_evento_id: item.agenda_evento_id || null,
-      }
-
-      // Tratamento visual do número para Boletins
-      if (abaAtiva === "boletins" && dadosLimpos.numero?.startsWith("Bol-")) {
-        setFormData({ ...dadosLimpos, numero: dadosLimpos.numero.replace("Bol-", "") })
+    async function carregarDados() {
+      if (item) {
+        let horaPrazo = ""
+  
+        // Busca a hora existente no evento da agenda
+        if (item.agenda_evento_id) {
+          const { data: eventoAgenda } = await supabase
+            .from("agenda_eventos")
+            .select("data_inicio")
+            .eq("id", item.agenda_evento_id)
+            .single()
+  
+          if (eventoAgenda?.data_inicio) {
+            const dataHora = new Date(eventoAgenda.data_inicio)
+  
+            horaPrazo =
+              String(dataHora.getHours()).padStart(2, "0") +
+              ":" +
+              String(dataHora.getMinutes()).padStart(2, "0")
+          }
+        }
+  
+        const dadosLimpos = {
+          id: item.id,
+          categoria: item.categoria,
+          tipo_orgao: item.tipo_orgao,
+          numero: item.numero,
+          data_registro: item.data_registro,
+          assunto: item.assunto,
+          destino_remetente: item.destino_remetente || "",
+          prazo: item.prazo || "",
+          hora_prazo: horaPrazo,
+          acompanhamento_especial: item.acompanhamento_especial || false,
+          agenda_evento_id: item.agenda_evento_id || null,
+        }
+  
+        // Tratamento visual do número para Boletins
+        if (
+          abaAtiva === "boletins" &&
+          dadosLimpos.numero?.startsWith("Bol-")
+        ) {
+          setFormData({
+            ...dadosLimpos,
+            numero: dadosLimpos.numero.replace("Bol-", "")
+          })
+        } else {
+          setFormData(dadosLimpos)
+        }
       } else {
-        setFormData(dadosLimpos)
+        prepararSugestaoData()
       }
-    } else {
-      prepararSugestaoData()
     }
+  
+    carregarDados()
   }, [item, abaAtiva, orgaoPadrao, isOpen])
 
   async function prepararSugestaoData() {
