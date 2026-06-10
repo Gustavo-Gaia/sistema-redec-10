@@ -37,12 +37,19 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
             .single()
   
           if (eventoAgenda?.data_inicio) {
-            const dataHora = new Date(eventoAgenda.data_inicio)
-  
-            horaPrazo =
-              String(dataHora.getHours()).padStart(2, "0") +
-              ":" +
-              String(dataHora.getMinutes()).padStart(2, "0")
+            try {
+              const partes = eventoAgenda.data_inicio.includes("T")
+                ? eventoAgenda.data_inicio.split("T")
+                : eventoAgenda.data_inicio.split(" ")
+          
+              const horaParte = partes[1] || "00:00:00"
+          
+              const [hora, minuto] = horaParte.split(":")
+          
+              horaPrazo = `${hora}:${minuto}`
+            } catch {
+              horaPrazo = ""
+            }
           }
         }
   
