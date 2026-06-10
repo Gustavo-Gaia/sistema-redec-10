@@ -248,14 +248,47 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-black text-slate-400 uppercase ml-1 text-amber-600">Prazo Final</label>
-              <input 
+              <label className="text-xs font-black text-slate-400 uppercase ml-1 text-amber-600">
+                Prazo Final
+              </label>
+            
+              <input
                 type="date"
                 className="w-full p-3 bg-amber-50/50 border border-amber-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-amber-500"
                 value={formData.prazo || ""}
-                onChange={e => setFormData({...formData, prazo: e.target.value})}
+                onChange={e =>
+                  setFormData({
+                    ...formData,
+                    prazo: e.target.value,
+                    hora_prazo: e.target.value ? formData.hora_prazo : ""
+                  })
+                }
               />
             </div>
+            
+            {formData.prazo && (
+              <div className="space-y-2 animate-in fade-in duration-200">
+                <label className="text-xs font-black text-blue-600 uppercase ml-1">
+                  Hora Limite
+                </label>
+            
+                <input
+                  type="time"
+                  value={formData.hora_prazo || ""}
+                  onChange={e =>
+                    setFormData({
+                      ...formData,
+                      hora_prazo: e.target.value
+                    })
+                  }
+                  className="w-full p-3 bg-blue-50/50 border border-blue-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                />
+            
+                <p className="text-[11px] text-slate-400 font-medium">
+                  Se não for informada uma hora, o sistema utilizará 17:00 automaticamente.
+                </p>
+              </div>
+            )}
 
             {abaAtiva === "sei" && (
               <div className="md:col-span-2 space-y-2">
