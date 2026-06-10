@@ -104,12 +104,20 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
           ? `PRAZO: ${numeroFinal}-${formData.tipo_orgao}`
           : `PRAZO: ${numeroFinal}`
 
+        // Usa a hora escolhida ou assume 17:00
+        const horaInicio = formData.hora_prazo || "17:00"
+        
+        const [h, m] = horaInicio.split(":")
+        
+        // Calcula automaticamente +1 hora para o término
+        const horaFim = `${String(Number(h) + 1).padStart(2, "0")}:${m}`
+        
         const payloadAgenda = {
-          id: idEventoAgenda || undefined, // Se houver ID, faz UPDATE. Se não, INSERT.
+          id: idEventoAgenda || undefined,
           titulo: tituloAgenda,
           descricao: `Assunto: ${formData.assunto}\nRef: ${numeroFinal}`,
-          data_inicio: `${formData.prazo} 17:00:00`,
-          data_fim: `${formData.prazo} 18:00:00`,
+          data_inicio: `${formData.prazo} ${horaInicio}:00`,
+          data_fim: `${formData.prazo} ${horaFim}:00`,
           cor: "#78350f",
           tipo: "Administrativo"
         }
