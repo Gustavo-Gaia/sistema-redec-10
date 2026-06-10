@@ -138,16 +138,33 @@ export default function ModalCadastro({ isOpen, onClose, item, abaAtiva, onSucce
       }
 
       // 2. SALVAMENTO DO DOCUMENTO
+      const payloadDocumento = {
+        id: formData.id,
+        categoria: formData.categoria,
+        numero: numeroFinal,
+        data_registro: formData.data_registro,
+        assunto: formData.assunto,
+        acompanhamento_especial: formData.acompanhamento_especial,
+        agenda_evento_id: idEventoAgenda,
+      
+        tipo_orgao:
+          abaAtiva === "boletins"
+            ? formData.tipo_orgao
+            : null,
+      
+        destino_remetente:
+          abaAtiva === "sei"
+            ? formData.destino_remetente
+            : null,
+      
+        prazo: formData.prazo || null,
+      }
+      
       const { error: errDoc } = await supabase
         .from("documentos_administrativos")
-        .upsert({
-          ...formData,
-          numero: numeroFinal,
-          agenda_evento_id: idEventoAgenda,
-          tipo_orgao: abaAtiva === "boletins" ? formData.tipo_orgao : null,
-          destino_remetente: abaAtiva === "sei" ? formData.destino_remetente : null,
-          prazo: formData.prazo || null,
-        }, { onConflict: 'id' })
+        .upsert(payloadDocumento, {
+          onConflict: "id",
+        })
 
       if (errDoc) throw errDoc
 
