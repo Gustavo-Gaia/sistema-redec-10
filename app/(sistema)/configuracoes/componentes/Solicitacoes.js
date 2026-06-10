@@ -13,15 +13,17 @@ export default function Solicitacoes() {
 
   async function carregarSolicitacoes() {
     setLoading(true)
+
     const { data, error } = await supabase
       .from("usuarios")
       .select("*")
-      .eq("ativo", false)
+      .eq("cadastro_pendente", true)
       .order("criado_em", { ascending: false })
 
     if (!error && data) {
       setSolicitacoes(data)
     }
+
     setLoading(false)
   }
 
@@ -31,9 +33,13 @@ export default function Solicitacoes() {
 
   async function handleAprovar(id) {
     setAcaoLoading(id)
+
     const { error } = await supabase
       .from("usuarios")
-      .update({ ativo: true })
+      .update({
+        ativo: true,
+        cadastro_pendente: false
+      })
       .eq("id", id)
 
     if (!error) {
@@ -42,13 +48,15 @@ export default function Solicitacoes() {
     } else {
       alert("Erro ao aprovar usuário.")
     }
+
     setAcaoLoading(null)
   }
 
   async function handleRecusar(id) {
     if (!confirm("Tem certeza que deseja recusar e excluir esta solicitação de cadastro?")) return
-    
+
     setAcaoLoading(id)
+
     const { error } = await supabase
       .from("usuarios")
       .delete()
@@ -59,23 +67,29 @@ export default function Solicitacoes() {
     } else {
       alert("Erro ao recusar/excluir usuário.")
     }
+
     setAcaoLoading(null)
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+
       <div>
         <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-          ⏳ Solicitações de Acesso Pendentes
+          <AlertCircle className="text-amber-500" size={24} />
+          Solicitações de Acesso Pendentes
         </h2>
-        <p className="text-slate-500 text-sm">
+
+        <p className="text-slate-500 text-sm mt-1">
           Aprove ou recuse novos cadastros de acesso ao sistema
         </p>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {loading ? (
-          <p className="p-6 text-slate-500 text-sm animate-pulse">Carregando solicitações...</p>
+          <p className="p-6 text-slate-500 text-sm animate-pulse">
+            Carregando solicitações...
+          </p>
         ) : solicitacoes.length === 0 ? (
           <div className="p-12 text-center text-slate-400 font-medium text-sm">
             Nenhuma solicitação de acesso pendente no momento.
@@ -83,14 +97,19 @@ export default function Solicitacoes() {
         ) : (
           <div className="divide-y divide-slate-100">
             {solicitacoes.map((user) => (
-              <div key={user.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition">
+              <div
+                key={user.id}
+                className="p-4 flex justify-between items-center hover:bg-slate-50 transition"
+              >
                 <div>
                   <p className="font-bold text-slate-800">
                     {user.email}
                   </p>
+
                   <p className="text-sm text-slate-500 mt-0.5">
                     RG: {user.rg || "-"} • Órgão: {user.orgao || "-"}
                   </p>
+
                   <span className="inline-block mt-2 px-2.5 py-0.5 bg-amber-50 border border-amber-100 rounded-full text-[10px] font-bold text-amber-700 uppercase tracking-wider">
                     Pendente de Liberação
                   </span>
@@ -105,6 +124,7 @@ export default function Solicitacoes() {
                   >
                     <Check size={20} />
                   </button>
+
                   <button
                     disabled={acaoLoading !== null}
                     onClick={() => handleRecusar(user.id)}
