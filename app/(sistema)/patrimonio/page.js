@@ -63,19 +63,40 @@ export default function PatrimonioPage() {
     carregarDados()
   }, [])
 
-  // =============================
-  // FILTRO COMBINADO (Busca + Indicador)
-  // =============================
-  const bensFiltrados = bens.filter((bem) => {
-    const matchesBusca = 
-      bem.nome_bem?.toLowerCase().includes(busca.toLowerCase()) ||
-      bem.num_patrimonial?.toLowerCase().includes(busca.toLowerCase()) ||
-      bem.localizacao?.toLowerCase().includes(busca.toLowerCase());
-    
-    const matchesCondicao = filtroCondicao === "Todos" || bem.condicao === filtroCondicao;
+  // ==========================================================
+  // 🔍 FILTROS COMBINADOS + ORDENAÇÃO DE PRIORIDADE DINÂMICA
+  // ==========================================================
+  const bensFiltrados = bens
+    .filter((bem) => {
+      const matchesBusca = 
+        bem.nome_bem?.toLowerCase().includes(busca.toLowerCase()) ||
+        bem.num_patrimonial?.toLowerCase().includes(busca.toLowerCase()) ||
+        bem.localizacao?.toLowerCase().includes(busca.toLowerCase());
+      
+      const matchesCondicao = filtroCondicao === "Todos" || bem.condicao === filtroCondicao;
 
-    return matchesBusca && matchesCondicao;
-  })
+      return matchesBusca && matchesCondicao;
+    })
+    .sort((a, b) => {
+      // Define a ordem desejada por pesos
+      const pesos = {
+        "Em Uso": 1,
+        "Acautelado": 2,
+        "Armazenado": 3,
+        "Inservível": 4,
+        "Baixa Definitiva": 5
+      };
+
+      const pesoA = pesos[a.condicao] || 6;
+      const pesoB = pesos[b.condicao] || 6;
+
+      // Se as condições forem iguais, ordena por ordem alfabética do nome do bem
+      if (pesoA === pesoB) {
+        return (a.nome_bem || "").localeCompare(b.nome_bem || "");
+      }
+
+      return pesoA - pesoB;
+    });
 
   // =============================
   // UI
