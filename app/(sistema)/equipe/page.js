@@ -298,7 +298,7 @@ export default function EquipePage() {
               {/* TÍTULO */}
               <div className="text-center py-2">
                 <h1 className="text-base font-black text-slate-950 uppercase tracking-widest border-b border-slate-200 pb-2 w-fit mx-auto px-6">
-                  Plano Geral de Férias Gozadas — Exercício de {anoFiltro || "---"}
+                  Plano Geral de Férias — Exercício de {anoFiltro || "---"}
                 </h1>
               </div>
 
