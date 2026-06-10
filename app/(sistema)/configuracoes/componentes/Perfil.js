@@ -35,8 +35,15 @@ export default function Perfil() {
     carregarUsuarios()
   }, [])
 
+  // =========================
+  // 👤 SOMENTE USUÁRIOS JÁ HOMOLOGADOS
+  // =========================
+  const usuariosHomologados = usuarios.filter(
+    user => user.cadastro_pendente !== true
+  )
+
   return (
-    <div className="space-y-6">
+    <div>
 
       {/* HEADER */}
       <div>
@@ -56,7 +63,7 @@ export default function Perfil() {
         ) : (
           <div className="divide-y">
 
-            {usuarios.map((user) => (
+            {usuariosHomologados.map((user) => (
               <div
                 key={user.id}
                 className="p-4 flex justify-between items-center hover:bg-slate-50 transition"
@@ -73,19 +80,23 @@ export default function Perfil() {
                   </p>
 
                   <div className="flex gap-2 mt-1 text-xs">
-                    <span className={`px-2 py-1 rounded-full font-semibold
+                    <span
+                      className={`px-2 py-1 rounded-full font-semibold
                       ${user.nivel === "admin"
                         ? "bg-purple-100 text-purple-700"
                         : "bg-slate-100 text-slate-600"
-                      }`}>
+                      }`}
+                    >
                       {user.nivel}
                     </span>
 
-                    <span className={`px-2 py-1 rounded-full font-semibold
+                    <span
+                      className={`px-2 py-1 rounded-full font-semibold
                       ${user.ativo
                         ? "bg-emerald-100 text-emerald-700"
                         : "bg-red-100 text-red-600"
-                      }`}>
+                      }`}
+                    >
                       {user.ativo ? "Ativo" : "Inativo"}
                     </span>
                   </div>
