@@ -72,10 +72,13 @@ export default function ModalRelatorioAtual({
         <div className="bg-white border-[4px] border-black flex flex-col w-fit">
 
           {/* TÍTULO */}
-          <div className="bg-[#ffc000] border-b-[4px] border-black p-2 text-center">
+          <div className="bg-[#ffc000] border-b-[4px] border-black p-3 text-center flex flex-col items-center justify-center">
             <h1 className="text-2xl font-black uppercase italic tracking-tighter whitespace-nowrap px-6">
               MONITORAMENTO DOS RIOS - REDEC 10 Norte / REDEC 11 Noroeste
             </h1>
+            <div className="text-sm font-black uppercase mt-1 tracking-wider text-black bg-white/40 px-4 py-0.5 rounded border border-black/20">
+              DIA: {new Date().toLocaleDateString("pt-BR")}
+            </div>
           </div>
 
           {/* TABELA COM LARGURAS FIXAS EM PIXELS */}
