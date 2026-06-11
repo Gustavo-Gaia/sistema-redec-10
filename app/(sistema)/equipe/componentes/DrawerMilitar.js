@@ -55,8 +55,8 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
 
   useEffect(() => {
     if (militar) {
-        setForm({ ...militar });
-        if (militar.avatar_url) setFotoPreview(militar.avatar_url);
+      setForm({ ...militar });
+      if (militar.avatar_url) setFotoPreview(militar.avatar_url);
     }
   }, [militar]);
 
@@ -86,7 +86,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     }
   };
 
-  // AJUSTADO: Agora usa 'foto_url' para bater com o banco e trata o Coordenador
   async function registrarNoMural(militarId, urlFoto) {
     const dadosMural = {
       militar_id: militarId,
@@ -97,13 +96,14 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
       data_fim: form.data_saida_funcao || null,
       bol_inicio_historico: form.bol_entrada_funcao, 
       bol_fim_historico: form.bol_saida_funcao,
-      avatar_url: urlFoto // PADRONIZADO: mudamos de foto_url para avatar_url
+      avatar_url: urlFoto 
     };
     
     const { error } = await supabase.from('equipe_mural_historico').insert(dadosMural);
     if (error) console.error("Erro ao enviar para o mural:", error.message);
   }
 
+  // Controla a digitação aceitando apenas números e limitando a 3 dígitos puros
   const handleInputBoletim = (campo, valor) => {
     const apenasNumeros = valor.replace(/\D/g, "").substring(0, 3);
     setForm({ ...form, [campo]: apenasNumeros });
@@ -114,18 +114,21 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
     try {
         const formatarDataParaBanco = (data) => (data === "" || !data ? null : data);
         
-        const formatarBolAoSalvar = (valor, dataRef) => {
+        // Garante que o banco guarde apenas 3 dígitos numéricos padronizados (ex: "045")
+        const formatarBolAoSalvar = (valor) => {
           if (!valor) return null;
-          const numeros = valor.replace(/\D/g, ""); 
+          let numeros = valor.toString().replace(/\D/g, ""); 
           if (!numeros) return null;
-          const ano = dataRef ? new Date(dataRef + "T12:00:00").getFullYear() : new Date().getFullYear();
-          return `BOL-SEDEC ${numeros.padStart(3, '0')}/${ano}`;
+          
+          if (numeros.length > 3) {
+            numeros = numeros.substring(0, 3);
+          }
+          return numeros.padStart(3, '0');
         };
 
         let urlFinal = form.avatar_url;
         let militarId = militar?.id;
 
-        // Se for novo militar e tiver foto, precisamos criar o ID primeiro
         if (!militarId && fotoArquivo) {
             const { data: novo, error: errN } = await supabase
                 .from('equipe')
@@ -143,10 +146,10 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
         const dadosParaSalvar = {
           ...form,
           avatar_url: urlFinal,
-          bol_entrada_redec: formatarBolAoSalvar(form.bol_entrada_redec, form.data_entrada_redec),
-          bol_saida_redec: formatarBolAoSalvar(form.bol_saida_redec, form.data_saida_redec),
-          bol_entrada_funcao: formatarBolAoSalvar(form.bol_entrada_funcao, form.data_entrada_funcao),
-          bol_saida_funcao: formatarBolAoSalvar(form.bol_saida_funcao, form.data_saida_funcao),
+          bol_entrada_redec: formatarBolAoSalvar(form.bol_entrada_redec),
+          bol_saida_redec: formatarBolAoSalvar(form.bol_saida_redec),
+          bol_entrada_funcao: formatarBolAoSalvar(form.bol_entrada_funcao),
+          bol_saida_funcao: formatarBolAoSalvar(form.bol_saida_funcao),
           data_entrada_redec: formatarDataParaBanco(form.data_entrada_redec),
           data_saida_redec: formatarDataParaBanco(form.data_saida_redec),
           data_entrada_funcao: formatarDataParaBanco(form.data_entrada_funcao),
@@ -158,7 +161,6 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
         const { data, error } = await supabase.from('equipe').upsert(dadosParaSalvar).select().single();
         if (error) throw error;
 
-        // LOGICA DE MURAL: Se for coordenador e a opção estiver marcada
         if (enviarAoMural && form.funcao_redec === 'COORDENADOR') {
             await registrarNoMural(data.id, urlFinal);
         }
@@ -324,7 +326,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                     value={form.qbmp || ''} 
                     onChange={e => setForm({...form, qbmp: e.target.value})} 
                   />
-                </div>                      
+                </div>                     
                 <div className="col-span-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-1 flex items-center gap-1">
                     <Phone size={12} className="text-green-600" /> Telefone / WhatsApp
@@ -352,7 +354,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                       <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
                         className="w-full p-3 pl-[65px] bg-white rounded-xl border-none text-[11px] font-black text-left text-blue-600 shadow-sm focus:ring-1 focus:ring-blue-500"
-                        value={form.bol_entrada_redec?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
+                        value={form.bol_entrada_redec || ''} 
                         onChange={e => handleInputBoletim('bol_entrada_redec', e.target.value)} 
                       />
                     </div>
@@ -366,7 +368,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                       <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
                         className="w-full p-3 pl-[65px] bg-white rounded-xl border-none text-[11px] font-black text-left text-red-600 shadow-sm focus:ring-1 focus:ring-red-500"
-                        value={form.bol_saida_redec?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
+                        value={form.bol_saida_redec || ''} 
                         onChange={e => handleInputBoletim('bol_saida_redec', e.target.value)} 
                       />
                     </div>
@@ -387,7 +389,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                       <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
                         className="w-full p-3 pl-[65px] bg-white rounded-xl border-none text-[11px] font-black text-left text-slate-600 shadow-sm focus:ring-1 focus:ring-blue-500"
-                        value={form.bol_entrada_funcao?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
+                        value={form.bol_entrada_funcao || ''} 
                         onChange={e => handleInputBoletim('bol_entrada_funcao', e.target.value)} 
                       />
                     </div>
@@ -401,7 +403,7 @@ export default function DrawerMilitar({ militar, afastamentos = [], onClose, onS
                       <span className="absolute left-3 text-[9px] font-black text-slate-400 select-none pointer-events-none">BOL-SEDEC</span>
                       <input type="text" placeholder="000" 
                         className="w-full p-3 pl-[65px] bg-white rounded-xl border-none text-[11px] font-black text-left text-slate-600 shadow-sm focus:ring-1 focus:ring-blue-500"
-                        value={form.bol_saida_funcao?.replace(/BOL-SEDEC\s?|\/\d{4}/gi, '') || ''} 
+                        value={form.bol_saida_funcao || ''} 
                         onChange={e => handleInputBoletim('bol_saida_funcao', e.target.value)} 
                       />
                     </div>
