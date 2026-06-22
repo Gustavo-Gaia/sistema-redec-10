@@ -55,7 +55,7 @@ export default function MunicipiosPage() {
       const { data: eData } = await supabase
         .from("eventos")
         .select("*")
-        .order("data_inicio", { ascending: false }) // Ordenado por data do evento
+        .order("data_inicio", { ascending: false })
 
       const { data: emData } = await supabase
         .from("eventos_municipios")
@@ -78,13 +78,12 @@ export default function MunicipiosPage() {
   }, [])
 
   // ===============================
-  // FUNÇÃO DE EXCLUSÃO (NOVIDADE)
+  // FUNÇÃO DE EXCLUSÃO
   // ===============================
   async function handleExcluirEvento(id) {
     if (!confirm("Tem certeza que deseja excluir este evento permanentemente?")) return
 
     try {
-      // O RLS deve estar configurado para delete também
       const { error } = await supabase
         .from("eventos")
         .delete()
@@ -93,7 +92,7 @@ export default function MunicipiosPage() {
       if (error) throw error
 
       showToast("Evento excluído com sucesso")
-      carregarDados() // Recarrega a lista para sumir do mapa
+      carregarDados()
     } catch (error) {
       console.error(error)
       showToast("Erro ao excluir evento", "error")
@@ -113,9 +112,6 @@ export default function MunicipiosPage() {
       .filter(Boolean)
   }
 
-  // ===============================
-  // RENDER
-  // ===============================
   return (
     <div className="p-6 space-y-6 min-h-screen bg-gray-50/50 pb-24">
 
@@ -197,8 +193,8 @@ export default function MunicipiosPage() {
         {abaAtiva === "eventos" && (
           <ListaEventos 
             municipios={municipios} 
-            onRefresh={carregarDados} // Passando refresh para quando editar/excluir
-            onDelete={handleExcluirEvento} // Passando a função de delete
+            onRefresh={carregarDados}
+            onDelete={handleExcluirEvento}
           />
         )}
       </div>
