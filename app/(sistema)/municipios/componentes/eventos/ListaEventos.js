@@ -14,8 +14,7 @@ import {
   Filter,
   ListChecks,
   Globe,
-  AlertTriangle,
-  Building2
+  AlertTriangle
 } from "lucide-react"
 
 import ModalEvento from "./ModalEvento"
@@ -26,9 +25,8 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [eventoSelecionado, setEventoSelecionado] = useState(null)
 
-  // ESTADOS DOS FILTROS
+  // ESTADO DO FILTRO PRINCIPAL (Simplificado)
   const [filtroTipo, setFiltroTipo] = useState("TODOS") // TODOS, ROTINA, ANORMALIDADE
-  const [filtroCategoria, setFiltroCategoria] = useState("TODOS") // TODOS, MUNICIPIO, REDEC
 
   async function carregarEventos() {
     setLoading(true)
@@ -65,14 +63,12 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
     carregarEventos()
   }, [])
 
-  // LÓGICA DE FILTRAGEM
+  // LÓGICA DE FILTRAGEM (Filtrando apenas por tipo de registro)
   const eventosFiltrados = useMemo(() => {
     return eventos.filter(ev => {
-      const bateTipo = filtroTipo === "TODOS" || ev.tipo_registro === filtroTipo
-      const bateCategoria = filtroCategoria === "TODOS" || ev.categoria === filtroCategoria
-      return bateTipo && bateCategoria
+      return filtroTipo === "TODOS" || ev.tipo_registro === filtroTipo
     })
-  }, [eventos, filtroTipo, filtroCategoria])
+  }, [eventos, filtroTipo])
 
   function abrirNovo() {
     setEventoSelecionado(null)
@@ -130,21 +126,18 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
           </button>
         </div>
 
-        {/* BARRA DE FILTROS DESIGN BONITÃO */}
+        {/* BARRA DE FILTROS DESIGN BONITÃO SEM O RECURSO OBSOLETO DE SUB-CATEGORIA */}
         <div className="bg-white p-4 rounded-[2rem] border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+          <div className="flex bg-slate-100 p-1 rounded-2xl w-full md:w-fit">
             {[
-              { id: "TODOS", label: "Todos", icon: ListChecks },
+              { id: "TODOS", label: "Todos os Registros", icon: ListChecks },
               { id: "ROTINA", label: "Rotina", icon: Globe },
               { id: "ANORMALIDADE", label: "Anormalidade", icon: AlertTriangle },
             ].map((t) => (
               <button
                 key={t.id}
-                onClick={() => {
-                  setFiltroTipo(t.id)
-                  if (t.id === "ANORMALIDADE") setFiltroCategoria("TODOS")
-                }}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                onClick={() => setFiltroTipo(t.id)}
+                className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${
                   filtroTipo === t.id 
                     ? "bg-white text-slate-900 shadow-sm" 
                     : "text-slate-500 hover:text-slate-700"
@@ -154,30 +147,6 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
               </button>
             ))}
           </div>
-
-          {/* SUB-FILTRO DE CATEGORIA (ESCONDIDO EM ANORMALIDADE) */}
-          {filtroTipo !== "ANORMALIDADE" && (
-            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Origem:</span>
-              {[
-                { id: "TODOS", label: "Geral", icon: ListChecks },
-                { id: "MUNICIPIO", label: "Municípios", icon: MapPin },
-                { id: "REDEC", label: "REDEC", icon: Building2 },
-              ].map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setFiltroCategoria(c.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${
-                    filtroCategoria === c.id
-                      ? "bg-slate-900 border-slate-900 text-white shadow-md"
-                      : "bg-white border-slate-200 text-slate-500 hover:border-slate-400"
-                  }`}
-                >
-                  <c.icon size={12} /> {c.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -205,7 +174,6 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
                   ${isAnormal ? "border-red-100 hover:border-red-200" : "border-slate-100 hover:border-slate-200"}
                 `}
               >
-                {/* ... conteúdo do card (mesmo que você já tinha) ... */}
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex-1 cursor-pointer" onClick={() => editarEvento(ev)}>
                     
@@ -215,15 +183,13 @@ export default function ListaEventos({ municipios, onDelete, onRefresh }) {
                       }`}>
                         {ev.tipo_registro}
                       </span>
-                      
-                      {/* Badge de Categoria para facilitar identificação visual */}
-                      <span className="text-[9px] px-3 py-1 rounded-full bg-slate-100 text-slate-500 font-black uppercase tracking-tighter border border-slate-200">
-                        {ev.categoria}
-                      </span>
 
                       {ev.tipo_atividade && (
                         <span className="text-[9px] px-3 py-1 rounded-full bg-blue-50 text-blue-600 font-black uppercase tracking-tighter border border-blue-100">
-                          {ev.tipo_atividade}
+                          {ev.tipo_atividade === "8730" && "8730 - PREPARAÇÃO"}
+                          {ev.tipo_atividade === "5518" && "5518 - ASSESSORIA TÉCNICA"}
+                          {ev.tipo_atividade === "7181" && "7181 - APOIO NA RESPOSTA"}
+                          {!["8730", "5518", "7181"].includes(ev.tipo_atividade) && ev.tipo_atividade}
                         </span>
                       )}
                     </div>
