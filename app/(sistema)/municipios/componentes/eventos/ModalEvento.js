@@ -4,23 +4,13 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-import { X, Save, Loader2, AlertTriangle, Info, MapPin, ClipboardText } from "lucide-react"
+import { X, Save, Loader2, AlertTriangle, Info, MapPin } from "lucide-react"
 
-const ATIVIDADES_MUNICIPIO = [
+// Alteração 1: Apenas as 3 atividades essenciais para a Rotina
+const ATIVIDADES_ROTINA = [
   { id: "8730", label: "8730 - Preparação (reuniões, simulados, palestras)" },
   { id: "5518", label: "5518 - Assessoria técnica aos municípios" },
-  { id: "7181", label: "7181 - Apoio na resposta a desastres" },
-  { id: "APOIO_HUMANITARIO", label: "Apoio Humanitário" },
-  { id: "VISITA_TECNICA", label: "Visita Técnica" }
-]
-
-const ATIVIDADES_REDEC = [
-  { id: "APOIO_LOGISTICO", label: "Apoio Logístico" },
-  { id: "ANALISE_TECNICA", label: "Análise técnica" },
-  { id: "CAPACITACAO", label: "Capacitação externa" },
-  { id: "COLABORACAO", label: "Colaboração técnica" },
-  { id: "EVENTO", label: "Participação em evento" },
-  { id: "REUNIAO_INTERNA", label: "Reunião de Trabalho Interna" }
+  { id: "7181", label: "7181 - Apoio na resposta a desastres" }
 ]
 
 export default function ModalEvento({ evento, municipios = [], onClose, onSaved }) {
@@ -30,7 +20,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
   const [form, setForm] = useState({
     titulo: "",
     tipo_registro: "ROTINA",
-    categoria: "MUNICIPIO",
+    categoria: "MUNICIPIO", // Ajustado para garantir compatibilidade e evitar NOT NULL
     tipo_atividade: "",
     fora_area: false,
     data_inicio: new Date().toISOString().split("T")[0],
@@ -45,12 +35,11 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
 
   useEffect(() => {
     if (evento) {
-      // Mapeamos apenas os campos que pertencem ao formulário/tabela eventos
       setForm({
         id: evento.id,
         titulo: evento.titulo || "",
         tipo_registro: evento.tipo_registro || "ROTINA",
-        categoria: evento.categoria || "MUNICIPIO",
+        categoria: evento.categoria || "MUNICIPIO", // Mantém o histórico ou assume o padrão seguro
         tipo_atividade: evento.tipo_atividade || "",
         fora_area: evento.fora_area || false,
         data_inicio: evento.data_inicio || new Date().toISOString().split("T")[0],
@@ -104,15 +93,14 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
 
   async function salvarEvento() {
     if (!form.titulo) return alert("Defina um título para o evento.")
+    if (tab === "ROTINA" && !form.tipo_atividade) return alert("Selecione a atividade de rotina.")
     setLoading(true)
     
     try {
-      // Montamos o payload manualmente para garantir que nenhum lixo de 
-      // tabelas relacionadas (como eventos_municipios) seja enviado
       const payload = {
         titulo: form.titulo.toUpperCase(),
         tipo_registro: tab,
-        categoria: form.categoria,
+        categoria: "MUNICIPIO", // Sempre "MUNICIPIO", blindando o banco contra erros de restrição        
         tipo_atividade: tab === "ROTINA" ? form.tipo_atividade : null,
         fora_area: form.fora_area,
         data_inicio: form.data_inicio,
@@ -123,52 +111,44 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
         cobrade: tab === "ANORMALIDADE" ? form.cobrade : null,
       }
   
-      let eventoId = form.id // Pegamos o ID do estado local
+      let eventoId = form.id
   
       if (eventoId) {
-        // UPDATE
         const { error: upError } = await supabase
           .from("eventos")
           .update(payload)
           .eq("id", eventoId)
-        
         if (upError) throw upError
       } else {
-        // INSERT
         const { data, error: insError } = await supabase
           .from("eventos")
           .insert([payload])
           .select()
           .single()
-        
         if (insError) throw insError
         eventoId = data.id
       }
   
-      // Gerenciamento de Vínculos (Sync)
-      // 1. Remove antigos
+      // Sincronização de Vínculos
       await supabase.from("eventos_municipios").delete().eq("evento_id", eventoId)
 
-      // 2. Salva novos se não for "fora da área"
       if (!form.fora_area) {
         const idsMunicipios = Object.keys(municipiosSelecionados);
       
         if (idsMunicipios.length > 0) {
-          // Preparamos um array com todos os vínculos de uma vez
           const listaVinculos = idsMunicipios.map(mId => ({
             evento_id: eventoId,
             municipio_id: mId
           }));
       
-          // Inserimos todos de uma vez (passando o array)
           const { data: vinculosCriados, error: vError } = await supabase
             .from("eventos_municipios")
-            .insert(listaVinculos) // Aqui passamos o array completo
+            .insert(listaVinculos)
             .select();
       
           if (vError) throw vError;
       
-          // 3. Se for ANORMALIDADE, salvamos os dados numéricos (Danohumanos)
+          // Mantém o comportamento original e intocado para os Danos Humanos se for Anormalidade
           if (tab === "ANORMALIDADE" && vinculosCriados) {
             const listaDados = vinculosCriados.map(v => ({
               evento_municipio_id: v.id,
@@ -182,7 +162,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
         }
       }
       
-      onSaved() // Fecha o modal e atualiza a lista
+      onSaved()
     } catch (err) {
       console.error("Erro completo:", err)
       alert("Erro ao salvar: " + err.message)
@@ -232,7 +212,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
         </div>
 
         {/* BODY */}
-        <div className="p-8 overflow-y-auto space-y-8 scrollbar-hide">
+        <div className="p-8 overflow-y-auto space-y-6 scrollbar-hide">
           
           <section className="space-y-4">
             <input
@@ -242,44 +222,33 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
               onChange={(e) => setForm({ ...form, titulo: e.target.value })}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data de Início</label>
-                <input
-                  type="date"
-                  className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 ring-slate-900"
-                  value={form.data_inicio}
-                  onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Origem do Registro</label>
-                <select
-                  className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none"
-                  value={form.categoria}
-                  onChange={(e) => setForm({ ...form, categoria: e.target.value, tipo_atividade: "" })}
-                >
-                  <option value="MUNICIPIO">Município</option>
-                  <option value="REDEC">REDEC</option>
-                </select>
-              </div>
+            {/* Alteração 4: Remove o grid e a Origem do Registro, mantendo apenas a data centralizada */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Data de Início</label>
+              <input
+                type="date"
+                className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 ring-slate-900"
+                value={form.data_inicio}
+                onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+              />
             </div>
 
+            {/* Alteração 5: Renderiza as opções simplificadas de atividade apenas na aba ROTINA */}
             {tab === "ROTINA" && (
               <select
-                className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none animate-in fade-in"
+                className="w-full bg-slate-100 border-none rounded-2xl p-4 font-bold outline-none animate-in fade-in focus:ring-2 ring-slate-900"
                 value={form.tipo_atividade}
                 onChange={(e) => setForm({ ...form, tipo_atividade: e.target.value })}
               >
                 <option value="">Selecione a atividade...</option>
-                {(form.categoria === "MUNICIPIO" ? ATIVIDADES_MUNICIPIO : ATIVIDADES_REDEC).map((a) => (
+                {ATIVIDADES_ROTINA.map((a) => (
                   <option key={a.id} value={a.id}>{a.label}</option>
                 ))}
               </select>
             )}
           </section>
 
+          {/* ANORMALIDADE: Mantido 100% Intocado e Original */}
           {tab === "ANORMALIDADE" && (
             <section className="bg-red-50 p-6 rounded-[2rem] space-y-4 border border-red-100 animate-in slide-in-from-bottom-2">
               <div className="flex items-center gap-2 text-red-600 mb-2">
@@ -322,7 +291,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
             </section>
           )}
 
-          {/* LISTA DE LOCALIDADES - AGORA SEMPRE VISÍVEL SE NÃO FOR FORA DA ÁREA */}
+          {/* LISTA DE LOCALIDADES: Vincula municípios e exibe os danos se for anormalidade */}
           <section className="space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2 text-slate-400 uppercase font-black text-[10px] tracking-widest">
@@ -357,6 +326,7 @@ export default function ModalEvento({ evento, municipios = [], onClose, onSaved 
                             <span className={`font-black text-sm uppercase ${selec ? 'text-slate-900' : 'text-slate-500 opacity-60'}`}>{m.nome}</span>
                           </label>
                         </div>
+                        {/* Caixa de Danos Humanos: Aparece exclusivamente se o município for selecionado E a aba for ANORMALIDADE */}
                         {selec && tab === "ANORMALIDADE" && (
                           <div className="px-4 pb-4 grid grid-cols-5 gap-2 animate-in fade-in slide-in-from-top-1">
                             {Object.keys(selec.dados).map((campo) => (
