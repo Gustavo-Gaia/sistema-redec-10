@@ -8,6 +8,7 @@ import SituacaoAtual from "./abas/SituacaoAtual"
 import InserirMedicoes from "./abas/InserirMedicoes"
 import Configuracoes from "./abas/configuracoes/Configuracoes"
 import RelatorioAtual from "./abas/RelatorioAtual" 
+import MonitoramentoIncendios from "./abas/incendios/MonitoramentoIncendios"
 
 export default function TabsMonitoramento({
   rios,
@@ -18,10 +19,14 @@ export default function TabsMonitoramento({
   const [abaAtiva, setAbaAtiva] = useState("situacao")
 
   const abas = [
-    { id: "situacao", nome: "Situação Atual" },
-    { id: "inserir", nome: "Medições e Relatório" },
-    { id: "relatorio_atual", nome: "Relatório Atual" }, 
-    { id: "config", nome: "Configurações" }
+    { id: "situacao", nome: "🌊 Situação Atual" },
+    { id: "inserir", nome: "📝 Medições e Relatório" },
+    { id: "relatorio_atual", nome: "📄 Relatório Atual" },
+  
+    // NOVO MÓDULO
+    { id: "incendios", nome: "🔥 Incêndio Florestal" },
+  
+    { id: "config", nome: "⚙ Configurações" }
   ]
 
   return (
@@ -65,6 +70,10 @@ export default function TabsMonitoramento({
             rios={rios} 
             estacoes={estacoes} 
           />
+        )}
+
+        {abaAtiva === "incendios" && (
+          <MonitoramentoIncendios />
         )}
 
         {abaAtiva === "config" && (
