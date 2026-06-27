@@ -10,14 +10,15 @@ import {
 
 import FiltrosIncendio from "./FiltrosIncendio"
 
-// carregamento sem SSR por causa do Leaflet
 const MapaIncendios = dynamic(
   () => import("./MapaIncendios"),
   { ssr: false }
 )
 
 export default function MonitoramentoIncendios() {
+
   return (
+
     <MonitoramentoIncendiosProvider>
 
       <div className="space-y-6">
@@ -28,6 +29,7 @@ export default function MonitoramentoIncendios() {
           <div className="flex items-start justify-between gap-6">
 
             <div>
+
               <h2 className="text-2xl font-bold text-slate-800">
                 🔥 Incêndios Florestais e Fogo em Vegetação
               </h2>
@@ -42,6 +44,7 @@ export default function MonitoramentoIncendios() {
                 vegetação realizados pelo Corpo de Bombeiros Militar do
                 Estado do Rio de Janeiro.
               </p>
+
             </div>
 
           </div>
@@ -60,6 +63,7 @@ export default function MonitoramentoIncendios() {
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
 
               <div className="px-6 py-4 border-b border-slate-100">
+
                 <h3 className="font-semibold text-slate-800">
                   Distribuição Espacial das Ocorrências
                 </h3>
@@ -67,6 +71,7 @@ export default function MonitoramentoIncendios() {
                 <p className="text-sm text-slate-500 mt-1">
                   Visualização geográfica das ocorrências registradas.
                 </p>
+
               </div>
 
               <div className="h-[700px]">
@@ -82,6 +87,7 @@ export default function MonitoramentoIncendios() {
 
             {/* ESTATÍSTICAS */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
+
               <h3 className="font-semibold text-slate-800 mb-4">
                 Estatísticas
               </h3>
@@ -92,10 +98,12 @@ export default function MonitoramentoIncendios() {
                 <div className="h-16 bg-slate-50 rounded-xl animate-pulse" />
                 <div className="h-16 bg-slate-50 rounded-xl animate-pulse" />
               </div>
+
             </div>
 
             {/* RANKING */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
+
               <h3 className="font-semibold text-slate-800 mb-4">
                 Ranking dos Municípios
               </h3>
@@ -106,15 +114,18 @@ export default function MonitoramentoIncendios() {
                 <div className="h-10 bg-slate-50 rounded-lg animate-pulse" />
                 <div className="h-10 bg-slate-50 rounded-lg animate-pulse" />
               </div>
+
             </div>
 
             {/* EVOLUÇÃO TEMPORAL */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
+
               <h3 className="font-semibold text-slate-800 mb-4">
                 Evolução Temporal
               </h3>
 
               <div className="h-48 bg-slate-50 rounded-xl animate-pulse" />
+
             </div>
 
           </div>
@@ -124,5 +135,6 @@ export default function MonitoramentoIncendios() {
       </div>
 
     </MonitoramentoIncendiosProvider>
+
   )
 }
