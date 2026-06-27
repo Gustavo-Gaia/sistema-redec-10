@@ -18,48 +18,71 @@ export function MonitoramentoIncendiosProvider({
   children
 }) {
 
-  const [ocorrencias, setOcorrencias] = useState([])
+  /*
+  ========================================
+  ESTADOS PRINCIPAIS
+  ========================================
+  */
+
   const [loading, setLoading] = useState(true)
 
-  const [ano, setAno] = useState("todos")
-  const [mes, setMes] = useState("todos")
-  const [municipio, setMunicipio] = useState("todos")
+  const [ocorrencias, setOcorrencias] = useState([])
 
   /*
-  ==========================
+  ========================================
+  FILTROS
+  ========================================
+  */
+
+  const [filtros, setFiltros] = useState({
+    ano: 0,
+    mes: 0,
+    municipio: "",
+    visualizacao: "pontos"
+  })
+
+  /*
+  ========================================
   CARREGAMENTO INICIAL
-  ==========================
+  ========================================
   */
 
   useEffect(() => {
 
-    async function carregar() {
+    async function carregarOcorrencias() {
 
       setLoading(true)
 
       const { data, error } = await supabase
         .from("ocorrencias_incendio")
         .select("*")
-        .order("data_ocorrencia", {
-          ascending: false
-        })
+        .order(
+          "data_ocorrencia",
+          {
+            ascending: false
+          }
+        )
 
       if (error) {
-        console.error(error)
+        console.error(
+          "Erro ao carregar ocorrências:",
+          error
+        )
       }
 
       setOcorrencias(data || [])
+
       setLoading(false)
     }
 
-    carregar()
+    carregarOcorrencias()
 
   }, [])
 
   /*
-  ==========================
+  ========================================
   FILTROS REATIVOS
-  ==========================
+  ========================================
   */
 
   const ocorrenciasFiltradas = useMemo(() => {
@@ -67,16 +90,16 @@ export function MonitoramentoIncendiosProvider({
     return ocorrencias.filter((o) => {
 
       const anoOk =
-        ano === "todos" ||
-        o.ano === Number(ano)
+        filtros.ano === 0 ||
+        o.ano === filtros.ano
 
       const mesOk =
-        mes === "todos" ||
-        o.mes === Number(mes)
+        filtros.mes === 0 ||
+        o.mes === filtros.mes
 
       const municipioOk =
-        municipio === "todos" ||
-        o.municipio_nome === municipio
+        filtros.municipio === "" ||
+        o.municipio_nome === filtros.municipio
 
       return (
         anoOk &&
@@ -87,26 +110,25 @@ export function MonitoramentoIncendiosProvider({
 
   }, [
     ocorrencias,
-    ano,
-    mes,
-    municipio
+    filtros
   ])
 
   /*
-  ==========================
+  ========================================
   LISTAS DOS FILTROS
-  ==========================
+  ========================================
   */
 
   const anosDisponiveis = useMemo(() => {
 
     return [
       ...new Set(
-        ocorrencias.map(
-          o => o.ano
-        )
+        ocorrencias
+          .map(o => o.ano)
+          .filter(Boolean)
       )
-    ].sort()
+    ]
+    .sort((a, b) => b - a)
 
   }, [ocorrencias])
 
@@ -114,33 +136,154 @@ export function MonitoramentoIncendiosProvider({
 
     return [
       ...new Set(
-        ocorrencias.map(
-          o => o.municipio_nome
-        )
+        ocorrencias
+          .map(o => o.municipio_nome)
+          .filter(Boolean)
       )
-    ].sort()
+    ]
+    .sort()
 
   }, [ocorrencias])
+
+  /*
+  ========================================
+  ESTATÍSTICAS
+  ========================================
+  */
+
+  const estatisticas = useMemo(() => {
+
+    const total =
+      ocorrenciasFiltradas.length
+
+    const rankingMunicipios = {}
+
+    ocorrenciasFiltradas.forEach((o) => {
+
+      rankingMunicipios[
+        o.municipio_nome
+      ] =
+        (rankingMunicipios[
+          o.municipio_nome
+        ] || 0) + 1
+
+    })
+
+    const municipioLider =
+      Object.entries(
+        rankingMunicipios
+      )
+      .sort(
+        (a, b) => b[1] - a[1]
+      )[0]
+
+    const ocorrenciasPorMes = {}
+
+    ocorrenciasFiltradas.forEach((o) => {
+
+      ocorrenciasPorMes[o.mes] =
+        (ocorrenciasPorMes[o.mes] || 0) + 1
+
+    })
+
+    const mesCritico =
+      Object.entries(
+        ocorrenciasPorMes
+      )
+      .sort(
+        (a, b) => b[1] - a[1]
+      )[0]
+
+    const ocorrenciasPorHora = {}
+
+    ocorrenciasFiltradas.forEach((o) => {
+
+      ocorrenciasPorHora[o.hora] =
+        (ocorrenciasPorHora[o.hora] || 0) + 1
+
+    })
+
+    const horarioPredominante =
+      Object.entries(
+        ocorrenciasPorHora
+      )
+      .sort(
+        (a, b) => b[1] - a[1]
+      )[0]
+
+    return {
+      total,
+
+      municipioLider:
+        municipioLider || null,
+
+      mesCritico:
+        mesCritico || null,
+
+      horarioPredominante:
+        horarioPredominante || null
+    }
+
+  }, [
+    ocorrenciasFiltradas
+  ])
+
+  /*
+  ========================================
+  RANKING MUNICÍPIOS
+  ========================================
+  */
+
+  const rankingMunicipios = useMemo(() => {
+
+    const ranking = {}
+
+    ocorrenciasFiltradas.forEach((o) => {
+
+      ranking[o.municipio_nome] =
+        (ranking[o.municipio_nome] || 0) + 1
+
+    })
+
+    return Object.entries(ranking)
+      .map(([nome, total]) => ({
+        nome,
+        total
+      }))
+      .sort(
+        (a, b) =>
+          b.total - a.total
+      )
+
+  }, [
+    ocorrenciasFiltradas
+  ])
+
+  /*
+  ========================================
+  EXPORTAÇÃO DO CONTEXTO
+  ========================================
+  */
 
   return (
     <Context.Provider
       value={{
+
         loading,
 
         ocorrencias,
+
         ocorrenciasFiltradas,
 
-        ano,
-        setAno,
-
-        mes,
-        setMes,
-
-        municipio,
-        setMunicipio,
+        filtros,
+        setFiltros,
 
         anosDisponiveis,
-        municipiosDisponiveis
+        municipiosDisponiveis,
+
+        estatisticas,
+
+        rankingMunicipios
       }}
     >
       {children}
@@ -150,7 +293,8 @@ export function MonitoramentoIncendiosProvider({
 
 export function useMonitoramentoIncendios() {
 
-  const context = useContext(Context)
+  const context =
+    useContext(Context)
 
   if (!context) {
     throw new Error(
